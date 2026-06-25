@@ -5,7 +5,7 @@ const { t } = useI18n()
 
 <template>
   <div>
-    <h2 class="text-2xl font-bold mb-4">{{ t('chains.heading') }}</h2>
-    <p class="text-muted">TODO</p>
+    <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">{{ t('chains.heading') }}</h2>
+    <p class="text-gray-400 dark:text-gray-500">TODO</p>
   </div>
 </template>

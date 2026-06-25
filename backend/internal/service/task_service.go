@@ -27,7 +27,7 @@ func (s *TaskService) Create(ctx context.Context, req *types.CreateTaskRequest) 
 	t := &repository.TaskModel{
 		FamilyID:         req.FamilyID.String(),
 		SubGroupID:       uuidPtrToString(req.SubGroupID),
-		TaskCode:       req.TaskCode,
+		TaskCode:         req.TaskCode,
 		Title:            req.Title,
 		Description:      req.Description,
 		Status:           "todo",
