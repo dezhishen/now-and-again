@@ -26,7 +26,7 @@ func (h RecurringDailyHandler) OnComplete(task *repository.TaskModel) *repositor
 	nextDue := time.Now().Add(24 * time.Hour)
 	return &repository.TaskModel{
 		FamilyID:    task.FamilyID,
-		ScheduleTypeID:  task.ScheduleTypeID,
+		TaskCode:  task.TaskCode,
 		Title:       task.Title,
 		Description: task.Description,
 		Status:      "todo",

@@ -15,7 +15,7 @@ func (r *TaskRepo) Create(task *TaskModel) error {
 
 func (r *TaskRepo) FindByID(id string) (*TaskModel, error) {
 	var t TaskModel
-	err := r.db.Preload("ScheduleType").Preload("Assignees.User").Where("id = ?", id).First(&t).Error
+	err := r.db.Preload("Assignees.User").Where("id = ?", id).First(&t).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -35,7 +35,7 @@ func (r *TaskRepo) List(familyID string, status *string, assigneeID *string, off
 	query.Count(&total)
 
 	var tasks []TaskModel
-	err := query.Preload("ScheduleType").Preload("Assignees.User").
+	err := query.Preload("Assignees.User").
 		Order("created_at DESC").Offset(offset).Limit(limit).Find(&tasks).Error
 	return tasks, total, err
 }
@@ -88,10 +88,3 @@ func (r *TaskRepo) RemoveDependency(id string) error {
 	return r.db.Delete(&TaskDependencyModel{}, "id = ?", id).Error
 }
 
-// ─── ScheduleType ─────────────────────────────────────────────────────
-
-func (r *TaskRepo) ListScheduleTypes() ([]ScheduleTypeModel, error) {
-	var types []ScheduleTypeModel
-	err := r.db.Where("is_active = true").Find(&types).Error
-	return types, err
-}

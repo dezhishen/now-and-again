@@ -50,7 +50,6 @@ func Migrate(db *gorm.DB) error {
 		&FamilyMemberModel{},
 		&SubGroupModel{},
 		&SubGroupMemberModel{},
-		&ScheduleTypeModel{},
 		&TaskModel{},
 		&TaskAssigneeModel{},
 		&TaskDependencyModel{},

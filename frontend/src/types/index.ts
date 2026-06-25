@@ -61,7 +61,7 @@ export interface Task {
   id: string
   family_id: string
   sub_group_id?: string
-  schedule_type_id: string
+  task_code: string
   chain_id?: string
   title: string
   description?: string
@@ -108,7 +108,7 @@ export interface TaskChainStep {
   sort_order: number
   title: string
   description?: string
-  schedule_type_id: string
+  task_code: string
   assigned_role: string
   delay_after_previous: string
   is_optional: boolean

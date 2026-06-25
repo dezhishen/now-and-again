@@ -31,7 +31,7 @@ type TaskChainStep struct {
 	SortOrder            int        `json:"sort_order"`
 	Title                string     `json:"title"`
 	Description          string     `json:"description,omitempty"`
-	ScheduleTypeID           uuid.UUID  `json:"schedule_type_id"`
+	TaskCode           uuid.UUID  `json:"task_code"`
 	AssignedRole         AssignRole `json:"assigned_role"`
 	AssignedSubGroupID   *uuid.UUID `json:"assigned_sub_group_id,omitempty"`
 	DelayAfterPrevious   string     `json:"delay_after_previous"` // "0h", "1d"
@@ -39,13 +39,12 @@ type TaskChainStep struct {
 	Priority             Priority   `json:"priority"`
 	CreatedAt            string     `json:"created_at"`
 	// Expanded
-	ScheduleType *ScheduleType `json:"task_type,omitempty"`
 }
 
 type AddStepRequest struct {
 	Title              string     `json:"title" binding:"required,min=1,max=255"`
 	Description        string     `json:"description,omitempty"`
-	ScheduleTypeID         uuid.UUID  `json:"schedule_type_id" binding:"required"`
+	TaskCode         uuid.UUID  `json:"task_code" binding:"required"`
 	AssignedRole       AssignRole `json:"assigned_role" binding:"required"`
 	AssignedSubGroupID *uuid.UUID `json:"assigned_sub_group_id,omitempty"`
 	DelayAfterPrevious string     `json:"delay_after_previous,omitempty"`

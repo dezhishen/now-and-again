@@ -12,7 +12,7 @@ const familyId = route.params.familyId as string
 const tasks = ref<Task[]>([])
 const taskTypes = ref<ScheduleType[]>([])
 const showCreate = ref(false)
-const newTask = ref({ title: '', schedule_type_id: '', priority: 'medium', description: '' })
+const newTask = ref({ title: '', task_code: '', priority: 'medium', description: '' })
 const error = ref('')
 
 onMounted(async () => {
@@ -34,7 +34,7 @@ async function createTask() {
       ...newTask.value,
       family_id: familyId,
     })
-    newTask.value = { title: '', schedule_type_id: '', priority: 'medium', description: '' }
+    newTask.value = { title: '', task_code: '', priority: 'medium', description: '' }
     showCreate.value = false
     await loadTasks()
   } catch (e: any) { error.value = e.message }
@@ -68,7 +68,7 @@ function statusLabel(s: string) {
     <div v-if="showCreate" class="card mb-4 flex flex-col gap-2">
       <input v-model="newTask.title" class="input" placeholder="任务标题" @keyup.enter="createTask" />
       <div class="flex gap-2">
-        <select v-model="newTask.schedule_type_id" class="input flex-1">
+        <select v-model="newTask.task_code" class="input flex-1">
           <option value="">选择类型</option>
           <option v-for="tt in taskTypes" :key="tt.id" :value="tt.id">{{ tt.icon }} {{ tt.name }}</option>
         </select>

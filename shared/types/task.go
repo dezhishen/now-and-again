@@ -48,7 +48,7 @@ type Task struct {
 	ID               uuid.UUID       `json:"id"`
 	FamilyID         uuid.UUID       `json:"family_id"`
 	SubGroupID       *uuid.UUID      `json:"sub_group_id,omitempty"`
-	ScheduleTypeID       uuid.UUID       `json:"schedule_type_id"`
+	TaskCode string       `json:"task_code"`
 	ChainID          *uuid.UUID      `json:"chain_id,omitempty"` // NULL if not part of a chain
 	Title            string          `json:"title"`
 	Description      string          `json:"description,omitempty"`
@@ -70,7 +70,7 @@ type Task struct {
 type CreateTaskRequest struct {
 	FamilyID         uuid.UUID       `json:"family_id" binding:"required"`
 	SubGroupID       *uuid.UUID      `json:"sub_group_id,omitempty"`
-	ScheduleTypeID       uuid.UUID       `json:"schedule_type_id" binding:"required"`
+	TaskCode string       `json:"task_code" binding:"required"`
 	Title            string          `json:"title" binding:"required,min=1,max=255"`
 	Description      string          `json:"description,omitempty"`
 	Priority         Priority        `json:"priority,omitempty"`

@@ -27,7 +27,7 @@ func (s *TaskService) Create(ctx context.Context, req *types.CreateTaskRequest) 
 	t := &repository.TaskModel{
 		FamilyID:         req.FamilyID.String(),
 		SubGroupID:       uuidPtrToString(req.SubGroupID),
-		ScheduleTypeID:       req.ScheduleTypeID.String(),
+		TaskCode:       req.TaskCode,
 		Title:            req.Title,
 		Description:      req.Description,
 		Status:           "todo",
@@ -171,7 +171,7 @@ func taskModelToType(m *repository.TaskModel) *types.Task {
 	t := &types.Task{
 		ID:          uuid.MustParse(m.ID),
 		FamilyID:    uuid.MustParse(m.FamilyID),
-		ScheduleTypeID:  uuid.MustParse(m.ScheduleTypeID),
+		TaskCode:    m.TaskCode,
 		Title:       m.Title,
 		Description: m.Description,
 		Status:      types.TaskStatus(m.Status),
@@ -184,14 +184,6 @@ func taskModelToType(m *repository.TaskModel) *types.Task {
 	if m.SubGroupID != nil {
 		id := uuid.MustParse(*m.SubGroupID)
 		t.SubGroupID = &id
-	}
-	if m.ScheduleType.Code != "" {
-		t.TaskType = &types.ScheduleType{
-			ID:   uuid.MustParse(m.ScheduleType.ID),
-			Code: m.ScheduleType.Code,
-			Name: m.ScheduleType.Name,
-			Icon: m.ScheduleType.Icon,
-		}
 	}
 	for _, a := range m.Assignees {
 		t.Assignees = append(t.Assignees, types.TaskAssignee{
