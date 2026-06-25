@@ -1,0 +1,78 @@
+export default {
+  app: {
+    title: 'Now & Again',
+    subtitle: 'Life is just a mix of "Now" and "Again".',
+    tagline: '家庭事务管理，从此刻开始。',
+  },
+  setup: {
+    title: 'Now & Again',
+    heading: '欢迎！请先设置管理员账号',
+    displayName: '显示名称',
+    username: '用户名',
+    usernamePlaceholder: '用于登录',
+    email: '邮箱',
+    emailPlaceholder: 'admin@example.com',
+    password: '密码',
+    passwordPlaceholder: '至少 8 位',
+    submit: '初始化系统',
+  },
+  register: {
+    heading: '注册账号',
+    displayName: '显示名称',
+    displayNamePlaceholder: '如：李四',
+    username: '用户名',
+    usernamePlaceholder: '用于登录',
+    email: '邮箱',
+    emailPlaceholder: 'user@example.com',
+    password: '密码',
+    passwordPlaceholder: '至少 8 位',
+    submit: '注册',
+    hasAccount: '已有账号？',
+    toLogin: '去登录',
+  },
+  login: {
+    heading: '登录',
+    username: '用户名',
+    usernamePlaceholder: '输入用户名',
+    password: '密码',
+    passwordPlaceholder: '输入密码',
+    submit: '登录',
+    noAccount: '没有账号？',
+    toRegister: '注册',
+  },
+  nav: {
+    family: '家庭',
+    dashboard: '仪表盘',
+    tasks: '任务',
+    chains: '事项链',
+    inspections: '巡检',
+    members: '成员',
+    settings: '设置',
+  },
+  dashboard: {
+    heading: '仪表盘',
+    todoTasks: '待办任务',
+    inProgress: '进行中',
+    completed: '已完成',
+  },
+  tasks: {
+    heading: '任务列表',
+  },
+  chains: {
+    heading: '事项链',
+  },
+  inspections: {
+    heading: '巡检记录',
+  },
+  members: {
+    heading: '成员管理',
+  },
+  settingsPage: {
+    heading: '家庭设置',
+  },
+  notFound: {
+    code: '404',
+    message: '页面不存在',
+    backHome: '返回首页',
+  },
+}

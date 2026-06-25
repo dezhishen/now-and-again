@@ -1,0 +1,60 @@
+# ─── Dependencies ────────────────────────────────────────────────
+node_modules/
+
+# ─── Build output ────────────────────────────────────────────────
+backend/na-server
+cli/na
+frontend/dist/
+frontend/.vite/
+
+# ─── Database ────────────────────────────────────────────────────
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ─── IDE / Editor ────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.vscode-test/
+
+# ─── OS ──────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ─── Environment ─────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Go ──────────────────────────────────────────────────────────
+*.exe
+*.test
+*.out
+*.prof
+vendor/
+
+# ─── Logs ────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Temp / Cache ────────────────────────────────────────────────
+*.tmp
+*.temp
+.cache/
+__pycache__/
+*.pyc
+
+# ─── Coverage ────────────────────────────────────────────────────
+coverage.out
+coverage.html
+*.coverprofile

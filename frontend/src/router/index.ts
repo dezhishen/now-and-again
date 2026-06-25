@@ -1,0 +1,47 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    { path: '/setup', name: 'setup', component: () => import('@/views/SetupView.vue') },
+    { path: '/login', name: 'login', component: () => import('@/views/LoginView.vue') },
+    { path: '/register', name: 'register', component: () => import('@/views/RegisterView.vue') },
+    { path: '/', name: 'home', component: () => import('@/views/HomeView.vue'), meta: { requiresAuth: true } },
+    { path: '/admin', name: 'admin', component: () => import('@/views/AdminView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
+    {
+      path: '/family/:familyId', name: 'family',
+      component: () => import('@/views/FamilyView.vue'), meta: { requiresAuth: true },
+      children: [
+        { path: '', name: 'family-dashboard', component: () => import('@/views/family/DashboardView.vue') },
+        { path: 'tasks', name: 'family-tasks', component: () => import('@/views/family/TaskListView.vue') },
+        { path: 'chains', name: 'family-chains', component: () => import('@/views/family/ChainListView.vue') },
+        { path: 'inspections', name: 'family-inspections', component: () => import('@/views/family/InspectionListView.vue') },
+        { path: 'members', name: 'family-members', component: () => import('@/views/family/MemberListView.vue') },
+        { path: 'settings', name: 'family-settings', component: () => import('@/views/family/SettingsView.vue') },
+      ],
+    },
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
+  ],
+})
+
+router.beforeEach(async (to, _from, next) => {
+  const auth = useAuthStore()
+
+  // Step 1: Check system initialization
+  if (auth.initialized === null) await auth.checkInit()
+  if (auth.needsSetup && to.name !== 'setup') return next('/setup')
+  if (!auth.needsSetup && to.name === 'setup') return next('/login')
+
+  // Step 2: Try to restore session from refresh cookie (only once)
+  if (!auth.sessionChecked) await auth.initSession()
+
+  // Step 3: Auth guard — just check, API client handles auto-refresh
+  if (to.meta.requiresAuth && !auth.isLoggedIn) return next('/login')
+  if (to.meta.requiresAdmin && !auth.user?.is_admin) return next('/')
+  if (auth.isLoggedIn && (to.name === 'login' || to.name === 'register')) return next('/')
+
+  next()
+})
+
+export default router

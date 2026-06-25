@@ -1,0 +1,78 @@
+export default {
+  app: {
+    title: 'Now & Again',
+    subtitle: 'Life is just a mix of "Now" and "Again".',
+    tagline: 'Family chore management, starting now.',
+  },
+  setup: {
+    title: 'Now & Again',
+    heading: 'Welcome! Set up the admin account',
+    displayName: 'Display Name',
+    username: 'Username',
+    usernamePlaceholder: 'Used to login',
+    email: 'Email',
+    emailPlaceholder: 'admin@example.com',
+    password: 'Password',
+    passwordPlaceholder: 'At least 8 characters',
+    submit: 'Initialize System',
+  },
+  register: {
+    heading: 'Create Account',
+    displayName: 'Display Name',
+    displayNamePlaceholder: 'e.g. John',
+    username: 'Username',
+    usernamePlaceholder: 'Used to login',
+    email: 'Email',
+    emailPlaceholder: 'user@example.com',
+    password: 'Password',
+    passwordPlaceholder: 'At least 8 characters',
+    submit: 'Register',
+    hasAccount: 'Already have an account?',
+    toLogin: 'Login',
+  },
+  login: {
+    heading: 'Login',
+    username: 'Username',
+    usernamePlaceholder: 'Enter username',
+    password: 'Password',
+    passwordPlaceholder: 'Enter password',
+    submit: 'Login',
+    noAccount: "Don't have an account?",
+    toRegister: 'Register',
+  },
+  nav: {
+    family: 'Family',
+    dashboard: 'Dashboard',
+    tasks: 'Tasks',
+    chains: 'Chains',
+    inspections: 'Inspections',
+    members: 'Members',
+    settings: 'Settings',
+  },
+  dashboard: {
+    heading: 'Dashboard',
+    todoTasks: 'Todo',
+    inProgress: 'In Progress',
+    completed: 'Completed',
+  },
+  tasks: {
+    heading: 'Tasks',
+  },
+  chains: {
+    heading: 'Chains',
+  },
+  inspections: {
+    heading: 'Inspections',
+  },
+  members: {
+    heading: 'Members',
+  },
+  settingsPage: {
+    heading: 'Settings',
+  },
+  notFound: {
+    code: '404',
+    message: 'Page not found',
+    backHome: 'Back to Home',
+  },
+}
