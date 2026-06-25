@@ -7,9 +7,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// ─── TaskType ─────────────────────────────────────────────────────
+// ─── ScheduleType ─────────────────────────────────────────────────────
 
-type TaskType struct {
+type ScheduleType struct {
 	ID              uuid.UUID       `json:"id"`
 	Code            string          `json:"code"`
 	Name            string          `json:"name"`
@@ -21,7 +21,7 @@ type TaskType struct {
 	Timestamps
 }
 
-// BehaviorConfig is the parsed form of TaskType.BehaviorConfig.
+// BehaviorConfig is the parsed form of ScheduleType.BehaviorConfig.
 type BehaviorConfig struct {
 	Recurrence      *RecurrenceConfig `json:"recurrence,omitempty"`
 	ResetStrategy   string            `json:"reset_strategy,omitempty"` // "reset_on_complete" | "manual"
@@ -48,7 +48,7 @@ type Task struct {
 	ID               uuid.UUID       `json:"id"`
 	FamilyID         uuid.UUID       `json:"family_id"`
 	SubGroupID       *uuid.UUID      `json:"sub_group_id,omitempty"`
-	TaskTypeID       uuid.UUID       `json:"task_type_id"`
+	ScheduleTypeID       uuid.UUID       `json:"schedule_type_id"`
 	ChainID          *uuid.UUID      `json:"chain_id,omitempty"` // NULL if not part of a chain
 	Title            string          `json:"title"`
 	Description      string          `json:"description,omitempty"`
@@ -61,7 +61,7 @@ type Task struct {
 	CompletedAt      *time.Time      `json:"completed_at,omitempty"`
 	Timestamps
 	// Expanded
-	TaskType  *TaskType        `json:"task_type,omitempty"`
+	TaskType  *ScheduleType        `json:"task_type,omitempty"`
 	Assignees []TaskAssignee   `json:"assignees,omitempty"`
 	BlockedBy []TaskDependency `json:"blocked_by,omitempty"`
 	Blocks    []TaskDependency `json:"blocks,omitempty"`
@@ -70,7 +70,7 @@ type Task struct {
 type CreateTaskRequest struct {
 	FamilyID         uuid.UUID       `json:"family_id" binding:"required"`
 	SubGroupID       *uuid.UUID      `json:"sub_group_id,omitempty"`
-	TaskTypeID       uuid.UUID       `json:"task_type_id" binding:"required"`
+	ScheduleTypeID       uuid.UUID       `json:"schedule_type_id" binding:"required"`
 	Title            string          `json:"title" binding:"required,min=1,max=255"`
 	Description      string          `json:"description,omitempty"`
 	Priority         Priority        `json:"priority,omitempty"`

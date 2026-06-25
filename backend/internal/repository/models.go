@@ -73,7 +73,7 @@ type SubGroupMemberModel struct {
 
 // ─── Task Type ────────────────────────────────────────────────────
 
-type TaskTypeModel struct {
+type ScheduleTypeModel struct {
 	BaseModel
 	Code            string `gorm:"uniqueIndex;size:64;not null"`
 	Name            string `gorm:"size:128;not null"`
@@ -90,7 +90,7 @@ type TaskModel struct {
 	BaseModel
 	FamilyID         string     `gorm:"index:idx_task_family_status;type:char(36);not null"`
 	SubGroupID       *string    `gorm:"type:char(36)"`
-	TaskTypeID       string     `gorm:"type:char(36);not null"`
+	ScheduleTypeID       string     `gorm:"type:char(36);not null"`
 	ChainID          *string    `gorm:"type:char(36)"`
 	Title            string     `gorm:"size:255;not null"`
 	Description      string     `gorm:"type:text"`
@@ -102,7 +102,7 @@ type TaskModel struct {
 	CreatedBy        string     `gorm:"type:char(36);not null"`
 	CompletedAt      *time.Time
 
-	TaskType  TaskTypeModel       `gorm:"foreignKey:TaskTypeID"`
+	ScheduleType  ScheduleTypeModel       `gorm:"foreignKey:ScheduleTypeID"`
 	Assignees []TaskAssigneeModel `gorm:"foreignKey:TaskID"`
 }
 
@@ -143,14 +143,14 @@ type TaskChainStepModel struct {
 	SortOrder          int     `gorm:"not null;default:0"`
 	Title              string  `gorm:"size:255;not null"`
 	Description        string  `gorm:"type:text"`
-	TaskTypeID         string  `gorm:"type:char(36);not null"`
+	ScheduleTypeID         string  `gorm:"type:char(36);not null"`
 	AssignedRole       string  `gorm:"size:16;not null;default:any"`
 	AssignedSubGroupID *string `gorm:"type:char(36)"`
 	DelayAfterPrevious string  `gorm:"size:16;not null;default:0h"`
 	IsOptional         bool    `gorm:"not null;default:false"`
 	Priority           string  `gorm:"size:16;not null;default:medium"`
 
-	TaskType TaskTypeModel `gorm:"foreignKey:TaskTypeID"`
+	TaskType ScheduleTypeModel `gorm:"foreignKey:ScheduleTypeID"`
 }
 
 // ─── Task Log ─────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ type NotificationChannelModel struct {
 type NotificationTemplateModel struct {
 	BaseModel
 	FamilyID     *string `gorm:"type:char(36)"`
-	TaskTypeID   *string `gorm:"type:char(36)"`
+	ScheduleTypeID   *string `gorm:"type:char(36)"`
 	TriggerEvent string  `gorm:"size:64;not null"`
 	ChannelCode  string  `gorm:"size:32;not null"`
 	TitleTmpl    string  `gorm:"size:255;not null"`

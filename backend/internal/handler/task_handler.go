@@ -121,6 +121,6 @@ func (h *TaskHandlers) RemoveDependency(c *gin.Context) {
 	noContent(c)
 }
 
-func (h *TaskHandlers) ListTypes(c *gin.Context) {
+func (h *TaskHandlers) ListScheduleTypes(c *gin.Context) {
 	ok(c, scheduler.ListHandlerDefs())
 }

@@ -25,7 +25,7 @@ type NotificationChannel struct {
 type NotificationTemplate struct {
 	ID           uuid.UUID  `json:"id"`
 	FamilyID     *uuid.UUID `json:"family_id,omitempty"`    // null = system-level
-	TaskTypeID   *uuid.UUID `json:"task_type_id,omitempty"` // null = global fallback
+	ScheduleTypeID   *uuid.UUID `json:"task_type_id,omitempty"` // null = global fallback
 	TriggerEvent string     `json:"trigger_event"`
 	ChannelCode  string     `json:"channel_code"`
 	TitleTmpl    string     `json:"title_tmpl"`
@@ -38,7 +38,7 @@ type UpsertTemplateRequest struct {
 	ChannelCode  string     `json:"channel_code" binding:"required"`
 	TitleTmpl    string     `json:"title_tmpl" binding:"required"`
 	BodyTmpl     string     `json:"body_tmpl" binding:"required"`
-	TaskTypeID   *uuid.UUID `json:"task_type_id,omitempty"`
+	ScheduleTypeID   *uuid.UUID `json:"task_type_id,omitempty"`
 }
 
 // ─── UserChannelConfig ────────────────────────────────────────────

@@ -12,7 +12,7 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 
 	// ── Public ──────────────────────────────────────────────────
 	public.GET("/api/system/status", h.User.CheckInit)
-	public.GET("/api/task-types", h.Task.ListTypes)
+	public.GET("/api/schedule-types", h.Task.ListScheduleTypes)
 	public.POST("/api/setup", h.User.Setup)
 	public.POST("/api/auth/register", h.User.Register)
 	public.POST("/api/auth/login", h.User.Login)

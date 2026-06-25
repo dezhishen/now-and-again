@@ -47,7 +47,7 @@ export interface SubGroup {
   updated_at: string
 }
 
-export interface TaskType {
+export interface ScheduleType {
   id: string
   code: string
   name: string
@@ -61,7 +61,7 @@ export interface Task {
   id: string
   family_id: string
   sub_group_id?: string
-  task_type_id: string
+  schedule_type_id: string
   chain_id?: string
   title: string
   description?: string
@@ -72,7 +72,7 @@ export interface Task {
   completed_at?: string
   created_at: string
   updated_at: string
-  task_type?: TaskType
+  task_type?: ScheduleType
   assignees?: TaskAssignee[]
   blocked_by?: TaskDependency[]
 }
@@ -108,7 +108,7 @@ export interface TaskChainStep {
   sort_order: number
   title: string
   description?: string
-  task_type_id: string
+  schedule_type_id: string
   assigned_role: string
   delay_after_previous: string
   is_optional: boolean

@@ -38,7 +38,7 @@ func main() {
 
 	// Seed task scheduling types from the scheduler registry.
 	for _, h := range scheduler.All() {
-		db.Where("code = ?", h.Code()).FirstOrCreate(&repository.TaskTypeModel{
+		db.Where("code = ?", h.Code()).FirstOrCreate(&repository.ScheduleTypeModel{
 			Code: h.Code(), Name: h.Name(), Category: h.Category(),
 			DefaultPriority: h.DefaultPriority(), Icon: h.Icon(),
 			IsActive: true,

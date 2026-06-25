@@ -48,7 +48,7 @@ func (e *Engine) tick(ctx context.Context) {
 // OnTaskCompleted is called by the task service when a task is completed.
 // It finds the schedule handler and applies the behavior.
 func (e *Engine) OnTaskCompleted(ctx context.Context, task *repository.TaskModel) error {
-	handler := Get(task.TaskTypeID)
+	handler := Get(task.ScheduleTypeID)
 	if handler == nil {
 		return nil // no handler registered for this type
 	}
