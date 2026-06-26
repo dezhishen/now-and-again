@@ -62,6 +62,7 @@ export interface ApiKey {
   name: string
   key_prefix: string
   raw_key?: string
+  scopes?: string[]
   last_used_at?: string
   expires_at?: string
   created_at: string
@@ -100,6 +101,44 @@ export interface Location {
   name: string
   point: Point
   color: string
+  created_at: string
+  updated_at: string
+}
+
+// ─── Task ────────────────────────────────────────────────────────
+
+export interface TaskTemplate {
+  id: string
+  family_id: string
+  group_id?: string
+  location_id?: string
+  name: string
+  schedule_type: string
+  schedule_data: any
+  enabled: boolean
+  is_inspection: boolean
+  inspection_config?: any
+  last_todo_at?: string
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Todo {
+  id: string
+  task_id: string
+  family_id: string
+  location_id?: string
+  assigned_to?: string
+  status: 'pending' | 'done' | 'skipped'
+  todo_type: 'task' | 'inspection'
+  inspection_result?: 'normal' | 'abnormal'
+  due_start: string
+  due_date: string
+  completed_at?: string
+  completed_by?: string
+  task?: TaskTemplate
+  user?: User
   created_at: string
   updated_at: string
 }

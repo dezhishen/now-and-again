@@ -72,7 +72,8 @@ type ApiKey struct {
 	ID         string     `json:"id"`
 	Name       string     `json:"name"`
 	KeyPrefix  string     `json:"key_prefix"`
-	RawKey     string     `json:"raw_key,omitempty"` // only returned on creation
+	RawKey     string     `json:"raw_key,omitempty"`
+	Scopes     []string   `json:"scopes,omitempty"`
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
 	CreatedAt  time.Time  `json:"created_at"`
@@ -80,6 +81,7 @@ type ApiKey struct {
 
 type CreateApiKeyRequest struct {
 	Name      string     `json:"name" binding:"required"`
+	Scopes    []string   `json:"scopes,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 

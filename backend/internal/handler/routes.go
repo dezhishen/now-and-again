@@ -6,7 +6,7 @@ import (
 	"github.com/dezhishen/now-and-again/shared/contracts"
 )
 
-func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers) {
+func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers, taskHandler *TaskHandlers, icsHandler *IcsHandlers) {
 	h := NewHandlers(c)
 
 	// ── Public ──────────────────────────────────────────────────
@@ -73,4 +73,25 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 	auth.GET("/api/floor-plans/:plan_id/locations", h.FloorPlan.ListLocations)
 	auth.PUT("/api/locations/:location_id", h.FloorPlan.UpdateLocation)
 	auth.DELETE("/api/locations/:location_id", h.FloorPlan.DeleteLocation)
+
+	// Tasks
+	auth.POST("/api/families/:family_id/tasks", taskHandler.Create)
+	auth.GET("/api/families/:family_id/tasks", taskHandler.List)
+	auth.PUT("/api/tasks/:task_id", taskHandler.Update)
+	auth.DELETE("/api/tasks/:task_id", taskHandler.Delete)
+	auth.GET("/api/tasks/:task_id/logs", taskHandler.ListLogs)
+
+	// Todos
+	auth.GET("/api/families/:family_id/todos", taskHandler.ListTodos)
+	auth.PUT("/api/todos/:todo_id", taskHandler.CompleteTodo)
+
+	// ICS Feeds (authenticated management)
+	auth.POST("/api/families/:family_id/ics-feeds", icsHandler.Create)
+	auth.GET("/api/families/:family_id/ics-feeds", icsHandler.List)
+	auth.GET("/api/ics-feeds/:feed_id", icsHandler.Get)
+	auth.PUT("/api/ics-feeds/:feed_id", icsHandler.Update)
+	auth.DELETE("/api/ics-feeds/:feed_id", icsHandler.Delete)
+
+	// ICS public endpoint (no JWT - custom auth)
+	public.GET("/api/ics/:token", icsHandler.ServeICS)
 }

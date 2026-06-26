@@ -9,6 +9,7 @@ const router = createRouter({
     { path: '/register', name: 'register', component: () => import('@/views/RegisterView.vue') },
     { path: '/', name: 'home', component: () => import('@/views/HomeView.vue'), meta: { requiresAuth: true } },
     { path: '/admin', name: 'admin', component: () => import('@/views/AdminView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: '/api-keys', name: 'api-keys', component: () => import('@/views/ApiKeyView.vue'), meta: { requiresAuth: true } },
     {
       path: '/family/:familyId', name: 'family',
       component: () => import('@/views/FamilyView.vue'), meta: { requiresAuth: true },
@@ -17,6 +18,8 @@ const router = createRouter({
         { path: 'groups', name: 'family-groups', component: () => import('@/views/family/GroupListView.vue') },
         { path: 'members', name: 'family-members', component: () => import('@/views/family/MemberListView.vue') },
         { path: 'floor-plan', name: 'family-floor-plan', component: () => import('@/views/family/FloorPlanView.vue') },
+        { path: 'tasks', name: 'family-tasks', component: () => import('@/views/family/TaskView.vue') },
+        { path: 'ics', name: 'family-ics', component: () => import('@/views/family/IcsView.vue') },
         { path: 'settings', name: 'family-settings', component: () => import('@/views/family/SettingsView.vue') },
       ],
     },

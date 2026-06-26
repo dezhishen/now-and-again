@@ -44,6 +44,7 @@ export default {
     family: 'Family',
     dashboard: 'Dashboard',
     groups: 'Groups',
+    tasks: 'Tasks',
     members: 'Members',
     floorPlan: 'Floor Plan',
     settings: 'Settings',

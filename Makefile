@@ -4,7 +4,8 @@
         lint lint-backend lint-frontend \
         db-reset db-seed \
         install install-cli \
-        clean check-contracts fix-dupes
+        clean check-contracts fix-dupes \
+        docker-build docker-up docker-down docker-logs
 
 # ─── Default ──────────────────────────────────────────────────────
 .DEFAULT_GOAL := help
@@ -109,7 +110,7 @@ check-contracts: fix-dupes ## 验证 backend 和 CLI 都实现了 contracts 接�
 # ─── Database ─────────────────────────────────────────────────────
 
 db-reset: ## 删除 SQLite 数据库文件
-	@rm -f backend/*.db backend/*.db-journal backend/*.db-wal backend/*.db-shm
+	@rm -f data/*.db data/*.db-journal data/*.db-wal data/*.db-shm
 	@echo "→ database removed"
 
 db-seed: ## 仅运行种子数据（需先启动后端）
@@ -144,3 +145,18 @@ deps: ## 安装所有依赖
 
 ci: deps check-contracts lint test build ## CI 完整流水线
 	@echo "→ CI passed ✅"
+
+# ─── Docker ───────────────────────────────────────────────────────
+
+docker-build: ## 构建 Docker 镜像
+	docker build -t now-and-again-backend -f backend/Dockerfile .
+	docker build -t now-and-again-frontend -f frontend/Dockerfile .
+
+docker-up: ## 启动 docker-compose
+	docker compose up -d
+
+docker-down: ## 停止 docker-compose
+	docker compose down
+
+docker-logs: ## 查看 docker-compose 日志
+	docker compose logs -f

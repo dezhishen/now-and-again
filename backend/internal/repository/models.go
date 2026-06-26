@@ -128,6 +128,7 @@ type ApiKeyModel struct {
 	Name       string `gorm:"size:128;not null"`
 	KeyPrefix  string `gorm:"uniqueIndex;size:32;not null"`
 	KeyHash    string `gorm:"size:255;not null"`
+	Scopes     string `gorm:"type:text"` // JSON array of scope strings, e.g. ["family:read"]
 	LastUsedAt *time.Time
 	ExpiresAt  *time.Time
 	Revoked    bool `gorm:"not null;default:false"`
@@ -180,3 +181,81 @@ type LocationModel struct {
 }
 
 func (LocationModel) TableName() string { return "locations" }
+
+// ─── Task ────────────────────────────────────────────────────────
+
+type TaskTemplateModel struct {
+	BaseModel
+	FamilyID         string     `gorm:"index;type:char(36);not null"`
+	GroupID          string     `gorm:"index;type:char(36)"`
+	LocationID       string     `gorm:"index;type:char(36)"`
+	Name             string     `gorm:"size:128;not null"`
+	ScheduleType     string     `gorm:"size:32;not null"`   // daily/weekly/monthly/interval
+	ScheduleData     string     `gorm:"type:text;not null"` // JSON config
+	Enabled          bool       `gorm:"not null;default:true"`
+	IsInspection     bool       `gorm:"not null;default:false"`
+	InspectionConfig string     `gorm:"type:text"` // JSON: {"abnormal_action":"create_todo","abnormal_task_name":"修复{name}","abnormal_group_id":"..."}
+	LastTodoAt       *time.Time // last time a todo was generated
+	CreatedBy        string     `gorm:"type:char(36);not null"`
+}
+
+func (TaskTemplateModel) TableName() string { return "task_templates" }
+
+func (t *TaskTemplateModel) TodoType() string {
+	if t.IsInspection {
+		return "inspection"
+	}
+	return "task"
+}
+
+type TodoModel struct {
+	BaseModel
+	TaskID           string    `gorm:"index;type:char(36);not null"`
+	FamilyID         string    `gorm:"index;type:char(36);not null"`
+	LocationID       string    `gorm:"index;type:char(36)"`
+	AssignedTo       string    `gorm:"index;type:char(36)"`
+	Status           string    `gorm:"size:16;not null;default:pending"` // pending/done/skipped
+	TodoType         string    `gorm:"size:16;not null;default:task"`    // task/inspection
+	InspectionResult string    `gorm:"size:16"`                          // normal/abnormal (only for inspection)
+	DueStart         time.Time `gorm:"not null"`                         // window start (trigger time)
+	DueDate          time.Time `gorm:"not null"`                         // window end / deadline
+	CompletedAt      *time.Time
+	CompletedBy      string            `gorm:"type:char(36)"`
+	Task             TaskTemplateModel `gorm:"foreignKey:TaskID"`
+	User             UserModel         `gorm:"foreignKey:AssignedTo"`
+}
+
+func (TodoModel) TableName() string { return "todos" }
+
+// ─── Task Log ────────────────────────────────────────────────────
+
+type TaskLogModel struct {
+	BaseModel
+	TaskID  string `gorm:"index;type:char(36);not null"`
+	Status  string `gorm:"size:32;not null"` // registered/triggered/success/error
+	Message string `gorm:"type:text"`
+}
+
+func (TaskLogModel) TableName() string { return "task_logs" }
+
+// ─── ICS Feed ────────────────────────────────────────────────────
+
+type IcsFeedModel struct {
+	BaseModel
+	FamilyID        string       `gorm:"index;type:char(36);not null"`
+	Name            string       `gorm:"size:128;not null"`
+	Description     string       `gorm:"size:512"`
+	FilterDays      int          `gorm:"not null;default:7"`               // how many days ahead
+	FilterGroupID   string       `gorm:"index;type:char(36)"`              // optional group filter
+	FilterType      string       `gorm:"size:16;not null;default:all"`     // all / personal
+	AuthType        string       `gorm:"size:16;not null;default:api_key"` // api_key / basic
+	ApiKeyID        string       `gorm:"index;type:char(36)"`
+	AppUsername     string       `gorm:"size:64"`
+	AppPasswordHash string       `gorm:"size:255"`
+	AccessToken     string       `gorm:"uniqueIndex;size:36;not null"` // URL token
+	Enabled         bool         `gorm:"not null;default:true"`
+	CreatedBy       string       `gorm:"type:char(36);not null"`
+	ApiKey          *ApiKeyModel `gorm:"foreignKey:ApiKeyID"`
+}
+
+func (IcsFeedModel) TableName() string { return "ics_feeds" }

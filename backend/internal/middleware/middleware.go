@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/dezhishen/now-and-again/shared/scopes"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -18,7 +19,7 @@ func CORS() gin.HandlerFunc {
 		c.Header("Access-Control-Allow-Origin", origin)
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization")
+		c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
@@ -27,9 +28,9 @@ func CORS() gin.HandlerFunc {
 	}
 }
 
-// ApiKeyValidator is the minimal interface needed for API key auth.
+// ApiKeyValidator validates API keys and returns scopes.
 type ApiKeyValidator interface {
-	ValidateApiKey(raw string) (userID string, err error)
+	ValidateApiKey(raw string) (userID string, scopes []string, err error)
 }
 
 // JWTAuth validates the Bearer token (JWT or API Key).
@@ -53,9 +54,11 @@ func JWTAuth(secret string, apiKeyValidator ApiKeyValidator) gin.HandlerFunc {
 
 		// Try API Key first (prefix "na_")
 		if strings.HasPrefix(tokenStr, "na_") && apiKeyValidator != nil {
-			userID, err := apiKeyValidator.ValidateApiKey(tokenStr)
+			userID, scopes, err := apiKeyValidator.ValidateApiKey(tokenStr)
 			if err == nil && userID != "" {
 				c.Set("user_id", userID)
+				c.Set("auth_method", "api_key")
+				c.Set("api_key_scopes", scopes)
 				c.Next()
 				return
 			}
@@ -86,6 +89,33 @@ func JWTAuth(secret string, apiKeyValidator ApiKeyValidator) gin.HandlerFunc {
 		}
 
 		c.Set("user_id", userID)
+		c.Set("auth_method", "jwt")
+		c.Next()
+	}
+}
+
+// ScopeGuard returns a middleware that checks the required scope based on the
+// request's HTTP method and path. JWT users always pass; API key users must have
+// the scope defined in scopes.RouteScope for the current route.
+func ScopeGuard() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authMethod, _ := c.Get("auth_method")
+		if authMethod != "api_key" {
+			c.Next()
+			return
+		}
+		required := scopes.RouteScope(c.Request.Method, c.FullPath())
+		if required == "" {
+			// No scope defined for this route — allow (public routes are not in auth group)
+			c.Next()
+			return
+		}
+		granted, _ := c.Get("api_key_scopes")
+		grantedList, _ := granted.([]string)
+		if !scopes.Has(grantedList, required) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient scope, need: " + required})
+			return
+		}
 		c.Next()
 	}
 }

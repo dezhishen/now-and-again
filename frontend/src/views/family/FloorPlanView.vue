@@ -21,6 +21,7 @@ const newLocName = ref('')
 const newLocColor = ref('#3b82f6')
 const newLocPoint = ref<Point | null>(null)
 const showLocInput = ref(false)
+const editingLoc = ref<Location | null>(null)
 const showLocations = ref(true)
 const hoveredLoc = ref<string | null>(null)
 
@@ -127,27 +128,49 @@ function onSvgClick(e: MouseEvent) {
   const pos = svgOffset(e)
   newLocPoint.value = { x: unscaleX(pos.x), y: unscaleY(pos.y) }
   newLocName.value = ''
-  newLocColor.value = '#3b82f6'
+  newLocColor.value = unusedColor()
+  editingLoc.value = null
   showLocInput.value = true
   marking.value = false
 }
 
-async function saveLocation() {
-  if (!newLocName.value.trim() || !newLocPoint.value || !editPlan.value) return
-  error.value = ''
-  try {
-    const loc = await api.post<Location>('/floor-plans/' + editPlan.value.id + '/locations', {
-      name: newLocName.value.trim(),
-      point: newLocPoint.value,
-      color: newLocColor.value,
-    })
-    if (!editPlan.value.locations) editPlan.value.locations = []
-    editPlan.value.locations.push(loc)
-    showLocInput.value = false; newLocPoint.value = null
-  } catch (e: any) { error.value = e.message }
+function startEditLoc(loc: Location) {
+  editingLoc.value = loc
+  newLocName.value = loc.name
+  newLocColor.value = loc.color
+  newLocPoint.value = null
+  showLocInput.value = true
 }
 
-function cancelLoc() { showLocInput.value = false; newLocPoint.value = null }
+async function saveLocation() {
+  if (!newLocName.value.trim() || !editPlan.value) return
+  error.value = ''
+
+  if (editingLoc.value) {
+    try {
+      const updated = await api.put<Location>('/locations/' + editingLoc.value.id, {
+        name: newLocName.value.trim(),
+        color: newLocColor.value,
+      })
+      const idx = editPlan.value.locations?.findIndex(l => l.id === editingLoc.value!.id)
+      if (idx != null && idx >= 0 && editPlan.value.locations) editPlan.value.locations[idx] = updated
+    } catch (e: any) { error.value = e.message; return }
+  } else if (newLocPoint.value) {
+    try {
+      const loc = await api.post<Location>('/floor-plans/' + editPlan.value.id + '/locations', {
+        name: newLocName.value.trim(),
+        point: newLocPoint.value,
+        color: newLocColor.value,
+      })
+      if (!editPlan.value.locations) editPlan.value.locations = []
+      editPlan.value.locations.push(loc)
+    } catch (e: any) { error.value = e.message; return }
+  }
+
+  showLocInput.value = false; newLocPoint.value = null; editingLoc.value = null
+}
+
+function cancelLoc() { showLocInput.value = false; newLocPoint.value = null; editingLoc.value = null }
 
 async function deleteLocation(locId: string) {
   error.value = ''
@@ -158,6 +181,12 @@ async function deleteLocation(locId: string) {
 }
 
 const PRESET_COLORS = ['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#78716c']
+
+function unusedColor(): string {
+  const used = new Set((editPlan.value?.locations || []).map(l => l.color))
+  if (editingLoc.value) used.delete(editingLoc.value.color)
+  return PRESET_COLORS.find(c => !used.has(c)) || PRESET_COLORS[0]
+}
 
 // ─── Canvas Drawing ──────────────────────────────────────────────
 
@@ -304,7 +333,10 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
                 <div v-if="!editPlan.locations?.length" class="text-xs text-gray-400 py-2">暂无地点</div>
                 <div v-for="loc in editPlan.locations" :key="loc.id" class="flex items-center justify-between py-1.5 text-sm" @mouseenter="hoveredLoc = loc.id" @mouseleave="hoveredLoc = null">
                   <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: loc.color }" /><span class="dark:text-gray-300 truncate">{{ loc.name }}</span></div>
-                  <button class="text-xs text-danger hover:underline flex-shrink-0 ml-1" @click="deleteLocation(loc.id)">删除</button>
+                  <div class="flex gap-0.5 flex-shrink-0 ml-1">
+                    <button class="text-xs px-1 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400" @click="startEditLoc(loc)" title="编辑">✎</button>
+                    <button class="text-xs text-danger hover:underline" @click="deleteLocation(loc.id)">删除</button>
+                  </div>
                 </div>
               </div>
             </div>

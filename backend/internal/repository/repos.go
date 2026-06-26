@@ -27,3 +27,11 @@ func NewImageRepo(db *gorm.DB) *ImageRepo { return &ImageRepo{db} }
 type SettingsRepo struct{ db *gorm.DB }
 
 func NewSettingsRepo(db *gorm.DB) *SettingsRepo { return &SettingsRepo{db} }
+
+type TaskRepo struct{ db *gorm.DB }
+
+func NewTaskRepo(db *gorm.DB) *TaskRepo { return &TaskRepo{db} }
+
+type IcsRepo struct{ db *gorm.DB }
+
+func NewIcsRepo(db *gorm.DB) *IcsRepo { return &IcsRepo{db} }

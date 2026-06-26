@@ -2,17 +2,19 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/dezhishen/now-and-again/backend/internal/config"
 	"github.com/dezhishen/now-and-again/backend/internal/handler"
+	"github.com/dezhishen/now-and-again/backend/internal/logger"
 	"github.com/dezhishen/now-and-again/backend/internal/middleware"
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
+	"github.com/dezhishen/now-and-again/backend/internal/scheduler"
 	"github.com/dezhishen/now-and-again/backend/internal/service"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -22,19 +24,25 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		logger.Fatalf("failed to load config: %v", err)
 	}
+
+	// ── Logger ─────────────────────────────────────────────────
+	if _, err := logger.Init(filepath.Join(cfg.BaseDir(), "logs")); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to init logger: %v\n", err)
+	}
+	defer logger.Sync()
 
 	// ── Database ────────────────────────────────────────────────
 	db, err := repository.NewDB(cfg.Database)
 	if err != nil {
-		log.Fatalf("failed to connect database: %v", err)
+		logger.Fatalf("failed to connect database: %v", err)
 	}
 	if err := repository.Migrate(db); err != nil {
-		log.Fatalf("failed to migrate: %v", err)
+		logger.Fatalf("failed to migrate: %v", err)
 	}
 	if err := repository.Seed(db); err != nil {
-		log.Printf("warning: seed failed: %v", err)
+		logger.Warnf("warning: seed failed: %v", err)
 	}
 
 	// ── Repositories ────────────────────────────────────────────
@@ -44,6 +52,8 @@ func main() {
 	floorPlanRepo := repository.NewFloorPlanRepo(db)
 	imageRepo := repository.NewImageRepo(db)
 	settingsRepo := repository.NewSettingsRepo(db)
+	taskRepo := repository.NewTaskRepo(db)
+	icsRepo := repository.NewIcsRepo(db)
 
 	// ── Services ────────────────────────────────────────────────
 	userSvc := service.NewUserService(userRepo, cfg.JWTSecret)
@@ -51,6 +61,16 @@ func main() {
 	apiKeySvc := service.NewApiKeyService(apiKeyRepo)
 	imageSvc := service.NewImageService(imageRepo, cfg.UploadDir, settingsRepo)
 	floorPlanSvc := service.NewFloorPlanService(floorPlanRepo, userRepo, imageSvc, imageRepo)
+
+	// Scheduler with DB log
+	sched, err := scheduler.New(func(taskID, status, message string) {
+		taskRepo.CreateLog(taskID, status, message)
+	})
+	if err != nil {
+		logger.Fatalf("failed to create scheduler: %v", err)
+	}
+	taskSvc := service.NewTaskService(taskRepo, sched)
+	icsSvc := service.NewIcsService(icsRepo, taskRepo, apiKeyRepo)
 
 	// ── Seed admin ──────────────────────────────────────────────
 	seedAdmin(db)
@@ -67,9 +87,16 @@ func main() {
 
 	imageHandler := handler.NewImageHandlers(imageRepo)
 	settingsHandler := handler.NewSettingsHandlers(settingsRepo)
+	taskHandler := &handler.TaskHandlers{Svc: taskSvc}
+	icsHandler := &handler.IcsHandlers{Svc: icsSvc}
 	auth := router.Group("")
 	auth.Use(middleware.JWTAuth(cfg.JWTSecret, apiKeyRepo))
-	handler.RegisterRoutes(router, auth, allContracts, imageHandler, settingsHandler)
+	auth.Use(middleware.ScopeGuard())
+	handler.RegisterRoutes(router, auth, allContracts, imageHandler, settingsHandler, taskHandler, icsHandler)
+
+	// ── Scheduler ──────────────────────────────────────────────
+	sched.Start()
+	defer sched.Stop()
 
 	// ── Graceful Shutdown ───────────────────────────────────────
 	quit := make(chan os.Signal, 1)
@@ -77,14 +104,14 @@ func main() {
 
 	go func() {
 		addr := fmt.Sprintf(":%s", cfg.Port)
-		log.Printf("server listening on %s", addr)
+		logger.Infof("server listening on %s", addr)
 		if err := router.Run(addr); err != nil {
-			log.Fatalf("server error: %v", err)
+			logger.Fatalf("server error: %v", err)
 		}
 	}()
 
 	<-quit
-	log.Println("shutting down...")
+	logger.Infof("shutting down...")
 }
 
 // seedAdmin creates a default admin user if none exists.
@@ -100,7 +127,7 @@ func seedAdmin(db *gorm.DB) {
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("failed to hash admin password: %v", err)
+		logger.Errorf("failed to hash admin password: %v", err)
 		return
 	}
 
@@ -131,16 +158,16 @@ func seedAdmin(db *gorm.DB) {
 		return tx.Create(ur).Error
 	})
 	if err != nil {
-		log.Printf("failed to seed admin: %v", err)
+		logger.Errorf("failed to seed admin: %v", err)
 		return
 	}
 
-	log.Println("========================================")
-	log.Println("  Default admin account created")
-	log.Printf("  Username: admin")
-	log.Printf("  Password: %s", password)
-	log.Println("  Change it after first login!")
-	log.Println("========================================")
+	logger.Infof("========================================")
+	logger.Infof("  Default admin account created")
+	logger.Infof("  Username: admin")
+	logger.Infof("  Password: %s", password)
+	logger.Infof("  Change it after first login!")
+	logger.Infof("========================================")
 }
 
 func randomPassword(length int) string {

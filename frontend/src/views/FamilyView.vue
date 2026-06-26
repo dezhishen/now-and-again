@@ -25,6 +25,8 @@ const showMenu = ref(false)
         <router-link :to="`/family/${$route.params.familyId}/groups`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.groups') }}</router-link>
         <router-link :to="`/family/${$route.params.familyId}/members`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.members') }}</router-link>
         <router-link :to="`/family/${$route.params.familyId}/floor-plan`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.floorPlan') }}</router-link>
+        <router-link :to="`/family/${$route.params.familyId}/tasks`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.tasks') }}</router-link>
+        <router-link :to="`/family/${$route.params.familyId}/ics`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">📅 ICS</router-link>
         <router-link :to="`/family/${$route.params.familyId}/settings`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.settings') }}</router-link>
       </nav>
     </aside>

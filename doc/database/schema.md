@@ -20,6 +20,10 @@
 | 12 | `floor_plans` | 户型图 | family_id, label, image_id, is_cover |
 | 13 | `locations` | 地点标记 | floor_plan_id, name, point_x, point_y, color |
 | 14 | `system_settings` | 系统配置 | key (PK), value |
+| 15 | `task_templates` | 任务模板 | family_id, name, schedule_type, schedule_data, enabled, is_inspection, inspection_config, location_id, group_id |
+| 16 | `todos` | 待办事项 | task_id, family_id, status, todo_type, inspection_result, due_start, due_date, assigned_to, completed_by |
+| 17 | `task_logs` | 任务执行日志 | task_id, status, message |
+| 18 | `ics_feeds` | ICS 日历订阅 | family_id, name, filter_days, auth_type, api_key_id, app_username, app_password_hash, access_token |
 
 ## 核心索引
 

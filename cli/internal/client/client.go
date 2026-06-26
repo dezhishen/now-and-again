@@ -107,6 +107,7 @@ type AllClients struct {
 	User   *UserClient
 	Family *FamilyClient
 	ApiKey *ApiKeyClient
+	Task   *TaskClient
 }
 
 // NewAllClients creates all clients from a single HTTPClient.
@@ -115,5 +116,6 @@ func NewAllClients(httpClient *HTTPClient) *AllClients {
 		User:   NewUserClient(httpClient),
 		Family: NewFamilyClient(httpClient),
 		ApiKey: NewApiKeyClient(httpClient),
+		Task:   NewTaskClient(httpClient),
 	}
 }

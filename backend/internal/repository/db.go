@@ -2,16 +2,16 @@ package repository
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"time"
+
+	"github.com/dezhishen/now-and-again/backend/internal/config"
+	"github.com/dezhishen/now-and-again/backend/internal/logger"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
-
-	"github.com/dezhishen/now-and-again/backend/internal/config"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 func NewDB(cfg config.DatabaseConfig) (*gorm.DB, error) {
@@ -27,7 +27,7 @@ func NewDB(cfg config.DatabaseConfig) (*gorm.DB, error) {
 	}
 
 	db, err := gorm.Open(dialector, &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
+		Logger: gormlogger.Default.LogMode(gormlogger.Warn),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
@@ -45,7 +45,7 @@ func NewDB(cfg config.DatabaseConfig) (*gorm.DB, error) {
 
 // Migrate runs auto-migration for all models.
 func Migrate(db *gorm.DB) error {
-	log.Println("running database migrations...")
+	logger.Infof("running database migrations...")
 	return db.AutoMigrate(
 		&UserModel{},
 		&AccountModel{},
@@ -61,13 +61,16 @@ func Migrate(db *gorm.DB) error {
 		&LocationModel{},
 		&ImageModel{},
 		&SystemSettingModel{},
-		&LocationModel{},
+		&TaskTemplateModel{},
+		&TodoModel{},
+		&TaskLogModel{},
+		&IcsFeedModel{},
 	)
 }
 
 // Seed inserts default roles.
 func Seed(db *gorm.DB) error {
-	log.Println("seeding default data...")
+	logger.Infof("seeding default data...")
 
 	roles := []RoleModel{
 		{Name: "admin", Description: "系统管理员"},
@@ -88,7 +91,7 @@ func Seed(db *gorm.DB) error {
 		}
 	}
 
-	log.Println("seed complete")
+	logger.Infof("seed complete")
 	return nil
 }
 

@@ -49,3 +49,12 @@ func envOrDefault(key, fallback string) string {
 	}
 	return fallback
 }
+
+// BaseDir returns the data directory or current directory.
+func (c *Config) BaseDir() string {
+	dir := filepath.Dir(c.Database.DSN)
+	if dir == "." {
+		return "."
+	}
+	return dir
+}

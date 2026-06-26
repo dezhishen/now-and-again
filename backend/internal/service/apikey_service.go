@@ -6,6 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/dezhishen/now-and-again/backend/internal/repository"
+	"github.com/dezhishen/now-and-again/shared/scopes"
 	"github.com/dezhishen/now-and-again/shared/types"
 )
 
@@ -15,7 +17,7 @@ func (s *ApiKeyService) Create(ctx context.Context, req *types.CreateApiKeyReque
 		return nil, fmt.Errorf("not authenticated")
 	}
 
-	ak, raw, err := s.repo.CreateApiKey(userID.(string), req.Name, req.ExpiresAt)
+	ak, raw, err := s.repo.CreateApiKey(userID.(string), req.Name, scopes.ExpandGroups(req.Scopes), req.ExpiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("create api key: %w", err)
 	}
@@ -26,6 +28,7 @@ func (s *ApiKeyService) Create(ctx context.Context, req *types.CreateApiKeyReque
 			Name:       ak.Name,
 			KeyPrefix:  ak.KeyPrefix,
 			RawKey:     raw,
+			Scopes:     repository.UnmarshalScopes(ak.Scopes),
 			LastUsedAt: ak.LastUsedAt,
 			ExpiresAt:  ak.ExpiresAt,
 			CreatedAt:  ak.CreatedAt,
@@ -51,6 +54,7 @@ func (s *ApiKeyService) List(ctx context.Context) ([]types.ApiKey, error) {
 			ID:         k.ID,
 			Name:       k.Name,
 			KeyPrefix:  k.KeyPrefix,
+			Scopes:     repository.UnmarshalScopes(k.Scopes),
 			LastUsedAt: k.LastUsedAt,
 			ExpiresAt:  k.ExpiresAt,
 			CreatedAt:  k.CreatedAt,

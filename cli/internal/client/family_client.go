@@ -145,3 +145,17 @@ func (c *FamilyClient) ListGroupJoinRequests(ctx context.Context, groupID uuid.U
 func (c *FamilyClient) ReviewGroupJoinRequest(ctx context.Context, groupID uuid.UUID, req *types.ReviewGroupJoinRequest) error {
 	return c.http.do("PUT", fmt.Sprintf("/api/groups/%s/join-requests", groupID), req, nil)
 }
+
+// ─── Missing contract methods ────────────────────────────────────
+
+func (c *FamilyClient) Update(ctx context.Context, familyID uuid.UUID, req *types.UpdateFamilyRequest) (*types.Family, error) {
+	var f types.Family
+	if err := c.http.do("PATCH", fmt.Sprintf("/api/families/%s", familyID), req, &f); err != nil {
+		return nil, err
+	}
+	return &f, nil
+}
+
+func (c *FamilyClient) Delete(ctx context.Context, familyID uuid.UUID) error {
+	return c.http.do("DELETE", fmt.Sprintf("/api/families/%s", familyID), nil, nil)
+}

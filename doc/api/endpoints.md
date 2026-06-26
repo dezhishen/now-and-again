@@ -1,6 +1,6 @@
 # API 文档
 
-> 共 43 个端点。公开路由无鉴权，受保护路由需要 JWT 或 API Key。
+> 共 67 个端点。公开路由无鉴权，受保护路由需要 JWT 或 API Key（自动校验 Scope）。
 
 ## 系统初始化
 
@@ -106,6 +106,71 @@
 | POST | `/api/users/me/api-keys` | JWT | 创建 API Key（返回 raw_key 仅一次） |
 | GET | `/api/users/me/api-keys` | JWT | API Key 列表 |
 | DELETE | `/api/users/me/api-keys/:key_id` | JWT | 撤销 API Key |
+
+> Scope 说明：创建时可传 `scopes[]`，支持精确 scope（如 `family:read`）和快捷组（`read`/`write`/`admin`）。详细定义见 `shared/scopes/scopes.go`。
+
+## 任务模板
+
+| 方法 | 路径 | 鉴权 | Scope | 说明 |
+|------|------|------|-------|------|
+| POST | `/api/families/:family_id/tasks` | JWT/APIKey | task:write | 创建任务模板（schedule_type: once/daily/weekly/monthly/interval） |
+| GET | `/api/families/:family_id/tasks` | JWT/APIKey | task:read | 任务模板列表 |
+| PUT | `/api/tasks/:task_id` | JWT/APIKey | task:write | 更新任务模板 |
+| DELETE | `/api/tasks/:task_id` | JWT/APIKey | task:write | 删除任务模板 |
+| GET | `/api/tasks/:task_id/logs` | JWT/APIKey | task:read | 任务执行日志 |
+
+### 创建一次性任务
+
+```json
+{
+  "name": "取快递",
+  "schedule_type": "once",
+  "schedule_data": {"date": "2026-06-28", "time": "18:00"}
+}
+```
+
+### 创建周期任务
+
+```json
+{
+  "name": "每日倒垃圾",
+  "schedule_type": "daily",
+  "schedule_data": {"time": "09:00"}
+}
+```
+
+### 创建巡检
+
+```json
+{
+  "name": "厨房安全巡检",
+  "schedule_type": "daily",
+  "schedule_data": {"time": "21:00"},
+  "is_inspection": true,
+  "inspection_config": {
+    "abnormal_action": "create_todo",
+    "abnormal_task_name": "修复{name}"
+  }
+}
+```
+
+## 待办
+
+| 方法 | 路径 | 鉴权 | Scope | 说明 |
+|------|------|------|-------|------|
+| GET | `/api/families/:family_id/todos?status=pending` | JWT/APIKey | task:read | 待办列表（含 due_start/due_date 时间窗口、todo_type、inspection_result） |
+| PUT | `/api/todos/:todo_id` | JWT/APIKey | task:write | 完成/跳过待办（巡检类需传 inspection_result: normal/abnormal） |
+
+## ICS 日历订阅
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| POST | `/api/families/:family_id/ics-feeds` | JWT | 创建 ICS 订阅（auth_type: api_key/basic） |
+| GET | `/api/families/:family_id/ics-feeds` | JWT | 订阅列表 |
+| GET | `/api/ics-feeds/:feed_id` | JWT | 查看订阅详情 |
+| PUT | `/api/ics-feeds/:feed_id` | JWT | 更新订阅 |
+| DELETE | `/api/ics-feeds/:feed_id` | JWT | 删除订阅 |
+| GET | `/api/ics/:token.ics` | 无(JWT)/自定义 | 公开 ICS 端点，支持 API Key（?key=）或 Basic Auth |
 
 ## HTTP 响应规范
 

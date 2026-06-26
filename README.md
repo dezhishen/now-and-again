@@ -28,26 +28,16 @@
 erDiagram
     User ||--o{ FamilyMember : "加入"
     Family ||--o{ FamilyMember : "拥有"
-    Family ||--o{ SubGroup : "包含"
-    Family ||--o{ Task : "拥有"
-    SubGroup ||--o{ Task : "归属"
-
-    TaskType ||--o{ Task : "分类"
-    Task ||--o{ TaskAssignee : "分配"
-    Task ||--o{ TaskDependency : "依赖"
-    Task ||--o{ TaskLog : "记录"
-
-    TaskChain ||--o{ TaskChainStep : "定义步骤"
-    TaskChain ||--o{ Task : "实例化"
-
-    Inspection ||--o{ InspectionItem : "包含检查项"
-    InspectionItem ||--o{ Task : "生成待办"
-
-    Task ||--o{ Notification : "触发通知"
-    NotificationChannel ||--o{ Notification : "投递渠道"
+    Family ||--o{ FamilyGroup : "包含"
+    Family ||--o{ TaskTemplate : "拥有"
+    FamilyGroup ||--o{ TaskTemplate : "归属"
+    TaskTemplate ||--o{ Todo : "生成"
+    TaskTemplate ||--o{ TaskLog : "记录"
+    Location ||--o{ TaskTemplate : "关联"
+    Family ||--o{ IcsFeed : "日历订阅"
 ```
 
-> 完整 Schema 共 20 张表。详见 [数据库文档](doc/database/schema.md)。
+> 共 18 张表，涵盖任务调度、巡检、ICS 日历订阅、API Key 权限体系。详见 [数据库文档](doc/database/schema.md)。
 
 ---
 
@@ -57,17 +47,20 @@ erDiagram
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
-| 🗄️ 数据模型 | ✅ 完成 | 20 张表，GORM AutoMigrate |
-| 🔐 认证体系 | ✅ 完成 | JWT + Refresh Token + API Key |
+| 🗄️ 数据模型 | ✅ 完成 | 18 张表，GORM AutoMigrate |
+| 🔐 认证体系 | ✅ 完成 | JWT + Refresh Token + API Key（带 Scope 权限控制） |
 | 👤 用户管理 | ✅ 完成 | 注册/登录/管理员面板 |
 | 👨‍👩‍👧 家庭管理 | ✅ 完成 | 创建/加入/邀请码/成员管理 |
-| 🔧 调度引擎 | ✅ 完成 | ScheduleHandler 接口 + init() 注册 |
-| 📋 任务 CRUD | ⚠️ 基础 | 创建/列表/完成，待完善分配和提醒 |
-| 🔗 事项链 | ⚠️ 框架 | 接口已定义，待实现 |
-| 🔍 巡检系统 | ⚠️ 框架 | 接口已定义，待实现 |
-| 🔔 通知引擎 | ⚠️ 框架 | 引擎就绪，渠道待实现 |
-| 🖥️ Web 前端 | ⚠️ 基础 | 登录/注册/家庭/任务列表可用 |
+| 👥 小组管理 | ✅ 完成 | 创建/加入/审核/成员管理 |
+| 🏠 户型图 | ✅ 完成 | 多楼层上传/地点标记/颜色标注 |
+| 🔧 任务调度 | ✅ 完成 | Gocron 引擎，支持 once/daily/weekly/monthly/interval |
+| 📋 任务模板 | ✅ 完成 | 创建/编辑/删除/启用/日志，关联地点和小组 |
+| ✅ 待办管理 | ✅ 完成 | 时间窗口(due_start→due_date)、完成/跳过 |
+| 🔍 巡检系统 | ✅ 完成 | 巡检模板 → 待办 → 正常/异常 → 自动生成修复任务 |
+| 📅 ICS 订阅 | ✅ 完成 | 标准 iCalendar，API Key/Basic Auth，导入日历 App |
+| 🖥️ Web 前端 | ✅ 完成 | Vue 3 + i18n 中英文 + 暗色模式 |
 | 💻 CLI 工具 | ⚠️ 框架 | 命令定义完成，API 调用待对接 |
+| 🐳 Docker | ✅ 完成 | 多阶段构建，GitHub Actions 推送到 GHCR |
 | 📱 移动端 | ❌ 未开始 | — |
 
 ---
@@ -92,17 +85,16 @@ erDiagram
 
 ```
 now-and-again/
-├── backend/                    # Go 后端 — Gin + GORM
+├── backend/                    # Go 后端 — Gin + GORM + Gocron
 │   ├── cmd/server/main.go      #   入口
 │   └── internal/
 │       ├── config/             #   环境变量配置
 │       ├── handler/            #   HTTP 路由 + 请求处理
-│       ├── middleware/          #   JWT 认证 · CORS
+│       ├── middleware/          #   JWT · API Key · Scope 鉴权
 │       ├── repository/         #   GORM 模型 · 迁移 · 种子数据
 │       ├── service/            #   业务逻辑层
-│       ├── notifier/           #   通知引擎 + 可插拔渠道
-│       ├── chain/              #   事项链引擎
-│       └── scheduler/          #   定时扫描（到期提醒等）
+│       ├── scheduler/          #   Gocron 调度引擎（可插拔 Handler）
+│       └── logger/             #   Zap 日志（按日切割 + 压缩）
 │
 ├── frontend/                   # Vue 3 + TypeScript + Vite + pnpm
 │   └── src/

@@ -44,6 +44,7 @@ export default {
     family: '家庭',
     dashboard: '仪表盘',
     groups: '小组',
+    tasks: '任务',
     members: '成员',
     floorPlan: '户型图',
     settings: '设置',

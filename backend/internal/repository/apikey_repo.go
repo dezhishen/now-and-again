@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 
 // ─── API Key ──────────────────────────────────────────────────────
 
-func (r *ApiKeyRepo) CreateApiKey(userID, name string, expiresAt *time.Time) (*ApiKeyModel, string, error) {
+func (r *ApiKeyRepo) CreateApiKey(userID, name string, scopes []string, expiresAt *time.Time) (*ApiKeyModel, string, error) {
 	raw := "na_" + uuid.New().String()
 	prefix := raw[:12]
 	keyHash := hashToken(raw)
@@ -19,6 +20,7 @@ func (r *ApiKeyRepo) CreateApiKey(userID, name string, expiresAt *time.Time) (*A
 		Name:      name,
 		KeyPrefix: prefix,
 		KeyHash:   keyHash,
+		Scopes:    marshalScopes(scopes),
 		ExpiresAt: expiresAt,
 	}
 	if err := r.db.Create(ak).Error; err != nil {
@@ -27,7 +29,7 @@ func (r *ApiKeyRepo) CreateApiKey(userID, name string, expiresAt *time.Time) (*A
 	return ak, raw, nil
 }
 
-func (r *ApiKeyRepo) ValidateApiKey(raw string) (userID string, err error) {
+func (r *ApiKeyRepo) ValidateApiKey(raw string) (userID string, scopes []string, err error) {
 	var ak ApiKeyModel
 
 	prefix := ""
@@ -38,21 +40,21 @@ func (r *ApiKeyRepo) ValidateApiKey(raw string) (userID string, err error) {
 		err = r.db.Where("key_hash = ? AND revoked = ?", hashToken(raw), false).First(&ak).Error
 	}
 	if err != nil {
-		return "", fmt.Errorf("invalid api key")
+		return "", nil, fmt.Errorf("invalid api key")
 	}
 
 	if hashToken(raw) != ak.KeyHash {
-		return "", fmt.Errorf("invalid api key")
+		return "", nil, fmt.Errorf("invalid api key")
 	}
 
 	if ak.ExpiresAt != nil && ak.ExpiresAt.Before(time.Now()) {
-		return "", fmt.Errorf("api key expired")
+		return "", nil, fmt.Errorf("api key expired")
 	}
 
 	now := time.Now()
 	r.db.Model(&ak).Update("last_used_at", now)
 
-	return ak.UserID, nil
+	return ak.UserID, UnmarshalScopes(ak.Scopes), nil
 }
 
 func (r *ApiKeyRepo) ListByUser(userID string) ([]ApiKeyModel, error) {
@@ -66,4 +68,21 @@ func (r *ApiKeyRepo) Revoke(keyID, userID string) error {
 	return r.db.Model(&ApiKeyModel{}).
 		Where("id = ? AND user_id = ?", keyID, userID).
 		Update("revoked", true).Error
+}
+
+func marshalScopes(scopes []string) string {
+	if len(scopes) == 0 {
+		return "[]"
+	}
+	b, _ := json.Marshal(scopes)
+	return string(b)
+}
+
+func UnmarshalScopes(raw string) []string {
+	if raw == "" || raw == "[]" {
+		return nil
+	}
+	var s []string
+	json.Unmarshal([]byte(raw), &s)
+	return s
 }
