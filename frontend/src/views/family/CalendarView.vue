@@ -7,6 +7,10 @@ const route = useRoute()
 const familyId = computed(() => route.params.familyId as string)
 const isFullscreen = computed(() => route.name === 'calendar-full')
 const apiKey = computed(() => (route.query.key as string) || '')
+const refreshParam = computed(() => {
+  const v = parseInt(route.query.refresh as string)
+  return isNaN(v) || v < 0 ? null : v
+})
 
 // ── State ────────────────────────────────────────────────────────
 interface CalendarEvent {
@@ -150,7 +154,7 @@ const REFRESH_OPTIONS = [
   { label: '5分钟', value: 300_000 },
   { label: '关闭', value: 0 },
 ]
-const refreshInterval = ref(60_000) // default 1 min
+const refreshInterval = ref(refreshParam.value != null ? refreshParam.value * 1000 : 60_000) // default 1 min, or from URL ?refresh=N (seconds)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 

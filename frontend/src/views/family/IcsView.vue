@@ -45,11 +45,13 @@ const baseUrl = window.location.origin
 const showEmbed = ref(false)
 const embedApiKey = ref('')
 const embedGroupID = ref('')
+const embedRefresh = ref(30)  // default 30 seconds
 const embedCopied = ref(false)
 
 const embedUrl = computed(() => {
   let url = `${baseUrl}/calendar/${familyId}?key=${embedApiKey.value || 'YOUR_API_KEY'}`
   if (embedGroupID.value) url += `&group_id=${embedGroupID.value}`
+  if (embedRefresh.value > 0) url += `&refresh=${embedRefresh.value}`
   return url
 })
 
@@ -315,6 +317,16 @@ function getUsageHint(feed: IcsFeed): string {
             <select v-model="embedGroupID" class="input text-sm">
               <option value="">全部</option>
               <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-gray-400 block mb-1">自动刷新</label>
+            <select v-model="embedRefresh" class="input text-sm">
+              <option :value="0">关闭</option>
+              <option :value="30">30秒</option>
+              <option :value="60">1分钟</option>
+              <option :value="120">2分钟</option>
+              <option :value="300">5分钟</option>
             </select>
           </div>
 
