@@ -72,15 +72,30 @@ function isGroupOwner(): boolean {
   return manageDetail.value?.members.some(m => m.user_id === auth.user?.id && m.role === 'owner') ?? false
 }
 
+function isMember(groupId: string): boolean {
+  return memberCache.value[groupId]?.some(m => m.user_id === auth.user?.id) ?? false
+}
+
+function isGroupAdmin(groupId: string): boolean {
+  return memberCache.value[groupId]?.some(m => m.user_id === auth.user?.id && m.role === 'owner') ?? false
+}
+
 async function joinGroup(groupId: string) {
   loading.value[groupId] = true
-  try { await api.post('/groups/' + groupId + '/join') } catch (e: any) { error.value = e.message }
+  try {
+    await api.post('/groups/' + groupId + '/join')
+    // Refresh member cache so buttons update
+    memberCache.value[groupId] = await api.get<FamilyGroupMember[]>('/groups/' + groupId + '/members')
+  } catch (e: any) { error.value = e.message }
   finally { loading.value[groupId] = false }
 }
 
 async function leaveGroup(groupId: string) {
   loading.value[groupId] = true
-  try { await api.post('/groups/' + groupId + '/leave') } catch (e: any) { error.value = e.message }
+  try {
+    await api.post('/groups/' + groupId + '/leave')
+    memberCache.value[groupId] = await api.get<FamilyGroupMember[]>('/groups/' + groupId + '/members')
+  } catch (e: any) { error.value = e.message }
   finally { loading.value[groupId] = false }
 }
 
@@ -156,9 +171,9 @@ async function removeMember(userId: string) {
 
         <!-- Actions -->
         <div class="flex gap-1.5 pt-1.5 border-t border-gray-100 dark:border-gray-700 mt-auto">
-          <button class="flex-1 text-xs py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors font-medium" :disabled="loading[g.id]" @click="joinGroup(g.id)">加入</button>
-          <button class="flex-1 text-xs py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium" :disabled="loading[g.id]" @click="leaveGroup(g.id)">离开</button>
-          <button class="flex-1 text-xs py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium" @click="openManage(g.id)">管理</button>
+          <button v-if="!isMember(g.id)" class="flex-1 text-xs py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors font-medium" :disabled="loading[g.id]" @click="joinGroup(g.id)">加入</button>
+          <button v-if="isMember(g.id)" class="flex-1 text-xs py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium" :disabled="loading[g.id]" @click="leaveGroup(g.id)">离开</button>
+          <button v-if="isGroupAdmin(g.id)" class="flex-1 text-xs py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium" @click="openManage(g.id)">管理</button>
         </div>
       </div>
     </div>

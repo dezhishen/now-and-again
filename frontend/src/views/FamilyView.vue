@@ -33,13 +33,20 @@ onMounted(async () => {
     const f = await api.get<{ name: string }>('/families/' + route.params.familyId)
     familyName.value = f.name
   } catch { /* */ }
-  // Check if current user is family admin/owner
   try {
     const members = await api.get<{ user_id: string; role: string }[]>('/families/' + route.params.familyId + '/members')
     const me = members.find(m => m.user_id === auth.user?.id)
     isFamilyAdmin.value = me?.role === 'owner' || me?.role === 'admin'
   } catch { /* */ }
 })
+
+async function leaveFamily() {
+  if (!confirm('确定要离开这个家庭吗？')) return
+  try {
+    await api.post('/families/' + route.params.familyId + '/leave')
+    window.location.href = '/'
+  } catch (e: any) { alert(e.message) }
+}
 </script>
 
 <template>
@@ -64,6 +71,8 @@ onMounted(async () => {
         <router-link :to="`/family/${$route.params.familyId}/ics`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">📅 {{ t('nav.ics') }}</router-link>
         <router-link :to="`/calendar/${$route.params.familyId}`" target="_blank" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">🖥️ {{ t('nav.calendar') }}</router-link>
         <router-link v-if="isFamilyAdmin" :to="`/family/${$route.params.familyId}/settings`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">⚙️ {{ t('nav.settings') }}</router-link>
+        <hr class="my-2 border-gray-200 dark:border-gray-700" />
+        <button class="px-3 py-2 rounded-lg text-left text-gray-400 hover:text-danger hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm" @click="leaveFamily">🚪 离开家庭</button>
       </nav>
     </aside>
 
