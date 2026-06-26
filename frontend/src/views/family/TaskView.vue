@@ -35,7 +35,7 @@ const logsLoading = ref(false)
 const logPage = ref(1)
 const logTotal = ref(0)
 const logSearch = ref('')
-const LOG_PAGE_SIZE = 20
+const LOG_PAGE_SIZE = 10
 const logs = ref<{ id: string; task_id: string; status: string; message?: string; log_type: string; operator_id?: string; created_at: string }[]>([])
 
 const logTotalPages = computed(() => Math.max(1, Math.ceil(logTotal.value / LOG_PAGE_SIZE)))
@@ -326,7 +326,7 @@ function scheduleSummary(task: TaskTemplate): string {
               <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showLogs = false">✕</button>
             </div>
           </div>
-          <div class="flex-1 overflow-auto p-4" style="min-height: 320px; max-height: 400px">
+          <div class="flex-1 overflow-auto p-4" style="min-height: 300px; max-height: 340px">
             <div v-if="logsLoading" class="flex items-center justify-center py-8">
               <span class="animate-spin text-xl">⏳</span>
             </div>
