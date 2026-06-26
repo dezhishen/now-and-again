@@ -15,13 +15,9 @@ FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
-COPY shared/go.mod shared/go.sum shared/
-RUN cd shared && go mod download
-
 COPY backend/go.mod backend/go.sum backend/
 RUN cd backend && go mod download
 
-COPY shared/ shared/
 COPY backend/ backend/
 
 # Embed frontend dist

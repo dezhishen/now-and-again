@@ -6,6 +6,7 @@ backend/na-server
 cli/na
 frontend/dist/
 frontend/.vite/
+backend/internal/webui/dist/
 
 # ─── Database ────────────────────────────────────────────────────
 *.db

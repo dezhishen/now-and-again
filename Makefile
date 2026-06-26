@@ -37,10 +37,18 @@ dev-cli: ## 编译并运行 CLI（参数通过 ARGS 传递，如 make dev-cli AR
 
 # ─── Build ────────────────────────────────────────────────────────
 
-build: build-backend build-cli build-frontend ## 构建全部
+build: build-frontend build-backend build-cli ## 构建全部（前端→后端→CLI，后端嵌入前端制品）
 
-build-backend: ## 编译后端二进制 → backend/na-server
+build-backend: ## 编译后端二进制 → backend/na-server（需先 build-frontend）
 	@echo "Building backend..."
+	@mkdir -p backend/internal/webui/dist
+	@if [ -d frontend/dist ]; then \
+		rm -rf backend/internal/webui/dist/* && \
+		cp -r frontend/dist/* backend/internal/webui/dist/ && \
+		echo "  → frontend/dist → backend/internal/webui/dist (embedded)"; \
+	else \
+		echo "  ⚠️  frontend/dist not found, building without embedded UI"; \
+	fi
 	@cd backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o na-server ./cmd/server
 	@echo "  → backend/na-server"
 
@@ -120,6 +128,7 @@ clean: ## 清理所有构建产物
 	@rm -f cli/na
 	@rm -rf frontend/dist/
 	@rm -rf frontend/.vite/
+	@rm -rf backend/internal/webui/dist/
 	@rm -f backend/*.db backend/*.db-journal backend/*.db-wal backend/*.db-shm
 	@echo "→ done"
 
