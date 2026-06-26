@@ -8,7 +8,7 @@ import { useDark } from '@/composables/useDark'
 const { t, locale } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
-const { isDark, toggle: toggleDark } = useDark()
+const { isDark, cycle: cycleTheme, label: themeLabel, title: themeTitle } = useDark()
 
 const showUserMenu = ref(false)
 const showLangMenu = ref(false)
@@ -60,8 +60,8 @@ window.addEventListener('click', onWindowClick)
         </div>
 
         <!-- Dark mode -->
-        <button class="w-8 h-8 rounded-lg flex items-center justify-center text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="toggleDark" :title="isDark ? '切换亮色' : '切换暗色'">
-          {{ isDark ? '☀️' : '🌙' }}
+        <button class="w-8 h-8 rounded-lg flex items-center justify-center text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="cycleTheme" :title="themeTitle">
+          {{ themeLabel }}
         </button>
 
         <!-- User -->
