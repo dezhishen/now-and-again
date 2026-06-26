@@ -324,104 +324,84 @@ onMounted(async () => {
     <!-- Stats Tab -->
     <div v-if="activeTab === 'stats'">
       <!-- Period selector -->
-      <div class="flex items-center gap-2 mb-4 flex-wrap">
+      <div class="flex items-center gap-2 mb-6 flex-wrap">
         <div class="flex gap-0.5 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
           <button v-for="p in (['week','month','year'] as const)" :key="p"
-            class="px-3 py-1 text-xs rounded-md transition-colors"
-            :class="statsPeriod === p ? 'bg-white dark:bg-gray-700 text-primary font-medium shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+            class="px-4 py-1.5 text-sm rounded-md transition-colors font-medium"
+            :class="statsPeriod === p ? 'bg-white dark:bg-gray-700 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
             @click="statsPeriod = p; resetStatsDate()"
           >{{ PERIOD_LABELS[p] }}</button>
         </div>
-        <button class="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-gray-100 dark:hover:bg-gray-700" @click="shiftPeriod(-1)">◀</button>
-        <span class="text-sm text-gray-600 dark:text-gray-400 min-w-[100px] text-center">{{ statsRangeLabel }}</span>
-        <button class="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-gray-100 dark:hover:bg-gray-700" @click="shiftPeriod(1)">▶</button>
-        <button v-if="statsDate" class="text-xs text-primary hover:underline ml-1" @click="resetStatsDate()">回到今天</button>
+        <button class="w-7 h-7 rounded flex items-center justify-center text-sm hover:bg-gray-100 dark:hover:bg-gray-700" @click="shiftPeriod(-1)">◀</button>
+        <span class="text-sm text-gray-600 dark:text-gray-400 min-w-[140px] text-center font-medium">{{ statsRangeLabel }}</span>
+        <button class="w-7 h-7 rounded flex items-center justify-center text-sm hover:bg-gray-100 dark:hover:bg-gray-700" @click="shiftPeriod(1)">▶</button>
+        <button v-if="statsDate" class="text-xs text-primary hover:underline ml-1" @click="resetStatsDate()">今天</button>
       </div>
 
       <LoadingSpinner v-if="statsLoading" />
 
       <template v-else-if="stats">
-        <!-- Summary cards -->
+        <!-- Summary row -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <div class="card text-center">
-            <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ stats.summary.total_completed }}</p>
+          <div class="card text-center py-3">
+            <p class="text-3xl font-bold text-green-500">{{ stats.summary.total_completed }}</p>
             <p class="text-xs text-gray-400 mt-1">已完成</p>
           </div>
-          <div class="card text-center">
-            <p class="text-2xl font-bold text-orange-500">{{ stats.summary.total_skipped }}</p>
+          <div class="card text-center py-3">
+            <p class="text-3xl font-bold text-orange-400">{{ stats.summary.total_skipped }}</p>
             <p class="text-xs text-gray-400 mt-1">已跳过</p>
           </div>
-          <div class="card text-center">
-            <p class="text-2xl font-bold text-blue-500">{{ stats.summary.total_manual }}</p>
+          <div class="card text-center py-3">
+            <p class="text-3xl font-bold text-blue-400">{{ stats.summary.total_manual }}</p>
             <p class="text-xs text-gray-400 mt-1">手动触发</p>
           </div>
-          <div class="card text-center">
-            <p class="text-2xl font-bold text-primary">{{ (stats.summary.completion_rate * 100).toFixed(0) }}%</p>
+          <div class="card text-center py-3">
+            <p class="text-3xl font-bold" :class="stats.summary.completion_rate >= 0.8 ? 'text-green-500' : stats.summary.completion_rate >= 0.5 ? 'text-amber-500' : 'text-red-400'">{{ (stats.summary.completion_rate * 100).toFixed(0) }}%</p>
             <p class="text-xs text-gray-400 mt-1">完成率</p>
           </div>
         </div>
 
-        <!-- Daily bar chart -->
+        <!-- Per-task with progress bars -->
         <div class="card mb-6">
-          <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">每日统计</h3>
-          <div v-if="stats.daily.length === 0" class="text-center text-gray-400 py-4 text-sm">暂无数据</div>
-          <div v-else class="flex items-end gap-0.5 h-32">
-            <div v-for="d in stats.daily" :key="d.date"
-              class="flex-1 flex flex-col items-center gap-0.5 min-w-0"
-            >
-              <div class="w-full flex flex-col justify-end" style="height: 100px">
-                <div v-if="d.completed" class="w-full bg-green-400 dark:bg-green-600 rounded-t-sm transition-all"
-                  :style="{ height: (d.completed / maxDailyCount * 100) + '%' }"
-                  :title="`${d.date.slice(5)} 完成: ${d.completed}`"
-                ></div>
-                <div v-if="d.skipped" class="w-full bg-orange-300 dark:bg-orange-700 transition-all"
-                  :style="{ height: (d.skipped / maxDailyCount * 100) + '%' }"
-                  :title="`${d.date.slice(5)} 跳过: ${d.skipped}`"
-                ></div>
-                <div v-if="d.manual" class="w-full bg-blue-300 dark:bg-blue-700 rounded-b-sm transition-all"
-                  :style="{ height: (d.manual / maxDailyCount * 100) + '%' }"
-                  :title="`${d.date.slice(5)} 手动: ${d.manual}`"
+          <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-4">任务完成情况</h3>
+          <div v-if="stats.by_task.length === 0" class="text-center text-gray-400 py-4 text-sm">暂无数据</div>
+          <div v-else class="space-y-3">
+            <div v-for="bt in stats.by_task" :key="bt.task_id">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm dark:text-gray-200 truncate max-w-[60%]">{{ bt.task_name || bt.task_id.slice(0, 8) }}</span>
+                <span class="text-xs text-gray-400">
+                  ✅ {{ bt.completed || 0 }} ⏭️ {{ bt.skipped || 0 }}
+                  <span class="ml-2 font-medium" :class="bt.completed + bt.skipped > 0 ? (bt.completed / (bt.completed + bt.skipped) >= 0.8 ? 'text-green-500' : bt.completed / (bt.completed + bt.skipped) >= 0.5 ? 'text-amber-500' : 'text-red-400') : 'text-gray-300'">
+                    {{ bt.completed + bt.skipped > 0 ? (bt.completed / (bt.completed + bt.skipped) * 100).toFixed(0) + '%' : '-' }}
+                  </span>
+                </span>
+              </div>
+              <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                <div class="h-full rounded-full transition-all"
+                  :class="bt.completed + bt.skipped > 0 ? (bt.completed / (bt.completed + bt.skipped) >= 0.8 ? 'bg-green-400' : bt.completed / (bt.completed + bt.skipped) >= 0.5 ? 'bg-amber-400' : 'bg-red-400') : 'bg-gray-300'"
+                  :style="{ width: (bt.completed + bt.skipped > 0 ? bt.completed / (bt.completed + bt.skipped) * 100 : 0) + '%' }"
                 ></div>
               </div>
-              <span class="text-[9px] text-gray-400 truncate w-full text-center">{{ d.date.slice(5) }}</span>
             </div>
-          </div>
-          <div class="flex gap-4 mt-3 text-[10px] text-gray-400">
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-green-400 dark:bg-green-600"></span>已完成</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-orange-300 dark:bg-orange-700"></span>已跳过</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-blue-300 dark:bg-blue-700"></span>手动</span>
           </div>
         </div>
 
-        <!-- Per-task breakdown -->
+        <!-- Daily chart -->
         <div class="card">
-          <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">按任务统计</h3>
-          <div v-if="stats.by_task.length === 0" class="text-center text-gray-400 py-4 text-sm">暂无数据</div>
-          <table v-else class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-gray-400 border-b dark:border-gray-700">
-                <th class="pb-2 font-normal">任务</th>
-                <th class="pb-2 font-normal text-center w-14">✅</th>
-                <th class="pb-2 font-normal text-center w-14">⏭️</th>
-                <th class="pb-2 font-normal text-center w-14">🔧</th>
-                <th class="pb-2 font-normal text-right w-16">完成率</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="bt in stats.by_task" :key="bt.task_id" class="border-b border-gray-50 dark:border-gray-800">
-                <td class="py-2 pr-2 truncate max-w-[120px] dark:text-gray-200">{{ bt.task_name || bt.task_id.slice(0, 8) }}</td>
-                <td class="py-2 text-center text-green-600">{{ bt.completed || '-' }}</td>
-                <td class="py-2 text-center text-orange-500">{{ bt.skipped || '-' }}</td>
-                <td class="py-2 text-center text-blue-500">{{ bt.manual || '-' }}</td>
-                <td class="py-2 text-right">
-                  <span v-if="bt.completed + bt.skipped > 0" class="text-xs font-medium"
-                    :class="bt.completed / (bt.completed + bt.skipped) >= 0.8 ? 'text-green-600' : bt.completed / (bt.completed + bt.skipped) >= 0.5 ? 'text-amber-500' : 'text-red-500'"
-                  >{{ (bt.completed / (bt.completed + bt.skipped) * 100).toFixed(0) }}%</span>
-                  <span v-else class="text-gray-300">-</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">每日趋势</h3>
+          <div v-if="stats.daily.length === 0" class="text-center text-gray-400 py-4 text-sm">暂无数据</div>
+          <div v-else class="flex items-end gap-0.5 h-24">
+            <div v-for="d in stats.daily" :key="d.date" class="flex-1 flex flex-col items-center min-w-0" :title="`${d.date.slice(5)} 完成${d.completed} 跳过${d.skipped}`">
+              <div class="w-full flex flex-col justify-end" style="height: 80px">
+                <div v-if="d.completed + d.skipped > 0"
+                  class="w-full rounded-t-sm transition-all"
+                  :class="d.completed / Math.max(d.completed + d.skipped, 1) >= 0.5 ? 'bg-green-400 dark:bg-green-600' : 'bg-orange-300 dark:bg-orange-700'"
+                  :style="{ height: ((d.completed + d.skipped) / maxDailyCount * 100) + '%' }"
+                ></div>
+              </div>
+              <span class="text-[9px] text-gray-400 mt-1">{{ d.date.slice(5) }}</span>
+            </div>
+          </div>
         </div>
       </template>
 
