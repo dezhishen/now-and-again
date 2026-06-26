@@ -211,84 +211,6 @@ function scheduleSummary(task: TaskTemplate): string {
     <div v-if="activeTab === 'tasks'">
       <button class="btn-primary text-sm mb-3" @click="openCreate">+ 创建任务</button>
 
-      <!-- Task form -->
-      <div v-if="showTaskForm" class="card mb-4 space-y-3">
-        <input v-model="taskName" class="input" placeholder="任务名称，如：每日倒垃圾" />
-        <div>
-          <label class="text-xs text-gray-400 block mb-1">调度方式</label>
-          <select v-model="taskSchedule" class="input">
-            <option v-for="s in SCHEDULE_TYPES" :key="s.value" :value="s.value">{{ s.label }}</option>
-          </select>
-        </div>
-        <div>
-          <label class="text-xs text-gray-400 block mb-1">触发时间</label>
-          <input v-model="taskTime" type="time" class="input" />
-        </div>
-        <!-- Once: date picker -->
-        <div v-if="taskSchedule === 'once'">
-          <label class="text-xs text-gray-400 block mb-1">执行日期</label>
-          <input v-model="taskDate" type="date" class="input" />
-          <p class="text-xs text-gray-400 mt-1">选择过去的日期也会立即生成待办</p>
-        </div>
-        <!-- Weekly/Monthly/Interval day picker -->
-        <div v-if="taskSchedule !== 'daily' && taskSchedule !== 'once'">
-          <label class="text-xs text-gray-400 block mb-1">
-            {{ taskSchedule === 'weekly' ? '选择星期' : taskSchedule === 'monthly' ? '选择日期' : '间隔天数' }}
-          </label>
-          <div class="flex flex-wrap gap-1">
-            <template v-if="taskSchedule === 'weekly'">
-              <button v-for="(name, i) in WEEKDAYS" :key="i"
-                class="text-xs px-2 py-1 rounded border transition-colors"
-                :class="taskDays.includes(i+1) ? 'bg-primary text-white border-primary' : 'border-gray-200 dark:border-gray-600 dark:text-gray-400'"
-                @click="toggleDay(i+1)"
-              >{{ name }}</button>
-            </template>
-            <template v-else-if="taskSchedule === 'monthly'">
-              <button v-for="d in MONTH_DAYS" :key="d"
-                class="text-xs w-7 h-7 rounded border transition-colors flex items-center justify-center"
-                :class="taskDays.includes(d) ? 'bg-primary text-white border-primary' : 'border-gray-200 dark:border-gray-600 dark:text-gray-400'"
-                @click="toggleDay(d)"
-              >{{ d }}</button>
-            </template>
-            <template v-else>
-              <input type="number" v-model.number="taskDays[0]" class="input w-20" placeholder="天数" min="1" />
-            </template>
-          </div>
-        </div>
-        <div>
-          <label class="text-xs text-gray-400 block mb-1">关联地点（可选）</label>
-          <select v-model="taskLocationID" class="input">
-            <option value="">不关联</option>
-            <option v-for="loc in locations" :key="loc.id" :value="loc.id">
-              {{ loc.name }}
-            </option>
-          </select>
-          <p class="text-xs text-gray-400 mt-1">可在 <router-link :to="`/family/${familyId}/floor-plan`" class="text-primary underline">户型图</router-link> 中管理地点</p>
-        </div>
-        <div>
-          <label class="text-xs text-gray-400 block mb-1">分配给小组（可选）</label>
-          <select v-model="taskGroupID" class="input">
-            <option value="">全部成员</option>
-            <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-          </select>
-        </div>
-        <!-- Inspection config (only shown when creating from inspections tab) -->
-        <div v-if="isInspection" class="space-y-2 border-l-2 border-warning pl-3">
-          <p class="text-xs text-warning font-medium">⚠ 巡检模式 — 标记异常时将自动创建修复待办</p>
-          <label class="text-xs text-gray-400 block">异常时创建的修复任务名称</label>
-          <input v-model="inspectionConfig.abnormal_task_name" class="input" placeholder="修复 {name}，如: 修复{name}的异常" />
-          <label class="text-xs text-gray-400 block">分配给小组（可选）</label>
-          <select v-model="inspectionConfig.abnormal_group_id" class="input">
-            <option value="">全部成员</option>
-            <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-          </select>
-        </div>
-        <div class="flex gap-2">
-          <button class="btn-primary text-sm" @click="saveTask">{{ editingTask ? '保存' : '创建' }}</button>
-          <button class="text-sm px-3 py-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="showTaskForm = false">取消</button>
-        </div>
-      </div>
-
       <div v-if="tasks.length === 0" class="text-center text-gray-400 py-8">暂无任务模板</div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div v-for="task in filteredTasks" :key="task.id" class="card hover:shadow-md transition-shadow">
@@ -375,6 +297,88 @@ function scheduleSummary(task: TaskTemplate): string {
               <span class="font-medium" :class="LOG_CLASSES[log.status] || 'text-gray-500'">{{ LOG_LABELS[log.status] || log.status }}</span>
               <span v-if="log.message" class="text-gray-400 truncate flex-1">{{ log.message }}</span>
             </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Create/Edit Task Modal -->
+    <Teleport to="body">
+      <div v-if="showTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showTaskForm = false">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-lg max-h-[85vh] flex flex-col">
+          <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
+            <h3 class="font-bold dark:text-gray-200">{{ isInspection ? '创建巡检' : editingTask ? '编辑任务' : '创建任务' }}</h3>
+            <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showTaskForm = false">✕</button>
+          </div>
+          <div class="flex-1 overflow-auto p-4 space-y-3">
+            <input v-model="taskName" class="input" :placeholder="isInspection ? '巡检名称，如：厨房安全检查' : '任务名称，如：每日倒垃圾'" />
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">调度方式</label>
+              <select v-model="taskSchedule" class="input">
+                <option v-for="s in SCHEDULE_TYPES" :key="s.value" :value="s.value">{{ s.label }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">触发时间</label>
+              <input v-model="taskTime" type="time" class="input" />
+            </div>
+            <div v-if="taskSchedule === 'once'">
+              <label class="text-xs text-gray-400 block mb-1">执行日期</label>
+              <input v-model="taskDate" type="date" class="input" />
+              <p class="text-xs text-gray-400 mt-1">选择过去的日期会立即生成待办</p>
+            </div>
+            <div v-if="taskSchedule !== 'daily' && taskSchedule !== 'once'">
+              <label class="text-xs text-gray-400 block mb-1">
+                {{ taskSchedule === 'weekly' ? '选择星期' : taskSchedule === 'monthly' ? '选择日期' : '间隔天数' }}
+              </label>
+              <div class="flex flex-wrap gap-1">
+                <template v-if="taskSchedule === 'weekly'">
+                  <button v-for="(name, i) in WEEKDAYS" :key="i"
+                    class="text-xs px-2 py-1 rounded border transition-colors"
+                    :class="taskDays.includes(i+1) ? 'bg-primary text-white border-primary' : 'border-gray-200 dark:border-gray-600 dark:text-gray-400'"
+                    @click="toggleDay(i+1)">{{ name }}</button>
+                </template>
+                <template v-else-if="taskSchedule === 'monthly'">
+                  <button v-for="d in MONTH_DAYS" :key="d"
+                    class="text-xs w-7 h-7 rounded border transition-colors flex items-center justify-center"
+                    :class="taskDays.includes(d) ? 'bg-primary text-white border-primary' : 'border-gray-200 dark:border-gray-600 dark:text-gray-400'"
+                    @click="toggleDay(d)">{{ d }}</button>
+                </template>
+                <template v-else>
+                  <input type="number" v-model.number="taskDays[0]" class="input w-20" placeholder="天数" min="1" />
+                </template>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">关联地点（可选）</label>
+              <select v-model="taskLocationID" class="input">
+                <option value="">不关联</option>
+                <option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
+              </select>
+              <p class="text-xs text-gray-400 mt-1">可在 <router-link :to="`/family/${familyId}/floor-plan`" class="text-primary underline">户型图</router-link> 中管理地点</p>
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">分配给小组（可选）</label>
+              <select v-model="taskGroupID" class="input">
+                <option value="">全部成员</option>
+                <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+              </select>
+            </div>
+            <!-- Inspection config -->
+            <div v-if="isInspection" class="space-y-2 border-l-2 border-warning pl-3">
+              <p class="text-xs text-warning font-medium">⚠ 标记异常时将自动创建修复待办</p>
+              <label class="text-xs text-gray-400 block">异常时创建的修复任务名称</label>
+              <input v-model="inspectionConfig.abnormal_task_name" class="input" placeholder="修复 {name}" />
+              <label class="text-xs text-gray-400 block">分配给小组（可选）</label>
+              <select v-model="inspectionConfig.abnormal_group_id" class="input">
+                <option value="">全部成员</option>
+                <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">
+            <button class="btn-primary text-sm flex-1" @click="saveTask">{{ editingTask ? '保存' : '创建' }}</button>
+            <button class="text-sm px-4 py-2 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="showTaskForm = false">取消</button>
           </div>
         </div>
       </div>
