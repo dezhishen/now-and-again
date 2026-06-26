@@ -106,23 +106,59 @@ function goToday() {
   currentMonth.value = now.getMonth() + 1
 }
 
-// ── Watch & Init ─────────────────────────────────────────────────
+// ── Fullscreen ───────────────────────────────────────────────────
+const isBrowserFullscreen = ref(false)
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen()
+    isBrowserFullscreen.value = true
+  } else {
+    document.exitFullscreen()
+    isBrowserFullscreen.value = false
+  }
+}
+
+// Listen for ESC key to exit fullscreen
+function onFullscreenChange() {
+  isBrowserFullscreen.value = !!document.fullscreenElement
+}
+
+// ── Auto-refresh ────────────────────────────────────────────────
+const REFRESH_OPTIONS = [
+  { label: '30秒', value: 30_000 },
+  { label: '1分钟', value: 60_000 },
+  { label: '2分钟', value: 120_000 },
+  { label: '5分钟', value: 300_000 },
+  { label: '关闭', value: 0 },
+]
+const refreshInterval = ref(60_000) // default 1 min
+
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
-watch([currentYear, currentMonth, groupID], loadCalendar)
-onMounted(() => { loadGroups(); loadCalendar() })
-
-// Auto-refresh on fullscreen mode (every 60s)
-watch(isFullscreen, (fs) => {
-  if (fs) {
-    pollTimer = setInterval(loadCalendar, 60_000)
-  } else {
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+function startPolling() {
+  stopPolling()
+  if (refreshInterval.value > 0 && isFullscreen.value) {
+    pollTimer = setInterval(loadCalendar, refreshInterval.value)
   }
-}, { immediate: true })
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+}
+
+// ── Watch & Init ─────────────────────────────────────────────────
+watch([currentYear, currentMonth, groupID], loadCalendar)
+watch([isFullscreen, refreshInterval], () => startPolling(), { immediate: true })
+
+onMounted(() => {
+  loadGroups(); loadCalendar()
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+})
 
 onBeforeUnmount(() => {
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+  stopPolling()
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
 })
 </script>
 
@@ -146,14 +182,25 @@ onBeforeUnmount(() => {
         >今天</button>
       </div>
 
-      <!-- Group filter -->
-      <select
-        v-model="groupID"
-        class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
-      >
-        <option value="">所有小组</option>
-        <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-      </select>
+      <div class="flex items-center gap-2">
+        <select
+          v-model="groupID"
+          class="px-2 py-1 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+        >
+          <option value="">所有小组</option>
+          <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+        </select>
+
+        <select v-if="isFullscreen" v-model="refreshInterval" class="px-2 py-1 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
+          <option v-for="opt in REFRESH_OPTIONS" :key="opt.value" :value="opt.value">🔄 {{ opt.label }}</option>
+        </select>
+
+        <button v-if="isFullscreen"
+          class="px-2 py-1 text-xs rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          @click="toggleFullscreen"
+          :title="isBrowserFullscreen ? '退出全屏' : '全屏'"
+        >{{ isBrowserFullscreen ? '↙️' : '↗️' }}</button>
+      </div>
     </div>
 
     <!-- Loading -->
