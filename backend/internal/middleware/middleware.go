@@ -36,10 +36,13 @@ type ApiKeyValidator interface {
 // JWTAuth validates the Bearer token (JWT or API Key).
 func JWTAuth(secret string, apiKeyValidator ApiKeyValidator) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Check Authorization header first, then X-API-Key
+		// Check Authorization header first, then X-API-Key, then ?key= query param
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			authHeader = c.GetHeader("X-API-Key")
+		}
+		if authHeader == "" {
+			authHeader = c.Query("key")
 		}
 
 		if authHeader == "" {

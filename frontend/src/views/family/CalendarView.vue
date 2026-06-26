@@ -6,6 +6,7 @@ import { api } from '@/api/client'
 const route = useRoute()
 const familyId = computed(() => route.params.familyId as string)
 const isFullscreen = computed(() => route.name === 'calendar-full')
+const apiKey = computed(() => (route.query.key as string) || '')
 
 // ── State ────────────────────────────────────────────────────────
 interface CalendarEvent {
@@ -54,6 +55,23 @@ const kindColor = (kind: string) => {
 }
 
 // ── Data loading ─────────────────────────────────────────────────
+const BASE_URL = '/api'
+
+async function fetchApi<T>(path: string): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (apiKey.value) {
+    headers['X-API-Key'] = apiKey.value
+  } else {
+    const token = api.getAccessToken()
+    if (token) headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const res = await fetch(BASE_URL + path, { headers, credentials: 'include' })
+  const json = await res.json()
+  if (!json.success) throw new Error(json.error || 'request failed')
+  return json.data
+}
+
 async function loadCalendar() {
   loading.value = true
   try {
@@ -63,7 +81,7 @@ async function loadCalendar() {
     })
     if (groupID.value) params.set('group_id', groupID.value)
 
-    days.value = await api.get<CalendarDay[]>(
+    days.value = await fetchApi<CalendarDay[]>(
       `/families/${familyId.value}/calendar?${params}`
     )
   } catch {
@@ -75,7 +93,7 @@ async function loadCalendar() {
 
 async function loadGroups() {
   try {
-    groups.value = await api.get<{ id: string; name: string }[]>(
+    groups.value = await fetchApi<{ id: string; name: string }[]>(
       `/families/${familyId.value}/groups`
     )
   } catch { /* ignore */ }
