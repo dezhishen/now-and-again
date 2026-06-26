@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, inject, watch, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
@@ -11,6 +11,10 @@ const route = useRoute()
 const router = useRouter()
 const familyId = route.params.familyId as string
 
+// Reload data when this tab becomes active (switching tabs)
+const refreshKey = inject<Ref<number>>('refreshKey', ref(0))
+watch(refreshKey, () => { loadFamily() })
+
 const family = ref<Family | null>(null)
 const loading = ref(true)
 const editName = ref('')
@@ -18,12 +22,16 @@ const saving = ref(false)
 const saved = ref(false)
 const error = ref('')
 
-onMounted(async () => {
-  loading.value = true
+async function loadFamily() {
   try {
     family.value = await api.get<Family>('/families/' + familyId)
     editName.value = family.value.name
   } catch { /* */ }
+}
+
+onMounted(async () => {
+  loading.value = true
+  await loadFamily()
   loading.value = false
 })
 

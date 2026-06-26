@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, inject, watch, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -15,6 +15,11 @@ interface IcsFeed {
 
 const route = useRoute()
 const familyId = route.params.familyId as string
+
+// Reload data when this tab becomes active (switching tabs)
+const refreshKey = inject<Ref<number>>('refreshKey', ref(0))
+watch(refreshKey, () => { loadFeeds(); loadGroups(); loadApiKeys() })
+
 const feeds = ref<IcsFeed[]>([])
 const groups = ref<FamilyGroup[]>([])
 const apiKeys = ref<ApiKey[]>([])

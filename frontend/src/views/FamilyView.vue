@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, markRaw } from 'vue'
+import { ref, onMounted, markRaw, provide, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -40,6 +40,14 @@ const NAV_ITEMS: { id: string; icon: string; labelKey: string; component: any; a
 
 const tabs = ref<Tab[]>([])
 const activeTabId = ref('')
+
+// Provide a refresh key that increments when switching tabs, so child
+// components can watch it to reload data when their tab becomes active.
+const refreshKey = ref(0)
+provide('refreshKey', refreshKey)
+watch(activeTabId, (newVal, oldVal) => {
+  if (oldVal && newVal !== oldVal) refreshKey.value++
+})
 
 function findNav(id: string) {
   return NAV_ITEMS.find(n => n.id === id)

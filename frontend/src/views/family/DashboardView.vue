@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, inject, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
@@ -11,6 +11,10 @@ const { t } = useI18n()
 const toast = useToast()
 const route = useRoute()
 const familyId = route.params.familyId as string
+
+// Reload data when this tab becomes active (switching tabs)
+const refreshKey = inject<Ref<number>>('refreshKey', ref(0))
+watch(refreshKey, () => { loadTodos(); loadLocations() })
 
 const activeTab = ref<'todos' | 'overview' | 'stats'>('todos')
 const loading = ref(true)

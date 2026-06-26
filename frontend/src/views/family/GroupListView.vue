@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, inject, watch, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -11,6 +11,10 @@ const { t } = useI18n()
 const route = useRoute()
 const auth = useAuthStore()
 const familyId = route.params.familyId as string
+
+// Reload data when this tab becomes active (switching tabs)
+const refreshKey = inject<Ref<number>>('refreshKey', ref(0))
+watch(refreshKey, () => { loadGroups() })
 
 const groups = ref<FamilyGroup[]>([])
 const pageLoading = ref(true)
