@@ -16,6 +16,7 @@ const family = ref<Family | null>(null)
 const memberCount = ref(0)
 const groupCount = ref(0)
 const todos = ref<Todo[]>([])
+const locations = ref<{ id: string; name: string }[]>([])
 const showAll = ref(false)
 const copied = ref(false)
 const PAGE_SIZE = 5
@@ -60,10 +61,24 @@ function fmtRange(start: string, end: string): string {
   return s.toLocaleDateString('zh-CN', opts) + ' → ' + e.toLocaleDateString('zh-CN', opts)
 }
 
+function getLocName(id: string) { return locations.value.find(l => l.id === id)?.name || '' }
+
+async function loadLocations() {
+  try {
+    const plans = await api.get<any[]>('/families/' + familyId + '/floor-plans')
+    const all: any[] = []
+    for (const p of plans) {
+      try { const locs = await api.get<any[]>('/floor-plans/' + p.id + '/locations'); all.push(...locs) } catch { /* */ }
+    }
+    locations.value = all
+  } catch { locations.value = [] }
+}
+
 onMounted(async () => {
   loading.value = true
   await Promise.all([
     loadTodos(),
+    loadLocations(),
     (async () => {
       try { family.value = await api.get<Family>('/families/' + familyId) } catch { /* */ }
     })(),
@@ -110,7 +125,7 @@ onMounted(async () => {
           </div>
           <p class="text-xs text-gray-400">
             🕐 {{ fmtRange(todo.due_start, todo.due_date) }}
-            <span v-if="todo.location_id" class="ml-2 text-primary">📍 {{ todo.location_id }}</span>
+            <span v-if="todo.location_id && getLocName(todo.location_id)" class="ml-2 text-primary">📍 {{ getLocName(todo.location_id) }}</span>
           </p>
         </div>
         <!-- Inspection branch buttons -->
