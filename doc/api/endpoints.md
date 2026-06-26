@@ -1,6 +1,6 @@
 # API 文档
 
-> 共 67 个端点。公开路由无鉴权，受保护路由需要 JWT 或 API Key（自动校验 Scope）。
+> 共 60+ 个端点。公开路由无鉴权，受保护路由需要 JWT 或 API Key（自动校验 Scope）。
 
 ## 系统初始化
 
@@ -118,10 +118,11 @@
 | PUT | `/api/tasks/:task_id` | JWT/APIKey | task:write | 更新任务模板 |
 | DELETE | `/api/tasks/:task_id` | JWT/APIKey | task:write | 删除任务模板 |
 | POST | `/api/tasks/:task_id/trigger` | JWT/APIKey | task:write | 手动生成待办 |
+| POST | `/api/tasks/:task_id/inspection` | JWT/APIKey | task:write | 提交巡检结果 |
 | GET | `/api/tasks/:task_id/logs` | JWT/APIKey | task:read | 操作日志（?type=user 过滤用户日志） |
 
-> 任务统一模型：`kind` 字段区分类型 — `"simple"` 普通任务 / `"branched"` 分支任务。未来可扩展 `"chain"` 等类型。
-> 分支任务通过 `branches` 数组配置选项，每个分支可选是否创建跟进任务。
+> 任务统一模型：`kind` 字段区分类型 — `"simple"` 普通任务 / `"inspection"` 巡检任务。未来可扩展更多类型。
+> 巡检任务通过 `check_items` 数组配置检查项，每个检查项可选是否创建跟进任务。
 
 ### 创建普通任务
 
@@ -134,17 +135,17 @@
 }
 ```
 
-### 创建分支任务
+### 创建巡检任务
 
 ```json
 {
   "name": "厨房安全巡检",
   "schedule_type": "daily",
   "schedule_data": {"time": "21:00"},
-  "kind": "branched",
-  "branches": [
-    {"name": "正常", "create_todo": false},
-    {"name": "漏水", "create_todo": true, "todo_name": "修复漏水-{name}"}
+  "kind": "inspection",
+  "check_items": [
+    {"name": "燃气阀门", "require_remark": false},
+    {"name": "水槽漏水", "require_remark": true}
   ]
 }
 ```
@@ -156,7 +157,7 @@
 | GET | `/api/families/:family_id/todos?status=pending` | JWT/APIKey | task:read | 待办列表 |
 | PUT | `/api/todos/:todo_id` | JWT/APIKey | task:write | 完成/跳过待办 |
 
-### 完成分支任务的待办
+### 完成巡检待办
 
 ```json
 {
@@ -164,7 +165,14 @@
   "branch_name": "漏水"
 }
 ```
-> 选择分支后，系统自动创建独立的一次性跟进任务和待办。
+> 选择检查项后，系统自动为标记为需要跟进的项创建独立任务和待办。
+
+## 日历 & 统计
+
+| 方法 | 路径 | 鉴权 | Scope | 说明 |
+|------|------|------|-------|------|
+| GET | `/api/families/:family_id/calendar?year=&month=&group_id=` | JWT/APIKey | task:read | 月度日历视图 |
+| GET | `/api/families/:family_id/statistics?period=week&date=` | JWT/APIKey | task:read | 任务完成统计（week/month/year） |
 
 ## ICS 日历订阅
 

@@ -6,7 +6,7 @@
 |---|------|------|
 | 前端 | Vue 3 + Vite + TypeScript + Pinia + Tailwind CSS + vue-i18n | SPA, pnpm |
 | 后端 | Go + Gin + GORM | RESTful API，`backend/pkg/` 为可复用公共库 |
-| CLI | Go + Cobra + Viper | 通过 HTTP / API Key 调用后端，引用 `backend/pkg/` |
+| CLI | Go + Cobra + Viper | 通过 HTTP / API Key 调用后端 |
 | 数据库 | SQLite (开发) / PostgreSQL (生产) | GORM AutoMigrate |
 
 ## 分层架构
@@ -39,20 +39,19 @@ backend/
     taskkind/        任务类型插件系统（simple, inspection）
     scopes/          权限范围
   internal/          内部实现
-    handler/         HTTP 处理器
-    service/         业务逻辑
-    repository/      数据访问
+    handler/         HTTP 处理器 (10 files)
+    service/         业务逻辑 (8 files)
+    repository/      数据访问 (12 files)
     middleware/      认证/鉴权
     config/          配置
   migrations/        数据库迁移
 
 cli/
   cmd/               CLI 命令
-  internal/client/   HTTP 客户端（引用 backend/pkg/）
+  internal/client/   HTTP 客户端
 
 frontend/
   src/               Vue 3 SPA
-```
 
 ## 核心模块
 
@@ -84,22 +83,36 @@ API Key (CLI/外部): X-API-Key: na_xxxx... 或 Bearer na_xxxx...
 - 图片访问：`GET /api/images/:id` → 301 → `/uploads/{filename}`
 - 绘制工具：吸附网格（20px）、线段绘制（起点→终点）
 
-### 4. 图片存储
+### 4. 任务系统
+
+- 任务类型：`simple`（普通任务）、`inspection`（巡检任务）
+- 巡检任务：创建检查项清单，发现问题时自动生成一次性跟进任务
+- 调度类型：once / daily / weekly / monthly / interval
+- 待办状态：pending → done / skipped
+- 完整操作日志（task_logs 表）
+
+### 5. ICS 日历 & 大屏嵌入
+
+- 标准 iCalendar 协议（RFC 5545），可导入 Apple/Google/Outlook 日历
+- 认证方式：API Key（`?key=`）或 Basic Auth
+- 大屏日历：`<embed>` 标签嵌入任意网页，支持 `?key=` 免登录 + `?refresh=N` 自动刷新
+
+### 6. 图片存储
 
 - `images` 表记录：storage_type, file_path, original_name, mime_type, size
 - 当前支持 `local` 存储，架构预留 `s3`/`minio`/`oss` 扩展
 - 存储类型通过管理面板的 `storage.type` 系统设置配置
 
-### 5. 系统配置
+### 7. 系统配置
 
 - `system_settings` 表：key-value 键值对
 - 管理面板可编辑（`/admin` → 存储配置 Tab）
 - 默认配置在 Seed 阶段写入
 
-### 6. Contract-First 开发
+### 8. Contract-First 开发
 
 ```
-shared/contracts/  ← 定义接口
+backend/pkg/contracts/  ← 定义接口
        │
        ├── backend/internal/service/ → 实现 (var _ 断言)
        
@@ -115,11 +128,9 @@ shared/contracts/  ← 定义接口
 | `/register` | 注册 | |
 | `/` | 首页 | 家庭卡片列表（缩略图 + 收藏 + 创建/加入） |
 | `/admin` | 管理面板 | 用户管理 + 存储配置 |
-| `/family/:id` | 家庭仪表盘 | 成员数/小组数/邀请码 |
-| `/family/:id/groups` | 小组列表 | 创建/加入/审核 |
-| `/family/:id/members` | 成员管理 | 成员列表 + 待审核申请 |
-| `/family/:id/floor-plan` | 户型图 | 楼层卡片 + 弹窗标记地点 |
-| `/family/:id/settings` | 家庭设置 | 修改名称/删除家庭 |
+| `/api-keys` | API Key 管理 | 创建/撤销 API Key，Scope 配置 |
+| `/family/:id` | 家庭 | 页签式导航（dashboard/tasks/groups/members/floor-plan/ics/settings） |
+| `/calendar/:id` | 日历大屏 | 全屏日历视图，支持 `?key=` 免登录访问 + `?refresh=` 自动刷新 |
 
 ## 数据目录
 
@@ -146,16 +157,20 @@ make db-reset         # 删除 SQLite 数据库
 ```
 backend/
 ├── cmd/server/main.go        # 入口
+├── pkg/                      # 公共包
+│   ├── contracts/            # 接口定义
+│   ├── scheduler/            # 调度引擎
+│   ├── taskkind/             # 任务类型插件 (simple, inspection)
+│   ├── scopes/               # 权限范围
+│   └── types/                # DTO 定义
 ├── internal/
 │   ├── config/               # 配置加载
-│   ├── handler/               # HTTP 处理器 (8 files)
+│   ├── handler/               # HTTP 处理器 (10 files)
 │   ├── middleware/            # JWT/CORS
-│   ├── repository/            # 数据访问 (9 files)
-│   └── service/               # 业务逻辑 (6 files)
+│   ├── repository/            # 数据访问 (12 files)
+│   └── service/               # 业务逻辑 (8 files)
 ├── migrations/               # (空，使用 GORM AutoMigrate)
-shared/
-├── contracts/                # 接口定义
-└── types/                    # DTO 定义
+
 frontend/
 ├── src/
 │   ├── api/                  # API 客户端
@@ -166,7 +181,8 @@ frontend/
 │   ├── stores/               # Pinia 状态管理
 │   ├── styles/               # 全局样式
 │   ├── types/                # TypeScript 类型
-│   └── views/                # 页面组件
+│   └── views/                # 页面组件 (12 views)
 └── vite.config.ts            # Vite 配置（API + Uploads 代理）
+
 cli/                          # Cobra CLI
 ```
