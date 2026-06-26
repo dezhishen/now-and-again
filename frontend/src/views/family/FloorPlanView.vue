@@ -248,9 +248,6 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-xl md:text-2xl font-bold dark:text-gray-200">{{ t('floorPlan.heading') }}</h2>
       <div class="relative" @click.stop>
-
-    <LoadingSpinner v-if="loading" />
-    <template v-else>
         <button class="btn-primary text-sm" :class="{ 'opacity-50': uploading }" @click="showUploadMenu = !showUploadMenu">
           {{ uploading ? '...' : '+ ' + t('floorPlan.upload') }} ▾
         </button>
@@ -265,6 +262,9 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
     </div>
 
     <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
+
+    <LoadingSpinner v-if="loading" />
+    <template v-else>
 
     <!-- Empty -->
     <div v-if="floorPlans.length === 0" class="card text-center py-12 text-gray-400">
