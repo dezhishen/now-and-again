@@ -56,7 +56,7 @@ const embedUrl = computed(() => {
 })
 
 const embedCode = computed(() => {
-  return `<iframe src="${embedUrl.value}" width="100%" height="600" frameborder="0" style="border:1px solid #ddd;border-radius:8px"></iframe>`
+  return `<embed src="${embedUrl.value}" width="100%" height="600" type="text/html" style="border:1px solid #ddd;border-radius:8px" />`
 })
 
 function copyEmbed() {
