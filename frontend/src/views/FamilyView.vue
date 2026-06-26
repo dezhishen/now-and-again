@@ -54,6 +54,16 @@ function openTab(id: string) {
     return
   }
 
+  if (id === 'calendar') {
+    window.open(`/calendar/${route.params.familyId}`, '_blank')
+    return
+  }
+
+  if (id === 'calendar') {
+    window.open(`/calendar/${route.params.familyId}`, '_blank')
+    return
+  }
+
   // Activate existing tab or create new one
   const existing = tabs.value.find(t => t.id === id)
   if (existing) {
@@ -127,7 +137,7 @@ async function leaveFamily() {
           :class="activeTabId === nav.id ? 'bg-primary/10 text-primary font-medium' : ''"
           @click="openTab(nav.id)"
         >{{ nav.icon }} {{ t(nav.labelKey) }}</button>
-        <button class="px-3 py-2 rounded-lg text-left text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors text-sm" @click="openTab('calendar')">🖥️ {{ t('nav.calendar') }}</button>
+        <button class="px-3 py-2 rounded-lg text-left text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors text-sm" @click="openTab('ics')">🖥️ {{ t('nav.ics') }}</button>
         <hr class="my-2 border-gray-200 dark:border-gray-700" />
         <button class="px-3 py-2 rounded-lg text-left text-gray-400 hover:text-danger hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm" @click="leaveFamily">🚪 离开家庭</button>
       </nav>

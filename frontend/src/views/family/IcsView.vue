@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -35,6 +35,28 @@ const feedApiKeyID = ref('')
 const feedAppPass = ref('')
 
 const baseUrl = window.location.origin
+
+// ─── Embed calendar ─────────────────────────────────────────────
+const embedApiKey = ref('')
+const embedGroupID = ref('')
+const embedCopied = ref(false)
+
+const embedUrl = computed(() => {
+  let url = `${baseUrl}/calendar/${familyId}?key=${embedApiKey.value || 'YOUR_API_KEY'}`
+  if (embedGroupID.value) url += `&group_id=${embedGroupID.value}`
+  return url
+})
+
+const embedCode = computed(() => {
+  return `<iframe src="${embedUrl.value}" width="100%" height="600" frameborder="0" style="border:1px solid #ddd;border-radius:8px"></iframe>`
+})
+
+function copyEmbed() {
+  navigator.clipboard.writeText(embedCode.value).then(() => {
+    embedCopied.value = true
+    setTimeout(() => { embedCopied.value = false }, 2000)
+  })
+}
 
 onMounted(async () => {
   loading.value = true
@@ -264,5 +286,40 @@ function getUsageHint(feed: IcsFeed): string {
       </div>
     </div>
     </template>
+
+    <!-- Embed Calendar -->
+    <div class="card mt-6">
+      <h3 class="font-bold dark:text-gray-200 mb-3">🖥️ 大屏日历嵌入</h3>
+      <p class="text-xs text-gray-400 mb-4">生成嵌入代码，粘贴到任意网页中展示家庭日历大屏。</p>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">API Key</label>
+          <input v-model="embedApiKey" class="input text-sm" placeholder="na_xxxxxxxx" />
+        </div>
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">筛选小组（可选）</label>
+          <select v-model="embedGroupID" class="input text-sm">
+            <option value="">全部</option>
+            <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">嵌入代码</label>
+          <div class="flex gap-2">
+            <code class="flex-1 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-lg text-xs font-mono break-all select-all dark:text-gray-200">{{ embedCode }}</code>
+            <button class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity whitespace-nowrap" @click="copyEmbed">
+              {{ embedCopied ? '已复制' : '复制' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+          <p class="text-xs text-gray-400 mb-1">预览地址</p>
+          <a :href="embedUrl" target="_blank" class="text-xs text-primary hover:underline break-all">{{ embedUrl }}</a>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
