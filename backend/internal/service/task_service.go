@@ -233,6 +233,15 @@ func (s *TaskService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 		}
 	}
 
+	// For one-time tasks completed as "done", auto-disable the parent task
+	if todo.Task.ScheduleType == "once" && req.Status == "done" {
+		s.repo.UpdateTask(&repository.TaskTemplateModel{
+			BaseModel: repository.BaseModel{ID: todo.TaskID},
+			Enabled:   false,
+		})
+		s.scheduler.RemoveJob(todo.TaskID)
+	}
+
 	t, err := s.repo.FindTodoByID(todoID.String())
 	if err != nil {
 		return nil, err

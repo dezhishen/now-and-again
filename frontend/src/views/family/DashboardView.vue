@@ -121,7 +121,7 @@ onMounted(async () => {
         <!-- Regular task buttons -->
         <div v-else class="flex gap-1 flex-shrink-0">
           <button class="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 hover:opacity-80" @click="completeTodo(todo, 'done')">完成</button>
-          <button class="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 hover:opacity-80" @click="completeTodo(todo, 'skipped')">跳过</button>
+          <button v-if="todo.task?.schedule_type !== 'once'" class="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 hover:opacity-80" @click="completeTodo(todo, 'skipped')">跳过</button>
         </div>
       </div>
       <div v-if="hasMore" class="text-center mt-3">
