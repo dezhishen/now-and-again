@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useDark } from '@/composables/useDark'
 
 const { t, locale } = useI18n()
+const localeCode = computed(() => locale.value)
 const router = useRouter()
 const auth = useAuthStore()
-const { isDark, cycle: cycleTheme, label: themeLabel, title: themeTitle } = useDark()
+const { cycle: cycleTheme, label: themeLabel, title: themeTitle } = useDark()
 
 const showUserMenu = ref(false)
 const showLangMenu = ref(false)
@@ -49,11 +50,11 @@ window.addEventListener('click', onWindowClick)
         <!-- Language -->
         <div class="relative" @click.stop>
           <button class="w-8 h-8 rounded-lg flex items-center justify-center text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="showLangMenu = !showLangMenu" title="切换语言">
-            {{ locale === 'zh-CN' ? '🇨🇳' : '🇺🇸' }}
+            {{ localeCode === 'zh-CN' ? '🇨🇳' : '🇺🇸' }}
           </button>
           <div v-if="showLangMenu" class="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 py-1 min-w-[120px]">
             <button v-for="l in LANGS" :key="l.code" class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              :class="locale === l.code ? 'text-primary font-medium' : 'dark:text-gray-300'"
+              :class="localeCode === l.code ? 'text-primary font-medium' : 'dark:text-gray-300'"
               @click="switchLang(l.code)"
             >{{ l.flag }} {{ l.label }}</button>
           </div>

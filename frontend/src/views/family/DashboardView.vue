@@ -65,14 +65,6 @@ async function submitRemark() {
   } catch (e: any) { toast.error(e.message) }
 }
 
-async function completeBranch(todo: Todo, branchName: string) {
-  try {
-    await api.put('/todos/' + todo.id, { status: 'done', branch_name: branchName })
-    await loadTodos()
-    toast.success('已完成: ' + branchName)
-  } catch (e: any) { toast.error(e.message) }
-}
-
 function skipRemarkAndComplete() {
   showRemark.value = false
   completeTodoDirect(remarkTodo.value!, remarkAction.value)

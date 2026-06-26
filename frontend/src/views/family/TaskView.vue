@@ -15,7 +15,7 @@ import type { TaskTemplate, FamilyGroup, CheckItem } from '@/types'
 initTaskKinds()
 const TASK_KINDS = getTaskKinds()
 
-const { t } = useI18n()
+const { t: _t } = useI18n()
 const toast = useToast()
 const route = useRoute()
 const familyId = route.params.familyId as string

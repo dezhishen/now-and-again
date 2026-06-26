@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CheckItem, BranchItem, FamilyGroup } from '@/types'
+import type { CheckItem, FamilyGroup } from '@/types'
 
 const checkItems = defineModel<CheckItem[]>({ required: true })
 defineProps<{ groups: FamilyGroup[] }>()

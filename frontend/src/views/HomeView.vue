@@ -7,7 +7,7 @@ import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { Family } from '@/types'
 
-const { t } = useI18n()
+const { t: _t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
 const families = ref<Family[]>([])
