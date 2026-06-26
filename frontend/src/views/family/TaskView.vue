@@ -228,7 +228,7 @@ function scheduleSummary(task: TaskTemplate): string {
       <button class="btn-primary text-sm mb-3" @click="openCreate">+ 创建任务</button>
 
       <div v-if="tasks.length === 0" class="text-center text-gray-400 py-8">暂无任务模板</div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
         <div v-for="task in filteredTasks" :key="task.id" class="card hover:shadow-md transition-shadow">
           <div class="flex items-start justify-between mb-2">
             <div class="min-w-0 flex-1">
@@ -266,7 +266,7 @@ function scheduleSummary(task: TaskTemplate): string {
       <button class="btn-primary text-sm mb-3" @click="openCreateInspection">+ 创建巡检</button>
 
       <div v-if="inspections.length === 0" class="text-center text-gray-400 py-8">暂无巡检模板</div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
         <div v-for="task in inspections" :key="task.id" class="card hover:shadow-md transition-shadow">
           <div class="flex items-start justify-between mb-2">
             <div class="min-w-0 flex-1">
