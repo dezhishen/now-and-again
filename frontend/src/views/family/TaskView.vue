@@ -20,7 +20,8 @@ const error = ref('')
 // Log modal
 const showLogs = ref(false)
 const logTaskId = ref('')
-const logs = ref<{ id: string; task_id: string; status: string; message?: string; created_at: string }[]>([])
+const showSystemLogs = ref(false)
+const logs = ref<{ id: string; task_id: string; status: string; message?: string; log_type: string; operator_id?: string; created_at: string }[]>([])
 
 // Task form
 const showTaskForm = ref(false)
@@ -164,19 +165,29 @@ async function triggerTask(id: string) {
 async function viewLogs(taskId: string) {
   logTaskId.value = taskId
   showLogs.value = true
+  showSystemLogs.value = false
   try {
-    logs.value = await api.get<any[]>('/tasks/' + taskId + '/logs?limit=50')
+    logs.value = await api.get<any[]>('/tasks/' + taskId + '/logs?type=user&limit=50')
+  } catch { logs.value = [] }
+}
+
+async function toggleLogType() {
+  showSystemLogs.value = !showSystemLogs.value
+  try {
+    const type = showSystemLogs.value ? '' : 'user'
+    logs.value = await api.get<any[]>('/tasks/' + logTaskId.value + '/logs?type=' + type + '&limit=50')
   } catch { logs.value = [] }
 }
 
 const LOG_LABELS: Record<string, string> = {
-  registered: '注册', triggered: '触发', success: '成功', error: '异常',
-  job_registered: '注册', job_removed: '移除',
+  done: '完成', skipped: '跳过', manual: '手动生成',
+  created: '创建', completed: '完成',
+  'inspection:normal': '巡检-正常', 'inspection:abnormal': '巡检-异常',
 }
 const LOG_CLASSES: Record<string, string> = {
-  registered: 'text-blue-500', triggered: 'text-yellow-500',
-  success: 'text-green-500', error: 'text-danger',
-  job_registered: 'text-blue-500', job_removed: 'text-gray-400',
+  done: 'text-green-500', skipped: 'text-gray-400', manual: 'text-blue-500',
+  created: 'text-green-500', completed: 'text-green-500',
+  'inspection:normal': 'text-green-500', 'inspection:abnormal': 'text-danger',
 }
 
 function getLocName(id: string) { return locations.value.find(l => l.id === id)?.name || id }
@@ -307,15 +318,22 @@ function scheduleSummary(task: TaskTemplate): string {
       <div v-if="showLogs" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showLogs = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-md max-h-[70vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
-            <h3 class="font-bold dark:text-gray-200">执行日志</h3>
-            <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showLogs = false">✕</button>
+            <h3 class="font-bold dark:text-gray-200">操作记录</h3>
+            <div class="flex items-center gap-2">
+              <label class="text-xs text-gray-400 flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" :checked="showSystemLogs" @change="toggleLogType" class="accent-primary" />
+                系统日志
+              </label>
+              <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showLogs = false">✕</button>
+            </div>
           </div>
           <div class="flex-1 overflow-auto p-4">
-            <div v-if="logs.length === 0" class="text-center text-gray-400 py-4 text-sm">暂无日志</div>
+            <div v-if="logs.length === 0" class="text-center text-gray-400 py-4 text-sm">暂无操作记录</div>
             <div v-for="log in logs" :key="log.id" class="flex items-start gap-2 py-1.5 text-sm border-b dark:border-gray-700 last:border-0">
-              <span class="text-xs text-gray-400 w-16 flex-shrink-0">{{ new Date(log.created_at).toLocaleTimeString() }}</span>
-              <span class="font-medium" :class="LOG_CLASSES[log.status] || 'text-gray-500'">{{ LOG_LABELS[log.status] || log.status }}</span>
+              <span class="text-xs text-gray-400 w-32 flex-shrink-0">{{ new Date(log.created_at).toLocaleString() }}</span>
+              <span class="font-medium w-20 flex-shrink-0" :class="LOG_CLASSES[log.status] || 'text-gray-500'">{{ LOG_LABELS[log.status] || log.status }}</span>
               <span v-if="log.message" class="text-gray-400 truncate flex-1">{{ log.message }}</span>
+              <span v-if="log.log_type === 'system'" class="text-xs text-gray-400">系统</span>
             </div>
           </div>
         </div>

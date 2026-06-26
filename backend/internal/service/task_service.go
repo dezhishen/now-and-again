@@ -118,10 +118,12 @@ func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types
 
 // Trigger manually generates a new todo for the given task.
 func (s *TaskService) Trigger(ctx context.Context, taskID uuid.UUID) error {
+	userID := ctx.Value("user_id").(string)
 	task, err := s.repo.FindTaskByID(taskID.String())
 	if err != nil {
 		return err
 	}
+	s.repo.CreateUserLog(taskID.String(), userID, "manual", fmt.Sprintf("手动生成待办: %s", task.Name))
 	return s.onTaskTriggered(task.ID, task.FamilyID)
 }
 
@@ -182,11 +184,17 @@ func (s *TaskService) Delete(ctx context.Context, taskID uuid.UUID) error {
 
 // ─── Logs ────────────────────────────────────────────────────────
 
-func (s *TaskService) ListLogs(ctx context.Context, taskID uuid.UUID, limit int) ([]types.TaskLog, error) {
+func (s *TaskService) ListLogs(ctx context.Context, taskID uuid.UUID, limit int, userOnly bool) ([]types.TaskLog, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	logs, err := s.repo.ListLogs(taskID.String(), limit)
+	var logs []repository.TaskLogModel
+	var err error
+	if userOnly {
+		logs, err = s.repo.ListUserLogs(taskID.String(), limit)
+	} else {
+		logs, err = s.repo.ListLogs(taskID.String(), limit)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +202,8 @@ func (s *TaskService) ListLogs(ctx context.Context, taskID uuid.UUID, limit int)
 	for i, l := range logs {
 		result[i] = types.TaskLog{
 			ID: l.ID, TaskID: l.TaskID, Status: l.Status,
-			Message: l.Message, CreatedAt: l.CreatedAt,
+			Message: l.Message, LogType: l.LogType,
+			OperatorID: l.OperatorID, CreatedAt: l.CreatedAt,
 		}
 	}
 	return result, nil
@@ -250,6 +259,13 @@ func (s *TaskService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 		})
 		s.scheduler.RemoveJob(todo.TaskID)
 	}
+
+	// Log user action
+	action := req.Status
+	if req.InspectionResult != "" {
+		action = "inspection:" + req.InspectionResult
+	}
+	s.repo.CreateUserLog(todo.TaskID, userID, action, fmt.Sprintf("完成待办: %s", todo.Task.Name))
 
 	t, err := s.repo.FindTodoByID(todoID.String())
 	if err != nil {

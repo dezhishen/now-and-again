@@ -117,7 +117,8 @@ func (h *TaskHandlers) ListLogs(c *gin.Context) {
 		return
 	}
 	limit := queryInt(c, "limit", 50)
-	logs, err := h.Svc.ListLogs(userCtx(c), taskID, limit)
+	userOnly := c.Query("type") == "user"
+	logs, err := h.Svc.ListLogs(userCtx(c), taskID, limit, userOnly)
 	if err != nil {
 		serverError(c, err)
 		return

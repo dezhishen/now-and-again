@@ -106,7 +106,11 @@ func (r *TaskRepo) HasPendingTodoForTaskToday(taskID string, today time.Time) (b
 // ─── Task Log ────────────────────────────────────────────────────
 
 func (r *TaskRepo) CreateLog(taskID, status, message string) error {
-	return r.db.Create(&TaskLogModel{TaskID: taskID, Status: status, Message: message}).Error
+	return r.db.Create(&TaskLogModel{TaskID: taskID, Status: status, Message: message, LogType: "system"}).Error
+}
+
+func (r *TaskRepo) CreateUserLog(taskID, userID, action, message string) error {
+	return r.db.Create(&TaskLogModel{TaskID: taskID, Status: action, Message: message, LogType: "user", OperatorID: userID}).Error
 }
 
 func (r *TaskRepo) ListLogs(taskID string, limit int) ([]TaskLogModel, error) {
@@ -115,8 +119,8 @@ func (r *TaskRepo) ListLogs(taskID string, limit int) ([]TaskLogModel, error) {
 	return logs, err
 }
 
-func (r *TaskRepo) ListRecentLogs(limit int) ([]TaskLogModel, error) {
+func (r *TaskRepo) ListUserLogs(taskID string, limit int) ([]TaskLogModel, error) {
 	var logs []TaskLogModel
-	err := r.db.Order("created_at DESC").Limit(limit).Find(&logs).Error
+	err := r.db.Where("task_id = ? AND log_type = ?", taskID, "user").Order("created_at DESC").Limit(limit).Find(&logs).Error
 	return logs, err
 }

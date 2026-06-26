@@ -71,9 +71,11 @@ type CompleteTodoRequest struct {
 // ─── Task Log ────────────────────────────────────────────────────
 
 type TaskLog struct {
-	ID        string    `json:"id"`
-	TaskID    string    `json:"task_id"`
-	Status    string    `json:"status"` // registered/triggered/success/error
-	Message   string    `json:"message,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
+	ID         string    `json:"id"`
+	TaskID     string    `json:"task_id"`
+	Status     string    `json:"status"`
+	Message    string    `json:"message,omitempty"`
+	LogType    string    `json:"log_type"` // system / user
+	OperatorID string    `json:"operator_id,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
 }
