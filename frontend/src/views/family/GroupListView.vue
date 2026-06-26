@@ -31,6 +31,7 @@ const manageGroupId = ref('')
 const manageTab = ref<'members' | 'requests'>('members')
 const manageDetail = ref<GroupDetail | null>(null)
 const manageLoading = ref(false)
+const isFamilyAdmin = ref(false)
 
 onMounted(async () => { pageLoading.value = true; await loadGroups(); pageLoading.value = false })
 
@@ -41,6 +42,12 @@ async function loadGroups() {
       memberCache.value[g.id] = await api.get<FamilyGroupMember[]>('/groups/' + g.id + '/members')
     } catch { memberCache.value[g.id] = [] }
   }
+  // Check if current user is family owner/admin
+  try {
+    const members = await api.get<{ user_id: string; role: string }[]>('/families/' + familyId + '/members')
+    const me = members.find(m => m.user_id === auth.user?.id)
+    isFamilyAdmin.value = me?.role === 'owner' || me?.role === 'admin'
+  } catch { /* */ }
 }
 
 async function createGroup() {
@@ -69,6 +76,7 @@ async function openManage(groupId: string) {
 }
 
 function isGroupOwner(): boolean {
+  if (isFamilyAdmin.value) return true
   return manageDetail.value?.members.some(m => m.user_id === auth.user?.id && m.role === 'owner') ?? false
 }
 
@@ -77,6 +85,7 @@ function isMember(groupId: string): boolean {
 }
 
 function isGroupAdmin(groupId: string): boolean {
+  if (isFamilyAdmin.value) return true
   return memberCache.value[groupId]?.some(m => m.user_id === auth.user?.id && m.role === 'owner') ?? false
 }
 
