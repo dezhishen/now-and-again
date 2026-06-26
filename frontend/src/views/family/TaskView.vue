@@ -4,9 +4,11 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import { useToast } from '@/composables/useToast'
 import type { TaskTemplate, FamilyGroup } from '@/types'
 
 const { t } = useI18n()
+const toast = useToast()
 const route = useRoute()
 const familyId = route.params.familyId as string
 
@@ -15,7 +17,6 @@ const groups = ref<FamilyGroup[]>([])
 const locations = ref<{ id: string; name: string; color: string; floor_plan_id: string }[]>([])
 const activeTab = ref<'tasks' | 'inspections'>('tasks')
 const loading = ref(true)
-const error = ref('')
 
 // Log modal
 const showLogs = ref(false)
@@ -138,28 +139,30 @@ async function saveTask() {
   try {
     if (editingTask.value) {
       await api.put('/tasks/' + editingTask.value.id, body)
+      toast.success('任务已更新')
     } else {
       await api.post('/families/' + familyId + '/tasks', body)
+      toast.success('任务已创建')
     }
     showTaskForm.value = false
     await loadTasks()
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { toast.error(e.message) }
 }
 
 async function toggleTask(task: TaskTemplate) {
   try {
     await api.put('/tasks/' + task.id, { enabled: !task.enabled })
     task.enabled = !task.enabled
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { toast.error(e.message) }
 }
 
 async function deleteTask(id: string) {
   if (!confirm('确定删除此任务？')) return
-  try { await api.delete('/tasks/' + id); await loadTasks() } catch (e: any) { error.value = e.message }
+  try { await api.delete('/tasks/' + id); await loadTasks(); toast.success('已删除') } catch (e: any) { toast.error(e.message) }
 }
 
 async function triggerTask(id: string) {
-  try { await api.post('/tasks/' + id + '/trigger'); await loadTasks() } catch (e: any) { error.value = e.message }
+  try { await api.post('/tasks/' + id + '/trigger'); await loadTasks(); toast.success('已生成待办') } catch (e: any) { toast.error(e.message) }
 }
 
 async function viewLogs(taskId: string) {
@@ -216,7 +219,6 @@ function scheduleSummary(task: TaskTemplate): string {
 <template>
   <div>
     <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">📋 任务管理</h2>
-    <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
 
     <LoadingSpinner v-if="loading" />
 

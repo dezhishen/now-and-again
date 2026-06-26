@@ -4,9 +4,11 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import { useToast } from '@/composables/useToast'
 import type { Family, Todo } from '@/types'
 
 const { t } = useI18n()
+const toast = useToast()
 const route = useRoute()
 const familyId = route.params.familyId as string
 
@@ -23,7 +25,6 @@ const PAGE_SIZE = 5
 
 const displayTodos = computed(() => showAll.value ? todos.value : todos.value.slice(0, PAGE_SIZE))
 const hasMore = computed(() => todos.value.length > PAGE_SIZE)
-const error = ref('')
 
 async function copyInviteCode() {
   if (!family.value?.invite_code) return
@@ -38,14 +39,16 @@ async function completeTodo(todo: Todo, status: string) {
   try {
     await api.put('/todos/' + todo.id, { status })
     await loadTodos()
-  } catch (e: any) { error.value = e.message }
+    toast.success(status === 'done' ? '已完成' : '已跳过')
+  } catch (e: any) { toast.error(e.message) }
 }
 
 async function completeInspection(todo: Todo, result: string) {
   try {
     await api.put('/todos/' + todo.id, { status: 'done', inspection_result: result })
     await loadTodos()
-  } catch (e: any) { error.value = e.message }
+    toast.success('巡检已完成: ' + result)
+  } catch (e: any) { toast.error(e.message) }
 }
 
 async function loadTodos() {
@@ -96,7 +99,6 @@ onMounted(async () => {
 <template>
   <div>
     <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">{{ t('dashboard.heading') }}</h2>
-    <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
 
     <LoadingSpinner v-if="loading" />
 

@@ -61,12 +61,18 @@ func (s *TaskService) registerToScheduler(task *repository.TaskTemplateModel) {
 }
 
 func (s *TaskService) onTaskTriggered(taskID, familyID string) error {
+	return s.createTodo(taskID, familyID, false)
+}
+
+// createTodo creates a todo for the task. If force is true, skips the daily duplicate check.
+func (s *TaskService) createTodo(taskID, familyID string, force bool) error {
 	now := time.Now()
-	has, _ := s.repo.HasPendingTodoForTaskToday(taskID, now)
-	if has {
-		return nil
+	if !force {
+		has, _ := s.repo.HasPendingTodoForTaskToday(taskID, now)
+		if has {
+			return nil
+		}
 	}
-	// Get task to copy location_id
 	task, err := s.repo.FindTaskByID(taskID)
 	if err != nil {
 		return err
@@ -124,7 +130,7 @@ func (s *TaskService) Trigger(ctx context.Context, taskID uuid.UUID) error {
 		return err
 	}
 	s.repo.CreateUserLog(taskID.String(), userID, "manual", fmt.Sprintf("手动生成待办: %s", task.Name))
-	return s.onTaskTriggered(task.ID, task.FamilyID)
+	return s.createTodo(task.ID, task.FamilyID, true)
 }
 
 func (s *TaskService) List(ctx context.Context, familyID uuid.UUID) ([]types.TaskTemplate, error) {

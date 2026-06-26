@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import { useToast } from '@/composables/useToast'
 import type { FamilyGroup, ApiKey } from '@/types'
 
 interface IcsFeed {
@@ -18,8 +19,9 @@ const feeds = ref<IcsFeed[]>([])
 const groups = ref<FamilyGroup[]>([])
 const apiKeys = ref<ApiKey[]>([])
 const loading = ref(true)
-const error = ref('')
-const success = ref('')
+const toast = useToast()
+
+// Form state
 
 // Form state
 const showForm = ref(false)
@@ -73,7 +75,6 @@ function resetForm() {
 }
 
 async function saveFeed() {
-  error.value = ''
   const body: any = {
     name: feedName.value,
     description: feedDesc.value,
@@ -90,24 +91,25 @@ async function saveFeed() {
   try {
     if (editingFeed.value) {
       await api.put('/ics-feeds/' + editingFeed.value.id, body)
+      toast.success('订阅已更新')
     } else {
       await api.post('/families/' + familyId + '/ics-feeds', body)
+      toast.success('ICS 订阅已创建')
     }
     showForm.value = false
     await loadFeeds()
-    success.value = 'ICS 订阅已创建！'
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { toast.error(e.message) }
 }
 
 async function deleteFeed(id: string) {
   if (!confirm('确定删除此 ICS 订阅？')) return
-  try { await api.delete('/ics-feeds/' + id); await loadFeeds() } catch (e: any) { error.value = e.message }
+  try { await api.delete('/ics-feeds/' + id); await loadFeeds(); toast.success('已删除') } catch (e: any) { toast.error(e.message) }
 }
 
 function copyLink(url: string) {
   const full = baseUrl + url
   navigator.clipboard.writeText(full).then(() => {
-    success.value = '链接已复制！'
+    toast.success('链接已复制！')
   })
 }
 
@@ -121,9 +123,6 @@ function getAuthLabel(feed: IcsFeed): string {
 <template>
   <div>
     <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">📅 日历订阅 (ICS)</h2>
-
-    <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
-    <p v-if="success" class="text-green-500 text-sm mb-3">{{ success }}</p>
 
     <LoadingSpinner v-if="loading" />
     <template v-else>
