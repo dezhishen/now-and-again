@@ -190,6 +190,11 @@ func (s *FamilyService) RemoveMember(ctx context.Context, familyID, userID uuid.
 
 func (s *FamilyService) LeaveFamily(ctx context.Context, familyID uuid.UUID) error {
 	userID := ctx.Value("user_id").(string)
+	// Prevent the last remaining member from leaving (would orphan the family).
+	members, err := s.repo.ListMembers(familyID.String())
+	if err == nil && len(members) <= 1 {
+		return fmt.Errorf("不能离开：你是该家庭的唯一成员，请先删除家庭")
+	}
 	return s.repo.DeleteMember(familyID.String(), userID)
 }
 
@@ -296,6 +301,11 @@ func (s *FamilyService) JoinGroup(ctx context.Context, groupID uuid.UUID) (*type
 
 func (s *FamilyService) LeaveGroup(ctx context.Context, groupID uuid.UUID) error {
 	userID := ctx.Value("user_id").(string)
+	// Group owner cannot leave — must transfer ownership or delete the group.
+	member, err := s.repo.FindGroupMember(groupID.String(), userID)
+	if err == nil && member != nil && member.Role == "owner" {
+		return fmt.Errorf("不能离开自己创建的小组，请先转让组长或删除小组")
+	}
 	return s.repo.DeleteGroupMember(groupID.String(), userID)
 }
 
