@@ -1,9 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { api } from '@/api/client'
 
 const { t } = useI18n()
+const route = useRoute()
 const showMenu = ref(false)
+const familyName = ref('')
+
+onMounted(async () => {
+  try {
+    const f = await api.get<{ name: string }>('/families/' + route.params.familyId)
+    familyName.value = f.name
+  } catch { /* */ }
+})
 </script>
 
 <template>
@@ -19,7 +30,9 @@ const showMenu = ref(false)
       :class="showMenu ? 'fixed inset-y-0 left-0 z-30 translate-x-0' : 'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-30 max-md:-translate-x-full'"
       @click="showMenu = false"
     >
-      <h3 class="text-lg font-semibold mb-3 dark:text-gray-200">{{ t('nav.family') }}</h3>
+      <router-link :to="`/family/${$route.params.familyId}`" class="block mb-3">
+        <h3 class="text-lg font-semibold dark:text-gray-200 hover:text-primary transition-colors">🏠 {{ familyName || t('nav.family') }}</h3>
+      </router-link>
       <nav class="flex flex-col gap-1">
         <router-link :to="`/family/${$route.params.familyId}`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">📊 {{ t('nav.dashboard') }}</router-link>
         <router-link :to="`/family/${$route.params.familyId}/groups`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">👥 {{ t('nav.groups') }}</router-link>
