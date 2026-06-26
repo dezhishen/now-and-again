@@ -78,7 +78,6 @@ async function joinFamily() {
 
       <LoadingSpinner v-if="loading" />
       <template v-else>
-
       <div v-if="showCreate" class="card mb-4 flex flex-col sm:flex-row gap-2">
         <input v-model="familyName" class="input flex-1" placeholder="家庭名称" @keyup.enter="createFamily" />
         <button class="btn-primary" @click="createFamily">创建</button>
