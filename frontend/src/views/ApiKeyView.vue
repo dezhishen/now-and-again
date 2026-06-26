@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { api } from '@/api/client'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { ApiKey } from '@/types'
 
 const keys = ref<ApiKey[]>([])
+const loading = ref(true)
 const showCreate = ref(false)
 const newName = ref('')
 const newScopes = ref('')
@@ -44,7 +46,7 @@ for (const g of SCOPE_OPTIONS) {
   }
 }
 
-onMounted(async () => { await load() })
+onMounted(async () => { loading.value = true; await load(); loading.value = false })
 
 async function load() {
   try { keys.value = await api.get<ApiKey[]>('/users/me/api-keys') } catch { keys.value = [] }
@@ -122,6 +124,9 @@ function copyKey() {
 
     <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
 
+    <LoadingSpinner v-if="loading" />
+    <template v-else>
+
     <!-- Show just-created key -->
     <div v-if="createdKey" class="card mb-4 border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20">
       <p class="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-2">⚠️ 新 API Key 已创建，此密钥仅显示一次：</p>
@@ -186,5 +191,6 @@ function copyKey() {
     </div>
 
     <div v-if="keys.length === 0 && !showCreate" class="text-center text-gray-400 py-8">暂无 API Key</div>
+    </template>
   </div>
 </template>

@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { Family } from '@/types'
 
 const { t } = useI18n()
@@ -11,16 +12,19 @@ const router = useRouter()
 const familyId = route.params.familyId as string
 
 const family = ref<Family | null>(null)
+const loading = ref(true)
 const editName = ref('')
 const saving = ref(false)
 const saved = ref(false)
 const error = ref('')
 
 onMounted(async () => {
+  loading.value = true
   try {
     family.value = await api.get<Family>('/families/' + familyId)
     editName.value = family.value.name
   } catch { /* */ }
+  loading.value = false
 })
 
 async function saveName() {
@@ -62,7 +66,8 @@ async function copyInviteCode() {
     <h2 class="text-xl md:text-2xl font-bold mb-6 dark:text-gray-200">{{ t('settingsPage.heading') }}</h2>
 
     <p v-if="error" class="text-danger text-sm mb-4">{{ error }}</p>
-
+    <LoadingSpinner v-if="loading" />
+    <template v-else>
     <!-- Invite Code -->
     <div class="card mb-4">
       <p class="text-gray-400 text-sm mb-1">{{ t('dashboard.inviteCode') }}</p>
@@ -92,5 +97,6 @@ async function copyInviteCode() {
       <p class="text-xs text-gray-400 mb-3">{{ t('settingsPage.deleteWarning') }}</p>
       <button class="btn-danger text-sm" @click="deleteFamily">{{ t('settingsPage.deleteFamily') }}</button>
     </div>
+    </template>
   </div>
 </template>

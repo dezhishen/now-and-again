@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/api/client'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { FamilyGroup, ApiKey } from '@/types'
 
 interface IcsFeed {
@@ -16,6 +17,7 @@ const familyId = route.params.familyId as string
 const feeds = ref<IcsFeed[]>([])
 const groups = ref<FamilyGroup[]>([])
 const apiKeys = ref<ApiKey[]>([])
+const loading = ref(true)
 const error = ref('')
 const success = ref('')
 
@@ -33,7 +35,9 @@ const feedAppPass = ref('')
 const baseUrl = window.location.origin
 
 onMounted(async () => {
+  loading.value = true
   await Promise.all([loadFeeds(), loadGroups(), loadApiKeys()])
+  loading.value = false
 })
 
 async function loadFeeds() {
@@ -120,6 +124,9 @@ function getAuthLabel(feed: IcsFeed): string {
 
     <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
     <p v-if="success" class="text-green-500 text-sm mb-3">{{ success }}</p>
+
+    <LoadingSpinner v-if="loading" />
+    <template v-else>
 
     <!-- Guide -->
     <div v-if="feeds.length === 0 && !showForm" class="card mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
@@ -232,5 +239,6 @@ function getAuthLabel(feed: IcsFeed): string {
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>

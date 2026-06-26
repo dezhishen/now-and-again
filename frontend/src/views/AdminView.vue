@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { api } from '@/api/client'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { User } from '@/types'
 
 const users = ref<User[]>([])
+const loading = ref(true)
 const activeTab = ref<'users' | 'storage'>('users')
 const settings = ref<Record<string, string>>({})
 const saved = ref(false)
 const error = ref('')
 
 onMounted(async () => {
+  loading.value = true
   try { users.value = await api.get<User[]>('/admin/users') } catch { /* */ }
   await loadSettings()
+  loading.value = false
 })
 
 async function loadSettings() {
@@ -80,6 +84,9 @@ const STORAGE_OPTIONS = [
     <div v-if="activeTab === 'storage'">
       <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
 
+    <LoadingSpinner v-if="loading" />
+    <template v-else>
+
       <div class="card mb-4 max-w-lg">
         <h3 class="font-medium mb-3 dark:text-gray-200">图片存储配置</h3>
         <p class="text-xs text-gray-400 mb-4">选择图片文件的存储后端。切换存储类型后，新上传的图片将使用新的存储后端，已有图片不受影响。</p>
@@ -102,5 +109,6 @@ const STORAGE_OPTIONS = [
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>

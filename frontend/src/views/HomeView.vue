@@ -4,12 +4,14 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { Family } from '@/types'
 
 const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
 const families = ref<Family[]>([])
+const loading = ref(true)
 const showCreate = ref(false)
 const familyName = ref('')
 const inviteCode = ref('')
@@ -37,7 +39,9 @@ const sortedFamilies = computed(() => {
 })
 
 onMounted(async () => {
+  loading.value = true
   try { families.value = await api.get<Family[]>('/users/me/families') } catch { /* */ }
+  loading.value = false
 })
 
 const hasCreatedFamily = computed(() =>
@@ -71,6 +75,9 @@ async function joinFamily() {
         <h2 class="text-lg md:text-xl font-bold dark:text-gray-200">我的家庭</h2>
         <button v-if="!hasCreatedFamily" class="btn-primary text-sm" @click="showCreate = !showCreate">{{ showCreate ? '取消' : '+ 创建家庭' }}</button>
       </div>
+
+      <LoadingSpinner v-if="loading" />
+      <template v-else>
 
       <div v-if="showCreate" class="card mb-4 flex flex-col sm:flex-row gap-2">
         <input v-model="familyName" class="input flex-1" placeholder="家庭名称" @keyup.enter="createFamily" />
@@ -122,5 +129,6 @@ async function joinFamily() {
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>

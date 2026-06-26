@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { Family, Todo } from '@/types'
 
 const { t } = useI18n()
@@ -10,6 +11,7 @@ const route = useRoute()
 const familyId = route.params.familyId as string
 
 const activeTab = ref<'todos' | 'overview'>('todos')
+const loading = ref(true)
 const family = ref<Family | null>(null)
 const memberCount = ref(0)
 const groupCount = ref(0)
@@ -59,6 +61,7 @@ function fmtRange(start: string, end: string): string {
 }
 
 onMounted(async () => {
+  loading.value = true
   await Promise.all([
     loadTodos(),
     (async () => {
@@ -71,6 +74,7 @@ onMounted(async () => {
       try { groupCount.value = (await api.get<any[]>('/families/' + familyId + '/groups')).length } catch { /* */ }
     })(),
   ])
+  loading.value = false
 })
 </script>
 
@@ -78,6 +82,10 @@ onMounted(async () => {
   <div>
     <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">{{ t('dashboard.heading') }}</h2>
     <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
+
+    <LoadingSpinner v-if="loading" />
+
+    <template v-else>
 
     <!-- Tabs -->
     <div class="flex gap-1 mb-4 border-b dark:border-gray-700">
@@ -139,5 +147,6 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>

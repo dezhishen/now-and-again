@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { FamilyGroup, FamilyGroupMember } from '@/types'
 
 const { t } = useI18n()
@@ -12,6 +13,7 @@ const auth = useAuthStore()
 const familyId = route.params.familyId as string
 
 const groups = ref<FamilyGroup[]>([])
+const pageLoading = ref(true)
 const showCreate = ref(false)
 const newName = ref('')
 const newDesc = ref('')
@@ -26,7 +28,7 @@ interface GroupDetail {
 const details = ref<Record<string, GroupDetail>>({})
 const activeTab = ref<Record<string, 'members' | 'requests'>>({})
 
-onMounted(async () => { await loadGroups() })
+onMounted(async () => { pageLoading.value = true; await loadGroups(); pageLoading.value = false })
 
 async function loadGroups() {
   try { groups.value = await api.get<FamilyGroup[]>('/families/' + familyId + '/groups') } catch { groups.value = [] }
@@ -119,6 +121,9 @@ async function removeMember(groupId: string, userId: string) {
     </div>
 
     <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
+
+    <LoadingSpinner v-if="pageLoading" />
+    <template v-else>
 
     <!-- Create form -->
     <div v-if="showCreate" class="card mb-4 flex flex-col gap-2">
@@ -214,5 +219,6 @@ async function removeMember(groupId: string, userId: string) {
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>

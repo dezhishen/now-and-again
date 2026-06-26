@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { FamilyMember, FamilyRole } from '@/types'
 
 const { t } = useI18n()
@@ -12,6 +13,7 @@ const auth = useAuthStore()
 const familyId = route.params.familyId as string
 
 const members = ref<FamilyMember[]>([])
+const pageLoading = ref(true)
 const requests = ref<FamilyMember[]>([])
 const activeTab = ref<'members' | 'requests'>('members')
 const error = ref('')
@@ -24,7 +26,9 @@ const myRole = computed(() => {
 const canManage = computed(() => myRole.value === 'owner' || myRole.value === 'admin')
 
 onMounted(async () => {
+  pageLoading.value = true
   await Promise.all([loadMembers(), loadRequests()])
+  pageLoading.value = false
 })
 
 async function loadMembers() {
@@ -85,6 +89,9 @@ const ROLE_LABELS: Record<string, string> = {
     <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">{{ t('members.heading') }}</h2>
 
     <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
+
+    <LoadingSpinner v-if="pageLoading" />
+    <template v-else>
 
     <!-- Tabs -->
     <div class="flex gap-1 mb-4 border-b dark:border-gray-700">
@@ -176,5 +183,6 @@ const ROLE_LABELS: Record<string, string> = {
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>

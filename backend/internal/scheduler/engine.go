@@ -133,9 +133,9 @@ func (s *Scheduler) log(status, taskID, message string) {
 
 // JobDef is returned by Handler.BuildJob. It wraps gocron job definitions.
 type JobDef struct {
-	duration   time.Duration
-	cronExpr   string
-	oneTimeAt  *time.Time // non-nil for one-shot jobs
+	duration  time.Duration
+	cronExpr  string
+	oneTimeAt *time.Time // non-nil for one-shot jobs
 }
 
 func (d *JobDef) toGocronDefinition() gocron.JobDefinition {

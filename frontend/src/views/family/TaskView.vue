@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { TaskTemplate, FamilyGroup } from '@/types'
 
 const { t } = useI18n()
@@ -13,6 +14,7 @@ const tasks = ref<TaskTemplate[]>([])
 const groups = ref<FamilyGroup[]>([])
 const locations = ref<{ id: string; name: string; color: string; floor_plan_id: string }[]>([])
 const activeTab = ref<'tasks' | 'inspections'>('tasks')
+const loading = ref(true)
 const error = ref('')
 
 // Log modal
@@ -45,7 +47,9 @@ const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
 
 onMounted(async () => {
+  loading.value = true
   await Promise.all([loadTasks(), loadGroups(), loadLocations()])
+  loading.value = false
 })
 
 const filteredTasks = computed(() => tasks.value.filter(t => !t.is_inspection))
@@ -194,6 +198,10 @@ function scheduleSummary(task: TaskTemplate): string {
   <div>
     <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">任务管理</h2>
     <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
+
+    <LoadingSpinner v-if="loading" />
+
+    <template v-else>
 
     <!-- Tabs -->
     <div class="flex gap-1 mb-4 border-b dark:border-gray-700">
@@ -383,5 +391,6 @@ function scheduleSummary(task: TaskTemplate): string {
         </div>
       </div>
     </Teleport>
+    </template>
   </div>
 </template>

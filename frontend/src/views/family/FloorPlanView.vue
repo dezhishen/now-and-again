@@ -3,6 +3,7 @@ import { ref, onMounted, nextTick, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { FloorPlan, Location, Point } from '@/types'
 
 const { t } = useI18n()
@@ -10,6 +11,7 @@ const route = useRoute()
 const familyId = route.params.familyId as string
 
 const floorPlans = ref<FloorPlan[]>([])
+const loading = ref(true)
 const error = ref('')
 const uploading = ref(false)
 const showUploadMenu = ref(false)
@@ -246,6 +248,9 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-xl md:text-2xl font-bold dark:text-gray-200">{{ t('floorPlan.heading') }}</h2>
       <div class="relative" @click.stop>
+
+    <LoadingSpinner v-if="loading" />
+    <template v-else>
         <button class="btn-primary text-sm" :class="{ 'opacity-50': uploading }" @click="showUploadMenu = !showUploadMenu">
           {{ uploading ? '...' : '+ ' + t('floorPlan.upload') }} ▾
         </button>
@@ -372,5 +377,6 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
         </div>
       </div>
     </Teleport>
+    </template>
   </div>
 </template>
