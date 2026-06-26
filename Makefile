@@ -16,16 +16,16 @@ help: ## 显示所有可用目标
 
 # ─── Development ──────────────────────────────────────────────────
 
-dev: ## 并行启动 backend + frontend（需要两个终端建议分别运行）
-	@echo "Starting backend (:8080) and frontend (:5173)..."
-	@trap 'kill 0' EXIT; \
-		$(MAKE) dev-backend & \
-		$(MAKE) dev-frontend & \
+dev: ## 并行启动 backend + frontend（使用 Ctrl+C 同时停止）
+	@echo "→ Backend  http://localhost:8080"
+	@echo "→ Frontend http://localhost:5173"
+	@cd backend && ADMIN_DEFAULT_PASSWORD=12345678 DATA_DIR=../data go run ./cmd/server & \
+		cd frontend && pnpm run dev & \
 		wait
 
 dev-backend: ## 启动后端开发服务器 (:8080)
 	@echo "→ Backend  http://localhost:8080"
-	@cd backend && go run ./cmd/server
+	@cd backend && ADMIN_DEFAULT_PASSWORD=12345678 DATA_DIR=../data go run ./cmd/server
 
 dev-frontend: ## 启动前端开发服务器 (:5173)
 	@echo "→ Frontend http://localhost:5173"

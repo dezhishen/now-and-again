@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -15,9 +15,34 @@ const familyName = ref('')
 const inviteCode = ref('')
 const error = ref('')
 
+const FAV_KEY = 'na_favorite_family'
+const favId = ref<string | null>(localStorage.getItem(FAV_KEY))
+
+function toggleFav(familyId: string) {
+  if (favId.value === familyId) {
+    favId.value = null
+    localStorage.removeItem(FAV_KEY)
+  } else {
+    favId.value = familyId
+    localStorage.setItem(FAV_KEY, familyId)
+  }
+}
+
+const sortedFamilies = computed(() => {
+  return [...families.value].sort((a, b) => {
+    if (a.id === favId.value) return -1
+    if (b.id === favId.value) return 1
+    return 0
+  })
+})
+
 onMounted(async () => {
   try { families.value = await api.get<Family[]>('/users/me/families') } catch { /* */ }
 })
+
+const hasCreatedFamily = computed(() =>
+  families.value.some(f => f.created_by === auth.user?.id)
+)
 
 async function createFamily() {
   error.value = ''
@@ -41,18 +66,10 @@ async function joinFamily() {
 
 <template>
   <div class="max-w-3xl mx-auto py-4 md:py-8 px-4">
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-      <h1 class="text-2xl md:text-3xl font-bold text-primary">{{ t('app.title') }}</h1>
-      <div class="flex gap-2 flex-wrap">
-        <button v-if="auth.isAdmin" class="btn-primary text-sm" @click="router.push('/admin')">管理面板</button>
-        <button class="btn-primary text-sm" @click="auth.logout(); router.push('/login')">退出登录</button>
-      </div>
-    </div>
-
     <div class="mb-8">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg md:text-xl font-bold dark:text-gray-200">我的家庭</h2>
-        <button class="btn-primary text-sm" @click="showCreate = !showCreate">{{ showCreate ? '取消' : '+ 创建家庭' }}</button>
+        <button v-if="!hasCreatedFamily" class="btn-primary text-sm" @click="showCreate = !showCreate">{{ showCreate ? '取消' : '+ 创建家庭' }}</button>
       </div>
 
       <div v-if="showCreate" class="card mb-4 flex flex-col sm:flex-row gap-2">
@@ -60,7 +77,7 @@ async function joinFamily() {
         <button class="btn-primary" @click="createFamily">创建</button>
       </div>
 
-      <div class="card mb-3 flex flex-col sm:flex-row gap-2">
+      <div class="card mb-4 flex flex-col sm:flex-row gap-2">
         <input v-model="inviteCode" class="input flex-1" placeholder="输入邀请码加入" @keyup.enter="joinFamily" />
         <button class="btn-primary" @click="joinFamily">加入</button>
       </div>
@@ -69,10 +86,39 @@ async function joinFamily() {
 
       <div v-if="families.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-8">还没有家庭</div>
 
-      <div v-for="f in families" :key="f.id" class="card mb-2 cursor-pointer hover:shadow-lg transition-shadow dark:hover:bg-gray-700" @click="router.push(`/family/${f.id}`)">
-        <div class="flex items-center justify-between">
-          <span class="font-medium dark:text-gray-200">{{ f.name }}</span>
-          <span class="text-xs text-gray-400">邀请码: {{ f.invite_code }}</span>
+      <!-- Family cards grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div
+          v-for="f in sortedFamilies"
+          :key="f.id"
+          class="card cursor-pointer hover:shadow-lg transition-shadow dark:hover:bg-gray-700 relative overflow-hidden group"
+          @click="router.push(`/family/${f.id}`)"
+        >
+          <span v-if="f.created_by === auth.user?.id" class="absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-xs bg-primary/90 text-white font-medium">Owner</span>
+
+          <!-- Favorite star -->
+          <button
+            class="absolute top-2 right-2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/80 dark:bg-gray-900/80 hover:bg-yellow-100 transition-colors"
+            @click.stop="toggleFav(f.id)"
+            :title="favId === f.id ? '取消收藏' : '收藏'"
+          >
+            <span v-if="favId === f.id" class="text-yellow-500 text-lg">★</span>
+            <span v-else class="text-gray-300 dark:text-gray-600 text-lg group-hover:text-yellow-400 transition-colors">☆</span>
+          </button>
+
+          <!-- Thumbnail -->
+          <div v-if="f.thumbnail_url" class="mb-3 -mx-4 -mt-4 overflow-hidden rounded-t-lg aspect-video bg-gray-200 dark:bg-gray-700">
+            <img :src="f.thumbnail_url" class="w-full h-full object-cover" />
+          </div>
+          <div v-else class="mb-3 -mx-4 -mt-4 aspect-video bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-gray-800 flex items-center justify-center rounded-t-lg">
+            <span class="text-4xl opacity-30">{{ f.name[0] }}</span>
+          </div>
+
+          <!-- Info -->
+          <div class="flex items-center justify-between">
+            <span class="font-medium dark:text-gray-200">{{ f.name }}</span>
+            <span class="text-xs text-gray-400">邀请码: {{ f.invite_code }}</span>
+          </div>
         </div>
       </div>
     </div>

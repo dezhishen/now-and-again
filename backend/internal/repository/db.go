@@ -57,6 +57,11 @@ func Migrate(db *gorm.DB) error {
 		&FamilyGroupMemberModel{},
 		&RefreshTokenModel{},
 		&ApiKeyModel{},
+		&FloorPlanModel{},
+		&LocationModel{},
+		&ImageModel{},
+		&SystemSettingModel{},
+		&LocationModel{},
 	)
 }
 
@@ -70,6 +75,17 @@ func Seed(db *gorm.DB) error {
 	}
 	for _, r := range roles {
 		db.Where("name = ?", r.Name).FirstOrCreate(&r)
+	}
+
+	// Default system settings
+	settingsDefaults := map[string]string{
+		"storage.type": "local",
+	}
+	for k, v := range settingsDefaults {
+		var existing SystemSettingModel
+		if err := db.Where("key = ?", k).First(&existing).Error; err != nil {
+			db.Create(&SystemSettingModel{Key: k, Value: v})
+		}
 	}
 
 	log.Println("seed complete")

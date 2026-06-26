@@ -6,7 +6,7 @@ import (
 	"github.com/dezhishen/now-and-again/shared/contracts"
 )
 
-func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllContracts) {
+func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers) {
 	h := NewHandlers(c)
 
 	// ── Public ──────────────────────────────────────────────────
@@ -17,9 +17,14 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 	public.POST("/api/auth/refresh", h.User.Refresh)
 	public.POST("/api/auth/logout", h.User.Logout)
 
+	// Image serving (public)
+	public.GET("/api/images/:id", imgHandler.Serve)
+
 	// ── Protected ───────────────────────────────────────────────
 	// Admin
 	auth.GET("/api/admin/users", h.User.ListUsers)
+	auth.GET("/api/admin/settings", settingsHandler.GetAll)
+	auth.PUT("/api/admin/settings", settingsHandler.Update)
 
 	// User
 	auth.GET("/api/users/me", h.User.GetMe)
@@ -30,6 +35,8 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 	auth.POST("/api/families", h.Family.Create)
 	auth.POST("/api/families/join", h.Family.Join)
 	auth.GET("/api/families/:family_id", h.Family.Get)
+	auth.PATCH("/api/families/:family_id", h.Family.Update)
+	auth.DELETE("/api/families/:family_id", h.Family.Delete)
 	auth.GET("/api/families/:family_id/members", h.Family.ListMembers)
 	auth.PUT("/api/families/:family_id/members/:user_id/role", h.Family.UpdateMemberRole)
 	auth.DELETE("/api/families/:family_id/members/:user_id", h.Family.RemoveMember)
@@ -53,4 +60,17 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 	auth.POST("/api/users/me/api-keys", h.ApiKey.Create)
 	auth.GET("/api/users/me/api-keys", h.ApiKey.List)
 	auth.DELETE("/api/users/me/api-keys/:key_id", h.ApiKey.Revoke)
+
+	// Floor Plans
+	auth.POST("/api/families/:family_id/floor-plans", h.FloorPlan.Upload)
+	auth.GET("/api/families/:family_id/floor-plans", h.FloorPlan.ListByFamily)
+	auth.GET("/api/floor-plans/:plan_id", h.FloorPlan.GetByID)
+	auth.PUT("/api/floor-plans/:plan_id/cover", h.FloorPlan.SetCover)
+	auth.DELETE("/api/floor-plans/:plan_id", h.FloorPlan.Delete)
+
+	// Locations
+	auth.POST("/api/floor-plans/:plan_id/locations", h.FloorPlan.CreateLocation)
+	auth.GET("/api/floor-plans/:plan_id/locations", h.FloorPlan.ListLocations)
+	auth.PUT("/api/locations/:location_id", h.FloorPlan.UpdateLocation)
+	auth.DELETE("/api/locations/:location_id", h.FloorPlan.DeleteLocation)
 }

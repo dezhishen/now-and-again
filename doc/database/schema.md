@@ -1,54 +1,63 @@
 # 数据库 Schema
 
-> 由 GORM AutoMigrate 自动管理。21 张表，UUID 主键由 Go 端 `BeforeCreate` 生成。
+> 由 GORM AutoMigrate 自动管理。UUID 主键由 Go 端 `BeforeCreate` 生成。
 
 ## 表清单
 
 | # | 表名 | 说明 | 核心字段 |
 |---|------|------|---------|
-| 1 | `users` | 用户 | username, email, password_hash, display_name, is_admin |
-| 2 | `families` | 家庭组 | name, invite_code, created_by |
-| 3 | `family_members` | 家庭成员 | family_id, user_id, role(owner/admin/member) |
-| 4 | `sub_groups` | 分工小组 | family_id, name, created_by |
-| 5 | `sub_group_members` | 小组成员 | sub_group_id, user_id |
-| 6 | `task_type_models` | 调度类型 | code, name, category(now/again), icon, default_priority |
-| 7 | `tasks` | 核心任务 | family_id, task_type_id, title, status, priority, due_date |
-| 8 | `task_assignees` | 任务分配 | task_id, user_id |
-| 9 | `task_dependencies` | 任务依赖 | blocked_task_id, blocker_task_id, dependency_type |
-| 10 | `task_chains` | 事项链模板 | family_id, name, created_by |
-| 11 | `task_chain_steps` | 链步骤 | chain_id, sort_order, task_type_id, assigned_role |
-| 12 | `task_logs` | 操作日志 | task_id, user_id, action, detail(JSON) |
-| 13 | `inspections` | 巡检记录 | family_id, title, status, created_by |
-| 14 | `inspection_items` | 巡检项 | inspection_id, check_point, result, generated_task_id |
-| 15 | `notification_channels` | 通知渠道 | code(email/push/wechat_webhook/webhook), name, config |
-| 16 | `notification_templates` | 通知模板 | family_id, task_type_id, trigger_event, channel_code, title_tmpl |
-| 17 | `user_channel_configs` | 用户渠道配置 | user_id, channel_code, destination, quiet_start/end |
-| 18 | `notifications` | 投递记录 | user_id, task_id, channel_code, status(pending/sent/failed) |
-| 19 | `refresh_token_models` | 刷新令牌 | user_id, token_hash(SHA-256), expires_at, revoked |
-| 20 | `api_key_models` | API 密钥 | user_id, name, key_hash(SHA-256), key_prefix, expires_at |
+| 1 | `users` | 用户 | display_name, email, phone, avatar_url |
+| 2 | `accounts` | 账户（登录凭据） | user_id, provider, username, password_hash |
+| 3 | `roles` | 角色 | name, description |
+| 4 | `user_roles` | 用户-角色关联 | user_id, role_id |
+| 5 | `families` | 家庭 | name, invite_code, created_by |
+| 6 | `family_members` | 家庭成员 | family_id, user_id, role, status, joined_at |
+| 7 | `family_groups` | 家庭小组 | family_id, name, description, created_by |
+| 8 | `family_group_members` | 小组成员 | group_id, user_id, role, status, joined_at |
+| 9 | `refresh_token_models` | 刷新令牌 | user_id, token_hash, expires_at, revoked |
+| 10 | `api_key_models` | API 密钥 | user_id, name, key_prefix, key_hash |
+| 11 | `images` | 图片文件 | storage_type, file_path, original_name, mime_type, size |
+| 12 | `floor_plans` | 户型图 | family_id, label, image_id, is_cover |
+| 13 | `locations` | 地点标记 | floor_plan_id, name, point_x, point_y, color |
+| 14 | `system_settings` | 系统配置 | key (PK), value |
 
 ## 核心索引
 
 | 表 | 索引 | 用途 |
 |----|------|------|
-| `users` | UNIQUE(username), UNIQUE(email) | 登录/注册唯一性 |
+| `accounts` | UNIQUE(username) | 登录唯一性 |
+| `users` | UNIQUE(email) | 邮箱唯一性 |
 | `families` | UNIQUE(invite_code) | 邀请码查找 |
 | `family_members` | UNIQUE(family_id, user_id) | 防重复加入 |
-| `tasks` | (family_id, status), (due_date) | 家庭看板 + 到期扫描 |
-| `task_assignees` | UNIQUE(task_id, user_id) | 防重复分配 |
-| `task_dependencies` | UNIQUE(blocked_task_id, blocker_task_id) | 防重复依赖 |
-| `task_logs` | (task_id, created_at) | 任务时间线 |
+| `family_group_members` | UNIQUE(group_id, user_id) | 防重复加入小组 |
 | `refresh_token_models` | UNIQUE(token_hash) | 令牌查找 |
-| `api_key_models` | UNIQUE(key_hash) | API Key 查找 |
+| `api_key_models` | UNIQUE(key_hash), UNIQUE(key_prefix) | API Key 查找 |
 
-## 调度类型
+## 角色与权限
 
-调度类型由 `backend/internal/scheduler/handlers/` 下的 `ScheduleHandler` 接口实现 + `init()` 注册。Seed 时自动同步到 `task_type_models` 表。
+| 角色 | 说明 |
+|------|------|
+| `admin` | 系统管理员，可访问管理面板 |
+| `user` | 普通用户 |
 
-| code | name | category | 说明 |
-|------|------|----------|------|
-| `one_off` | 一次性 | now | 完成即归档 |
-| `recurring_daily` | 每日循环 | again | 完成后自动重置，次日到期 |
-| `inspection_driven` | 巡检驱动 | now | 巡检发现问题生成，高优先级 |
+## 家庭成员角色
 
-> 新增调度类型：在 `scheduler/handlers/` 下创建文件，实现 `ScheduleHandler` 接口，`init()` 中调用 `scheduler.Register()`。
+| 角色 | 说明 |
+|------|------|
+| `owner` | 家庭所有者，仅一个，可删除家庭 |
+| `admin` | 家庭管理员，可管理成员和审核 |
+| `member` | 普通成员 |
+
+## 成员状态
+
+| 状态 | 说明 |
+|------|------|
+| `active` | 已加入 |
+| `pending` | 待审核 |
+| `rejected` | 已拒绝（可重新申请） |
+
+## 初始化
+
+首次运行服务时自动创建默认管理员账户：
+- 用户名：`admin`
+- 密码：由环境变量 `ADMIN_DEFAULT_PASSWORD` 设置，未设置则随机生成并打印到控制台

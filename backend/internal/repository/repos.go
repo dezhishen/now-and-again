@@ -15,3 +15,15 @@ func NewFamilyRepo(db *gorm.DB) *FamilyRepo { return &FamilyRepo{db} }
 type ApiKeyRepo struct{ db *gorm.DB }
 
 func NewApiKeyRepo(db *gorm.DB) *ApiKeyRepo { return &ApiKeyRepo{db} }
+
+type FloorPlanRepo struct{ db *gorm.DB }
+
+func NewFloorPlanRepo(db *gorm.DB) *FloorPlanRepo { return &FloorPlanRepo{db} }
+
+type ImageRepo struct{ db *gorm.DB }
+
+func NewImageRepo(db *gorm.DB) *ImageRepo { return &ImageRepo{db} }
+
+type SettingsRepo struct{ db *gorm.DB }
+
+func NewSettingsRepo(db *gorm.DB) *SettingsRepo { return &SettingsRepo{db} }

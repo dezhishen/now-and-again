@@ -8,9 +8,10 @@ import (
 // ─── Compile-time contract compliance ─────────────────────────────
 
 var (
-	_ contracts.UserContract   = (*UserService)(nil)
-	_ contracts.FamilyContract = (*FamilyService)(nil)
-	_ contracts.ApiKeyContract = (*ApiKeyService)(nil)
+	_ contracts.UserContract      = (*UserService)(nil)
+	_ contracts.FamilyContract    = (*FamilyService)(nil)
+	_ contracts.ApiKeyContract    = (*ApiKeyService)(nil)
+	_ contracts.FloorPlanContract = (*FloorPlanService)(nil)
 )
 
 // ─── User ─────────────────────────────────────────────────────────
@@ -45,12 +46,26 @@ func NewApiKeyService(repo *repository.ApiKeyRepo) *ApiKeyService {
 	return &ApiKeyService{repo: repo}
 }
 
+// ─── Floor Plan ──────────────────────────────────────────────────
+
+type FloorPlanService struct {
+	repo      *repository.FloorPlanRepo
+	userRepo  *repository.UserRepo
+	imageSvc  *ImageService
+	imageRepo *repository.ImageRepo
+}
+
+func NewFloorPlanService(repo *repository.FloorPlanRepo, userRepo *repository.UserRepo, imageSvc *ImageService, imageRepo *repository.ImageRepo) *FloorPlanService {
+	return &FloorPlanService{repo: repo, userRepo: userRepo, imageSvc: imageSvc, imageRepo: imageRepo}
+}
+
 // ─── All Contracts ────────────────────────────────────────────────
 
-func NewAllContracts(user *UserService, family *FamilyService, apiKey *ApiKeyService) *contracts.AllContracts {
+func NewAllContracts(user *UserService, family *FamilyService, apiKey *ApiKeyService, floorPlan *FloorPlanService) *contracts.AllContracts {
 	return &contracts.AllContracts{
-		User:   user,
-		Family: family,
-		ApiKey: apiKey,
+		User:      user,
+		Family:    family,
+		ApiKey:    apiKey,
+		FloorPlan: floorPlan,
 	}
 }

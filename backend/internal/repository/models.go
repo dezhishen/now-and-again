@@ -65,10 +65,13 @@ func (UserRoleModel) TableName() string { return "user_roles" }
 
 type FamilyModel struct {
 	BaseModel
-	Name       string `gorm:"size:128;not null"`
-	InviteCode string `gorm:"uniqueIndex;size:32;not null"`
-	CreatedBy  string `gorm:"type:char(36);not null"`
+	Name               string `gorm:"size:128;not null"`
+	InviteCode         string `gorm:"uniqueIndex;size:32;not null"`
+	CreatedBy          string `gorm:"type:char(36);not null"`
+	FloorPlanImagePath string `gorm:"->"` // populated by subquery in ListFamiliesByUserID
 }
+
+func (FamilyModel) TableName() string { return "families" }
 
 type FamilyMemberModel struct {
 	BaseModel
@@ -79,6 +82,8 @@ type FamilyMemberModel struct {
 	JoinedAt time.Time
 	User     UserModel `gorm:"foreignKey:UserID"`
 }
+
+func (FamilyMemberModel) TableName() string { return "family_members" }
 
 // ─── Family Group ─────────────────────────────────────────────────
 
@@ -127,3 +132,51 @@ type ApiKeyModel struct {
 	ExpiresAt  *time.Time
 	Revoked    bool `gorm:"not null;default:false"`
 }
+
+// ─── Image ──────────────────────────────────────────────────────
+
+type ImageModel struct {
+	BaseModel
+	StorageType  string `gorm:"size:32;not null;default:local"`
+	FilePath     string `gorm:"type:text;not null"`
+	OriginalName string `gorm:"size:255"`
+	MimeType     string `gorm:"size:64"`
+	Size         int64  `gorm:"not null;default:0"`
+}
+
+func (ImageModel) TableName() string { return "images" }
+
+// ─── System Settings ────────────────────────────────────────────
+
+type SystemSettingModel struct {
+	Key   string `gorm:"primaryKey;size:128"`
+	Value string `gorm:"type:text;not null"`
+}
+
+func (SystemSettingModel) TableName() string { return "system_settings" }
+
+// ─── Floor Plan ──────────────────────────────────────────────────
+
+type FloorPlanModel struct {
+	BaseModel
+	FamilyID string     `gorm:"index;type:char(36);not null"`
+	Label    string     `gorm:"size:32;not null;default:'1F'"`
+	ImageID  string     `gorm:"index;type:char(36);not null"`
+	IsCover  bool       `gorm:"not null;default:false"`
+	Width    int        `gorm:"not null;default:0"`
+	Height   int        `gorm:"not null;default:0"`
+	Image    ImageModel `gorm:"foreignKey:ImageID"`
+}
+
+func (FloorPlanModel) TableName() string { return "floor_plans" }
+
+type LocationModel struct {
+	BaseModel
+	FloorPlanID string  `gorm:"index;type:char(36);not null"`
+	Name        string  `gorm:"size:128;not null"`
+	PointX      float64 `gorm:"not null;default:0"`
+	PointY      float64 `gorm:"not null;default:0"`
+	Color       string  `gorm:"size:16;not null;default:'#3b82f6'"`
+}
+
+func (LocationModel) TableName() string { return "locations" }

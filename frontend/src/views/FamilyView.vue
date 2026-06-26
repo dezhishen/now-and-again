@@ -9,7 +9,7 @@ const showMenu = ref(false)
 <template>
   <div class="flex flex-col md:flex-row min-h-screen">
     <!-- Mobile hamburger -->
-    <button class="md:hidden fixed top-3 left-3 z-40 w-9 h-9 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shadow" @click="showMenu = !showMenu">
+    <button class="md:hidden fixed top-2 left-3 z-40 w-8 h-8 rounded-lg flex items-center justify-center bg-gray-200 dark:bg-gray-700 shadow text-sm" @click="showMenu = !showMenu">
       {{ showMenu ? '✕' : '☰' }}
     </button>
 
@@ -24,6 +24,7 @@ const showMenu = ref(false)
         <router-link :to="`/family/${$route.params.familyId}`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.dashboard') }}</router-link>
         <router-link :to="`/family/${$route.params.familyId}/groups`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.groups') }}</router-link>
         <router-link :to="`/family/${$route.params.familyId}/members`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.members') }}</router-link>
+        <router-link :to="`/family/${$route.params.familyId}/floor-plan`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.floorPlan') }}</router-link>
         <router-link :to="`/family/${$route.params.familyId}/settings`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.settings') }}</router-link>
       </nav>
     </aside>

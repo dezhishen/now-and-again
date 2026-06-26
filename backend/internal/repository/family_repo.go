@@ -14,15 +14,30 @@ func (r *FamilyRepo) FindFamilyByID(id string) (*FamilyModel, error) {
 	return &f, err
 }
 
+func (r *FamilyRepo) UpdateFamily(f *FamilyModel) error {
+	return r.db.Save(f).Error
+}
+
+func (r *FamilyRepo) DeleteFamily(id string) error {
+	return r.db.Where("id = ?", id).Delete(&FamilyModel{}).Error
+}
+
 func (r *FamilyRepo) FindFamilyByInviteCode(code string) (*FamilyModel, error) {
 	var f FamilyModel
 	err := r.db.Where("invite_code = ?", code).First(&f).Error
 	return &f, err
 }
 
+func (r *FamilyRepo) FindFamilyByCreator(userID string) (*FamilyModel, error) {
+	var f FamilyModel
+	err := r.db.Where("created_by = ?", userID).First(&f).Error
+	return &f, err
+}
+
 func (r *FamilyRepo) ListFamiliesByUserID(userID string) ([]FamilyModel, error) {
 	var families []FamilyModel
 	err := r.db.
+		Select("families.*, (SELECT floor_plans.image_id FROM floor_plans WHERE floor_plans.family_id = families.id AND floor_plans.is_cover = true LIMIT 1) AS floor_plan_image_path").
 		Joins("JOIN family_members ON family_members.family_id = families.id").
 		Where("family_members.user_id = ? AND family_members.status = ?", userID, "active").
 		Find(&families).Error

@@ -8,7 +8,7 @@
 | 后端 | Go + Gin + GORM | RESTful API |
 | CLI | Go + Cobra + Viper | 通过 HTTP / API Key 调用后端 |
 | 数据库 | SQLite (开发) / PostgreSQL (生产) | GORM AutoMigrate |
-| 共享层 | `shared/types` + `shared/contracts` | backend/CLI 编译期强制同步 |
+| 共享层 | `shared/types` + `shared/contracts` | backend 编译期强制同步 |
 
 ## 分层架构
 
@@ -18,7 +18,7 @@
 ├─────────────────────────────────────────────────┤
 │  Handler (Gin)       Middleware (JWT/API Key)    │  ← HTTP 层
 ├─────────────────────────────────────────────────┤
-│  Service             Scheduler Engine            │  ← 业务层
+│  Service                                        │  ← 业务层
 ├─────────────────────────────────────────────────┤
 │  Repository (GORM)   Seed / Migration            │  ← 数据层
 ├─────────────────────────────────────────────────┤
@@ -31,30 +31,10 @@
 
 ## 核心模块
 
-### 1. 调度引擎 (`backend/internal/scheduler/`)
+### 1. 认证体系
 
 ```
-ScheduleHandler 接口
-├── Code() / Name() / Icon() / Category() / DefaultPriority()
-├── OnCreate(task) → 任务创建时触发
-├── OnComplete(task) → 任务完成时触发（now→归档, again→自动重置）
-└── Reminders() → 到期前提醒时间
-
-注册方式: handlers/ 下文件 + init() + scheduler.Register()
-```
-
-### 2. 通知引擎 (`backend/internal/notifier/`)
-
-```
-Notifier 接口 → email / push / webhook / wechat
-注册方式: init() + RegisterNotifier()
-```
-
-### 3. 认证体系
-
-```
-首次访问 → /api/system/status → 未初始化 → /setup (创建管理员)
-                          → 已初始化 → /login
+首次运行 → 自动创建管理员 (admin + 随机密码/环境变量)
 登录 → access_token (15min, 内存) + refresh_token (7d, httpOnly cookie)
 401 → 自动 POST /api/auth/refresh → 新 token → 重试
 refresh 也过期 → 跳转 /login
@@ -62,22 +42,106 @@ refresh 也过期 → 跳转 /login
 API Key (CLI/外部): X-API-Key: na_xxxx... 或 Bearer na_xxxx...
 ```
 
-### 4. Contract-First 开发
+### 2. 家庭系统
+
+- 每个用户仅能创建一个家庭，但可加入多个
+- 家庭角色：owner / admin / member
+- 加入需审核（owner/admin 审批）
+- 被拒绝后可重新申请
+
+### 3. 户型图系统
+
+- 支持多楼层（floor_plans 表，每层一个记录）
+- 上传图片或手动绘制（Canvas → PNG → 上传）
+- 封面楼层：家庭列表卡片缩略图来源
+- 地点标记：在户型图上点击标记位置，支持颜色区分
+- 图片统一由 `images` 表管理，业务表仅存 `image_id`
+- 图片访问：`GET /api/images/:id` → 301 → `/uploads/{filename}`
+- 绘制工具：吸附网格（20px）、线段绘制（起点→终点）
+
+### 4. 图片存储
+
+- `images` 表记录：storage_type, file_path, original_name, mime_type, size
+- 当前支持 `local` 存储，架构预留 `s3`/`minio`/`oss` 扩展
+- 存储类型通过管理面板的 `storage.type` 系统设置配置
+
+### 5. 系统配置
+
+- `system_settings` 表：key-value 键值对
+- 管理面板可编辑（`/admin` → 存储配置 Tab）
+- 默认配置在 Seed 阶段写入
+
+### 6. Contract-First 开发
 
 ```
 shared/contracts/  ← 定义接口
        │
        ├── backend/internal/service/ → 实现 (var _ 断言)
-       └── cli/internal/client/      → 实现 (var _ 断言)
        
-新增方法 → 两端编译失败 → 强制同步
+新增方法 → 编译失败 → 强制同步
 ```
+
+## 前端路由
+
+| 路径 | 页面 | 说明 |
+|------|------|------|
+| `/setup` | 初始化 | 系统首次设置（已有管理员则跳过） |
+| `/login` | 登录 | |
+| `/register` | 注册 | |
+| `/` | 首页 | 家庭卡片列表（缩略图 + 收藏 + 创建/加入） |
+| `/admin` | 管理面板 | 用户管理 + 存储配置 |
+| `/family/:id` | 家庭仪表盘 | 成员数/小组数/邀请码 |
+| `/family/:id/groups` | 小组列表 | 创建/加入/审核 |
+| `/family/:id/members` | 成员管理 | 成员列表 + 待审核申请 |
+| `/family/:id/floor-plan` | 户型图 | 楼层卡片 + 弹窗标记地点 |
+| `/family/:id/settings` | 家庭设置 | 修改名称/删除家庭 |
+
+## 数据目录
+
+`DATA_DIR` 环境变量控制数据存储位置：
+```
+$DATA_DIR/
+├── now-and-again.db    # SQLite 数据库
+└── uploads/             # 上传文件
+```
+
+开发环境默认：`../data`（项目根目录下的 `data/`）。
 
 ## 开发工作流
 
 ```bash
-make dev-backend     # :8080
-make dev-frontend    # :5173 (代理到 :8080)
-make check-contracts # 自动 fix-dupes → 编译检查
-make ci              # 完整流水线
+make dev              # 并行启动 backend (8080) + frontend (5173)
+make dev-backend      # 仅后端
+make dev-frontend     # 仅前端
+make db-reset         # 删除 SQLite 数据库
+```
+
+## 目录结构
+
+```
+backend/
+├── cmd/server/main.go        # 入口
+├── internal/
+│   ├── config/               # 配置加载
+│   ├── handler/               # HTTP 处理器 (8 files)
+│   ├── middleware/            # JWT/CORS
+│   ├── repository/            # 数据访问 (9 files)
+│   └── service/               # 业务逻辑 (6 files)
+├── migrations/               # (空，使用 GORM AutoMigrate)
+shared/
+├── contracts/                # 接口定义
+└── types/                    # DTO 定义
+frontend/
+├── src/
+│   ├── api/                  # API 客户端
+│   ├── components/
+│   ├── composables/          # 组合式函数
+│   ├── i18n/                 # 国际化 (zh-CN, en)
+│   ├── router/               # 路由
+│   ├── stores/               # Pinia 状态管理
+│   ├── styles/               # 全局样式
+│   ├── types/                # TypeScript 类型
+│   └── views/                # 页面组件
+└── vite.config.ts            # Vite 配置（API + Uploads 代理）
+cli/                          # Cobra CLI
 ```

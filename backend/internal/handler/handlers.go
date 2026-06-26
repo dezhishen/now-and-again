@@ -62,19 +62,22 @@ func queryInt(c *gin.Context, name string, defaultVal int) int {
 // ─── Handler structs ──────────────────────────────────────────────
 
 type AllHandlers struct {
-	User   *UserHandlers
-	Family *FamilyHandlers
-	ApiKey *ApiKeyHandlers
+	User      *UserHandlers
+	Family    *FamilyHandlers
+	ApiKey    *ApiKeyHandlers
+	FloorPlan *FloorPlanHandlers
 }
 
 type UserHandlers struct{ C contracts.UserContract }
 type FamilyHandlers struct{ C contracts.FamilyContract }
 type ApiKeyHandlers struct{ C contracts.ApiKeyContract }
+type FloorPlanHandlers struct{ C contracts.FloorPlanContract }
 
 func NewHandlers(all *contracts.AllContracts) *AllHandlers {
 	return &AllHandlers{
-		User:   &UserHandlers{C: all.User},
-		Family: &FamilyHandlers{C: all.Family},
-		ApiKey: &ApiKeyHandlers{C: all.ApiKey},
+		User:      &UserHandlers{C: all.User},
+		Family:    &FamilyHandlers{C: all.Family},
+		ApiKey:    &ApiKeyHandlers{C: all.ApiKey},
+		FloorPlan: &FloorPlanHandlers{C: all.FloorPlan},
 	}
 }

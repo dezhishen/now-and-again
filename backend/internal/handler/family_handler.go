@@ -49,6 +49,38 @@ func (h *FamilyHandlers) Get(c *gin.Context) {
 	ok(c, f)
 }
 
+func (h *FamilyHandlers) Update(c *gin.Context) {
+	familyID, err := paramUUID(c, "family_id")
+	if err != nil {
+		badRequest(c, "invalid family_id")
+		return
+	}
+	req, err := bindJSON[types.UpdateFamilyRequest](c)
+	if err != nil {
+		badRequest(c, err.Error())
+		return
+	}
+	f, err := h.C.Update(userCtx(c), familyID, req)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, f)
+}
+
+func (h *FamilyHandlers) Delete(c *gin.Context) {
+	familyID, err := paramUUID(c, "family_id")
+	if err != nil {
+		badRequest(c, "invalid family_id")
+		return
+	}
+	if err := h.C.Delete(userCtx(c), familyID); err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, gin.H{"message": "family deleted"})
+}
+
 func (h *FamilyHandlers) ListMyFamilies(c *gin.Context) {
 	families, err := h.C.ListMyFamilies(userCtx(c))
 	if err != nil {

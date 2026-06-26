@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"context"
+	"mime/multipart"
 
 	"github.com/dezhishen/now-and-again/shared/types"
 	"github.com/google/uuid"
@@ -28,6 +29,8 @@ type FamilyContract interface {
 	Create(ctx context.Context, req *types.CreateFamilyRequest) (*types.Family, error)
 	Join(ctx context.Context, req *types.JoinFamilyRequest) (*types.FamilyMember, error)
 	Get(ctx context.Context, familyID uuid.UUID) (*types.Family, error)
+	Update(ctx context.Context, familyID uuid.UUID, req *types.UpdateFamilyRequest) (*types.Family, error)
+	Delete(ctx context.Context, familyID uuid.UUID) error
 	ListMyFamilies(ctx context.Context) ([]types.Family, error)
 
 	// Member management
@@ -59,10 +62,27 @@ type ApiKeyContract interface {
 	Revoke(ctx context.Context, keyID uuid.UUID) error
 }
 
+// ─── Floor Plan ──────────────────────────────────────────────────
+
+type FloorPlanContract interface {
+	Upload(ctx context.Context, familyID uuid.UUID, label string, isCover bool, file multipart.File, header *multipart.FileHeader) (*types.FloorPlan, error)
+	ListByFamily(ctx context.Context, familyID uuid.UUID) ([]types.FloorPlan, error)
+	GetByID(ctx context.Context, planID uuid.UUID) (*types.FloorPlan, error)
+	SetCover(ctx context.Context, planID uuid.UUID) error
+	Delete(ctx context.Context, planID uuid.UUID) error
+
+	// Locations
+	CreateLocation(ctx context.Context, floorPlanID uuid.UUID, req *types.CreateLocationRequest) (*types.Location, error)
+	ListLocations(ctx context.Context, floorPlanID uuid.UUID) ([]types.Location, error)
+	UpdateLocation(ctx context.Context, locationID uuid.UUID, req *types.UpdateLocationRequest) (*types.Location, error)
+	DeleteLocation(ctx context.Context, locationID uuid.UUID) error
+}
+
 // ─── Aggregate ────────────────────────────────────────────────────
 
 type AllContracts struct {
-	User   UserContract
-	Family FamilyContract
-	ApiKey ApiKeyContract
+	User      UserContract
+	Family    FamilyContract
+	ApiKey    ApiKeyContract
+	FloorPlan FloorPlanContract
 }

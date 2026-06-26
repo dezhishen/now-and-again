@@ -1,6 +1,6 @@
 # API 文档
 
-> 共 51 个端点。公开路由无鉴权，受保护路由需要 JWT 或 API Key。
+> 共 43 个端点。公开路由无鉴权，受保护路由需要 JWT 或 API Key。
 
 ## 系统初始化
 
@@ -8,6 +8,8 @@
 |------|------|------|------|
 | GET | `/api/system/status` | 无 | 返回 `{initialized: bool}` |
 | POST | `/api/setup` | 无 | 创建第一个管理员（仅未初始化时可用） |
+
+> 首次运行服务时自动创建默认管理员账户（username: `admin`），密码由 `ADMIN_DEFAULT_PASSWORD` 环境变量控制。
 
 ## 认证
 
@@ -18,11 +20,13 @@
 | POST | `/api/auth/refresh` | Cookie | 刷新 access_token |
 | POST | `/api/auth/logout` | Cookie | 登出，撤销 refresh_token |
 
-## 调度类型
+## 图片
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| GET | `/api/schedule-types` | 无 | 获取所有已注册的调度类型 |
+| GET | `/api/images/:id` | 无 | 301 重定向到实际文件（`/uploads/{filename}`） |
+
+> 图片表统一管理所有文件，业务表只存 `image_id`，支持未来扩展 S3/OSS 等存储后端。
 
 ## 用户
 
@@ -32,84 +36,74 @@
 | PUT | `/api/users/me` | JWT/APIKey | 更新当前用户 |
 | GET | `/api/admin/users` | JWT(admin) | 管理员查看所有用户 |
 
+## 管理面板
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/admin/settings` | JWT | 获取所有系统设置 |
+| PUT | `/api/admin/settings` | JWT | 批量更新设置（JSON: `{"key":"value"}`） |
+
+> 系统设置当前支持 `storage.type`（默认 `"local"`），未来可扩展为 `"s3"`、`"minio"` 等。
+
 ## 家庭
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| POST | `/api/families` | JWT/APIKey | 创建家庭 |
+| POST | `/api/families` | JWT/APIKey | 创建家庭（每个用户仅能创建一个） |
 | POST | `/api/families/join` | JWT/APIKey | 通过邀请码加入 |
-| GET | `/api/families/:id` | JWT/APIKey | 家庭详情 |
-| GET | `/api/users/me/families` | JWT/APIKey | 我的家庭列表 |
-| GET | `/api/families/:id/members` | JWT/APIKey | 成员列表 |
-| PUT | `/api/families/:id/members/:uid/role` | JWT/APIKey | 修改成员角色 |
-| DELETE | `/api/families/:id/members/:uid` | JWT/APIKey | 移除成员 |
-| POST | `/api/families/:id/leave` | JWT/APIKey | 退出家庭 |
+| GET | `/api/families/:family_id` | JWT/APIKey | 家庭详情 |
+| PATCH | `/api/families/:family_id` | JWT/APIKey | 修改家庭名称（owner/admin） |
+| DELETE | `/api/families/:family_id` | JWT/APIKey | 删除家庭（仅 owner） |
+| GET | `/api/users/me/families` | JWT/APIKey | 我的家庭列表（含封面缩略图） |
+| GET | `/api/families/:family_id/members` | JWT/APIKey | 成员列表 |
+| PUT | `/api/families/:family_id/members/:user_id/role` | JWT/APIKey | 修改成员角色（owner/admin） |
+| DELETE | `/api/families/:family_id/members/:user_id` | JWT/APIKey | 移除成员（owner/admin） |
+| POST | `/api/families/:family_id/leave` | JWT/APIKey | 退出家庭 |
+
+## 家庭审核
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/families/:family_id/join-requests` | JWT/APIKey | 待审核申请列表 |
+| PUT | `/api/families/:family_id/join-requests` | JWT/APIKey | 审核申请（action: `active`/`rejected`） |
 
 ## 小组
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| POST | `/api/families/:id/subgroups` | JWT/APIKey | 创建小组 |
-| GET | `/api/families/:id/subgroups` | JWT/APIKey | 小组列表 |
-| POST | `/api/subgroups/:id/members` | JWT/APIKey | 添加成员 |
-| DELETE | `/api/subgroups/:id/members/:uid` | JWT/APIKey | 移除成员 |
+| POST | `/api/families/:family_id/groups` | JWT/APIKey | 创建小组 |
+| GET | `/api/families/:family_id/groups` | JWT/APIKey | 小组列表 |
+| POST | `/api/groups/:group_id/join` | JWT/APIKey | 加入小组 |
+| POST | `/api/groups/:group_id/leave` | JWT/APIKey | 离开小组 |
+| GET | `/api/groups/:group_id/members` | JWT/APIKey | 小组成员列表 |
+| DELETE | `/api/groups/:group_id/members/:user_id` | JWT/APIKey | 移除小组成员 |
+| GET | `/api/groups/:group_id/join-requests` | JWT/APIKey | 小组待审核申请 |
+| PUT | `/api/groups/:group_id/join-requests` | JWT/APIKey | 审核小组申请 |
 
-## 任务
-
-| 方法 | 路径 | 鉴权 | 说明 |
-|------|------|------|------|
-| POST | `/api/families/:id/tasks` | JWT/APIKey | 创建任务 |
-| GET | `/api/families/:id/tasks` | JWT/APIKey | 任务列表(?status=&assignee_id=&page=&page_size=) |
-| GET | `/api/tasks/:id` | JWT/APIKey | 任务详情 |
-| PATCH | `/api/tasks/:id` | JWT/APIKey | 更新任务(状态/标题/优先级等) |
-| POST | `/api/tasks/:id/assignees` | JWT/APIKey | 设置负责人 |
-| POST | `/api/tasks/:id/dependencies` | JWT/APIKey | 添加依赖 |
-| DELETE | `/api/tasks/:id/dependencies/:dep_id` | JWT/APIKey | 移除依赖 |
-
-## 事项链
+## 户型图
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| POST | `/api/families/:id/chains` | JWT/APIKey | 创建链模板 |
-| GET | `/api/families/:id/chains` | JWT/APIKey | 链模板列表 |
-| GET | `/api/chains/:id` | JWT/APIKey | 链详情 |
-| POST | `/api/chains/:id/steps` | JWT/APIKey | 添加步骤 |
-| PUT | `/api/chains/:id/steps/reorder` | JWT/APIKey | 重排步骤 |
-| DELETE | `/api/chains/:id/steps/:step_id` | JWT/APIKey | 删除步骤 |
-| POST | `/api/chains/:id/start` | JWT/APIKey | 启动链(实例化为任务) |
+| POST | `/api/families/:family_id/floor-plans` | JWT/APIKey | 上传户型图（multipart: file + label + is_cover） |
+| GET | `/api/families/:family_id/floor-plans` | JWT/APIKey | 列出所有楼层 |
+| GET | `/api/floor-plans/:plan_id` | JWT/APIKey | 获取单层详情（含地点列表） |
+| PUT | `/api/floor-plans/:plan_id/cover` | JWT/APIKey | 设为封面 |
+| DELETE | `/api/floor-plans/:plan_id` | JWT/APIKey | 删除楼层及图片 |
 
-## 巡检
+## 地点标记
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| POST | `/api/families/:id/inspections` | JWT/APIKey | 创建巡检 |
-| GET | `/api/families/:id/inspections` | JWT/APIKey | 巡检列表 |
-| GET | `/api/inspections/:id` | JWT/APIKey | 巡检详情 |
-| POST | `/api/inspections/:id/items` | JWT/APIKey | 添加巡检项 |
-| PATCH | `/api/inspections/:id/items/:item_id` | JWT/APIKey | 更新巡检项 |
-| POST | `/api/inspections/:id/complete` | JWT/APIKey | 完成巡检 |
-
-## 日志
-
-| 方法 | 路径 | 鉴权 | 说明 |
-|------|------|------|------|
-| GET | `/api/tasks/:id/logs` | JWT/APIKey | 任务操作日志 |
-| POST | `/api/tasks/:id/comments` | JWT/APIKey | 添加评论 |
-
-## 通知
-
-| 方法 | 路径 | 鉴权 | 说明 |
-|------|------|------|------|
-| GET | `/api/users/me/notifications` | JWT/APIKey | 我的通知(?page=&page_size=) |
-| PUT | `/api/users/me/channel-configs` | JWT/APIKey | 配置通知渠道 |
-| GET | `/api/families/:id/notification-templates` | JWT/APIKey | 通知模板列表 |
-| PUT | `/api/families/:id/notification-templates` | JWT/APIKey | 更新通知模板 |
+| POST | `/api/floor-plans/:plan_id/locations` | JWT/APIKey | 创建地点（name + point + color） |
+| GET | `/api/floor-plans/:plan_id/locations` | JWT/APIKey | 地点列表 |
+| PUT | `/api/locations/:location_id` | JWT/APIKey | 更新地点 |
+| DELETE | `/api/locations/:location_id` | JWT/APIKey | 删除地点 |
 
 ## API Key
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| POST | `/api/users/me/api-keys` | JWT | 创建 API Key (返回 raw_key 仅一次) |
+| POST | `/api/users/me/api-keys` | JWT | 创建 API Key（返回 raw_key 仅一次） |
 | GET | `/api/users/me/api-keys` | JWT | API Key 列表 |
 | DELETE | `/api/users/me/api-keys/:key_id` | JWT | 撤销 API Key |
 
@@ -119,9 +113,11 @@
 |--------|------|------|
 | 200 | `{"success":true,"data":...}` | 成功 |
 | 201 | 同上 | 创建成功 |
+| 301 | 重定向 | 图片服务重定向 |
 | 400 | `{"success":false,"error":"..."}` | 参数错误 |
 | 401 | 同上 | 未认证 → 触发自动刷新 |
 | 404 | 同上 | 资源不存在 |
+| 500 | 同上 | 服务器错误 |
 
 ## 认证方式
 

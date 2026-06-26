@@ -16,6 +16,7 @@ const router = createRouter({
         { path: '', name: 'family-dashboard', component: () => import('@/views/family/DashboardView.vue') },
         { path: 'groups', name: 'family-groups', component: () => import('@/views/family/GroupListView.vue') },
         { path: 'members', name: 'family-members', component: () => import('@/views/family/MemberListView.vue') },
+        { path: 'floor-plan', name: 'family-floor-plan', component: () => import('@/views/family/FloorPlanView.vue') },
         { path: 'settings', name: 'family-settings', component: () => import('@/views/family/SettingsView.vue') },
       ],
     },

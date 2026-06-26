@@ -16,6 +16,11 @@ import (
 func (s *FamilyService) Create(ctx context.Context, req *types.CreateFamilyRequest) (*types.Family, error) {
 	userID := ctx.Value("user_id").(string)
 
+	// Each user can create at most one family
+	if _, err := s.repo.FindFamilyByCreator(userID); err == nil {
+		return nil, fmt.Errorf("you have already created a family")
+	}
+
 	f := &repository.FamilyModel{
 		Name:       req.Name,
 		InviteCode: repository.GenInviteCode(),
@@ -47,11 +52,21 @@ func (s *FamilyService) Join(ctx context.Context, req *types.JoinFamilyRequest) 
 		return nil, fmt.Errorf("invalid invite code")
 	}
 
-	if existing, _ := s.repo.FindMember(f.ID, userID); existing != nil {
-		if existing.Status == "active" {
+	if existing, err := s.repo.FindMember(f.ID, userID); err == nil {
+		switch existing.Status {
+		case "active":
 			return nil, fmt.Errorf("already a member")
+		case "pending":
+			return nil, fmt.Errorf("join request already exists")
+		case "rejected":
+			// Allow re-apply: update existing record back to pending
+			existing.Status = "pending"
+			existing.JoinedAt = time.Now()
+			if err := s.repo.UpdateMember(existing); err != nil {
+				return nil, fmt.Errorf("re-apply join: %w", err)
+			}
+			return &types.FamilyMember{ID: existing.ID, FamilyID: existing.FamilyID, UserID: existing.UserID, Role: types.FamilyRole(existing.Role), Status: types.MemberStatusPending, JoinedAt: existing.JoinedAt}, nil
 		}
-		return nil, fmt.Errorf("join request already exists")
 	}
 
 	m := &repository.FamilyMemberModel{
@@ -73,6 +88,45 @@ func (s *FamilyService) Get(ctx context.Context, familyID uuid.UUID) (*types.Fam
 	return &types.Family{ID: f.ID, Name: f.Name, InviteCode: f.InviteCode, CreatedBy: f.CreatedBy, CreatedAt: f.CreatedAt, UpdatedAt: f.UpdatedAt}, nil
 }
 
+func (s *FamilyService) Update(ctx context.Context, familyID uuid.UUID, req *types.UpdateFamilyRequest) (*types.Family, error) {
+	userID := ctx.Value("user_id").(string)
+
+	f, err := s.repo.FindFamilyByID(familyID.String())
+	if err != nil {
+		return nil, fmt.Errorf("family not found")
+	}
+
+	// Only owner or admin can update
+	m, err := s.repo.FindMember(familyID.String(), userID)
+	if err != nil || (m.Role != "owner" && m.Role != "admin") {
+		return nil, fmt.Errorf("only owner/admin can update family")
+	}
+
+	f.Name = req.Name
+	if err := s.repo.UpdateFamily(f); err != nil {
+		return nil, fmt.Errorf("update family: %w", err)
+	}
+	return &types.Family{ID: f.ID, Name: f.Name, InviteCode: f.InviteCode, CreatedBy: f.CreatedBy, CreatedAt: f.CreatedAt, UpdatedAt: f.UpdatedAt}, nil
+}
+
+func (s *FamilyService) Delete(ctx context.Context, familyID uuid.UUID) error {
+	userID := ctx.Value("user_id").(string)
+
+	f, err := s.repo.FindFamilyByID(familyID.String())
+	if err != nil {
+		return fmt.Errorf("family not found")
+	}
+
+	// Only owner can delete
+	m, err := s.repo.FindMember(familyID.String(), userID)
+	if err != nil || m.Role != "owner" {
+		return fmt.Errorf("only owner can delete family")
+	}
+
+	_ = f // suppress unused warning
+	return s.repo.DeleteFamily(familyID.String())
+}
+
 func (s *FamilyService) ListMyFamilies(ctx context.Context) ([]types.Family, error) {
 	userID := ctx.Value("user_id").(string)
 	families, err := s.repo.ListFamiliesByUserID(userID)
@@ -81,7 +135,15 @@ func (s *FamilyService) ListMyFamilies(ctx context.Context) ([]types.Family, err
 	}
 	result := make([]types.Family, len(families))
 	for i, f := range families {
-		result[i] = types.Family{ID: f.ID, Name: f.Name, InviteCode: f.InviteCode, CreatedBy: f.CreatedBy, CreatedAt: f.CreatedAt, UpdatedAt: f.UpdatedAt}
+		thumb := ""
+		if f.FloorPlanImagePath != "" {
+			thumb = "/api/images/" + f.FloorPlanImagePath
+		}
+		result[i] = types.Family{
+			ID: f.ID, Name: f.Name, InviteCode: f.InviteCode,
+			CreatedBy: f.CreatedBy, ThumbnailURL: thumb,
+			CreatedAt: f.CreatedAt, UpdatedAt: f.UpdatedAt,
+		}
 	}
 	return result, nil
 }
@@ -209,11 +271,21 @@ func (s *FamilyService) JoinGroup(ctx context.Context, groupID uuid.UUID) (*type
 	if _, err := s.repo.FindGroupByID(groupID.String()); err != nil {
 		return nil, fmt.Errorf("group not found")
 	}
-	if existing, _ := s.repo.FindGroupMember(groupID.String(), userID); existing != nil {
-		if existing.Status == "active" {
+	if existing, err := s.repo.FindGroupMember(groupID.String(), userID); err == nil {
+		switch existing.Status {
+		case "active":
 			return nil, fmt.Errorf("already a member")
+		case "pending":
+			return nil, fmt.Errorf("join request already exists")
+		case "rejected":
+			// Allow re-apply: update existing record back to pending
+			existing.Status = "pending"
+			existing.JoinedAt = time.Now()
+			if err := s.repo.UpdateGroupMember(existing); err != nil {
+				return nil, fmt.Errorf("re-apply join: %w", err)
+			}
+			return toGroupMember(existing), nil
 		}
-		return nil, fmt.Errorf("join request already exists")
 	}
 	m := &repository.FamilyGroupMemberModel{GroupID: groupID.String(), UserID: userID, Role: "member", Status: "pending", JoinedAt: time.Now()}
 	if err := s.repo.AddGroupMember(m); err != nil {

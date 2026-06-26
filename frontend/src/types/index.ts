@@ -22,6 +22,7 @@ export interface Family {
   name: string
   invite_code: string
   created_by: string
+  thumbnail_url?: string
   created_at: string
   updated_at: string
 }
@@ -70,4 +71,35 @@ export interface APIResponse<T> {
   success: boolean
   data: T
   error?: string
+}
+
+// ─── Floor Plan ──────────────────────────────────────────────────
+
+export interface Point {
+  x: number
+  y: number
+}
+
+export interface FloorPlan {
+  id: string
+  family_id: string
+  label: string
+  image_id?: string
+  image_url: string
+  is_cover: boolean
+  width: number
+  height: number
+  locations?: Location[]
+  created_at: string
+  updated_at: string
+}
+
+export interface Location {
+  id: string
+  floor_plan_id: string
+  name: string
+  point: Point
+  color: string
+  created_at: string
+  updated_at: string
 }
