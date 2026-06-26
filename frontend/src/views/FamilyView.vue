@@ -30,10 +30,10 @@ interface Tab {
 
 const NAV_ITEMS: { id: string; icon: string; labelKey: string; component: any; adminOnly?: boolean }[] = [
   { id: 'dashboard', icon: '📊', labelKey: 'nav.dashboard', component: markRaw(DashboardView) },
+  { id: 'tasks', icon: '✅', labelKey: 'nav.tasks', component: markRaw(TaskView) },
   { id: 'groups', icon: '👥', labelKey: 'nav.groups', component: markRaw(GroupListView) },
   { id: 'members', icon: '👤', labelKey: 'nav.members', component: markRaw(MemberListView) },
   { id: 'floor-plan', icon: '🏠', labelKey: 'nav.floorPlan', component: markRaw(FloorPlanView) },
-  { id: 'tasks', icon: '✅', labelKey: 'nav.tasks', component: markRaw(TaskView) },
   { id: 'ics', icon: '📅', labelKey: 'nav.ics', component: markRaw(IcsView) },
   { id: 'settings', icon: '⚙️', labelKey: 'nav.settings', component: markRaw(SettingsView), adminOnly: true },
 ]
