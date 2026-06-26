@@ -130,9 +130,8 @@ var routeScopes = map[string]string{
 	"GET  /api/families/:family_id/tasks": TaskRead,
 	"PUT  /api/tasks/:task_id":            TaskWrite,
 	"DELETE /api/tasks/:task_id":          TaskWrite,
-	"GET  /api/tasks/:task_id/logs":       TaskRead,
-	"GET  /api/families/:family_id/todos": TaskRead,
-	"PUT  /api/todos/:todo_id":            TaskWrite,
+	"GET  /api/tasks/:task_id/logs":       TaskRead, "POST /api/tasks/:task_id/trigger": TaskWrite, "GET  /api/families/:family_id/todos": TaskRead,
+	"PUT  /api/todos/:todo_id": TaskWrite,
 
 	// ── ICS ────────────────────────────────────────────────────
 	"POST /api/families/:family_id/ics-feeds": TaskWrite,

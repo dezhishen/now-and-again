@@ -124,3 +124,16 @@ func (h *TaskHandlers) ListLogs(c *gin.Context) {
 	}
 	ok(c, logs)
 }
+
+func (h *TaskHandlers) Trigger(c *gin.Context) {
+	taskID, err := paramUUID(c, "task_id")
+	if err != nil {
+		badRequest(c, "invalid task_id")
+		return
+	}
+	if err := h.Svc.Trigger(userCtx(c), taskID); err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, gin.H{"message": "todo generated"})
+}

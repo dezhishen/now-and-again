@@ -157,6 +157,10 @@ async function deleteTask(id: string) {
   try { await api.delete('/tasks/' + id); await loadTasks() } catch (e: any) { error.value = e.message }
 }
 
+async function triggerTask(id: string) {
+  try { await api.post('/tasks/' + id + '/trigger'); await loadTasks() } catch (e: any) { error.value = e.message }
+}
+
 async function viewLogs(taskId: string) {
   logTaskId.value = taskId
   showLogs.value = true
@@ -249,6 +253,7 @@ function scheduleSummary(task: TaskTemplate): string {
           <div class="flex gap-1 border-t dark:border-gray-700 pt-2 mt-2">
             <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="openEdit(task)">编辑</button>
             <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="viewLogs(task.id)">日志</button>
+            <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="triggerTask(task.id)">生成</button>
             <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="toggleTask(task)">{{ task.enabled ? '禁用' : '启用' }}</button>
             <button class="text-xs px-2 py-0.5 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/30 flex-1" @click="deleteTask(task.id)">删除</button>
           </div>
@@ -289,6 +294,7 @@ function scheduleSummary(task: TaskTemplate): string {
           <div class="flex gap-1 border-t dark:border-gray-700 pt-2 mt-2">
             <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="openEdit(task)">编辑</button>
             <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="viewLogs(task.id)">日志</button>
+            <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="triggerTask(task.id)">生成</button>
             <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="toggleTask(task)">{{ task.enabled ? '禁用' : '启用' }}</button>
             <button class="text-xs px-2 py-0.5 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/30 flex-1" @click="deleteTask(task.id)">删除</button>
           </div>

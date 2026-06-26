@@ -116,6 +116,15 @@ func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types
 	return taskModelToType(t), nil
 }
 
+// Trigger manually generates a new todo for the given task.
+func (s *TaskService) Trigger(ctx context.Context, taskID uuid.UUID) error {
+	task, err := s.repo.FindTaskByID(taskID.String())
+	if err != nil {
+		return err
+	}
+	return s.onTaskTriggered(task.ID, task.FamilyID)
+}
+
 func (s *TaskService) List(ctx context.Context, familyID uuid.UUID) ([]types.TaskTemplate, error) {
 	tasks, err := s.repo.ListTasksByFamily(familyID.String())
 	if err != nil {
@@ -253,10 +262,10 @@ func (s *TaskService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 // and creates a follow-up todo if the branch has create_todo enabled.
 func (s *TaskService) handleInspectionBranch(todo *repository.TodoModel, branchName string, userID string) {
 	type branch struct {
-		Name      string `json:"name"`
+		Name       string `json:"name"`
 		CreateTodo bool   `json:"create_todo"`
-		TodoName  string `json:"todo_name"`
-		GroupID   string `json:"group_id"`
+		TodoName   string `json:"todo_name"`
+		GroupID    string `json:"group_id"`
 	}
 	var branches []branch
 	if err := json.Unmarshal([]byte(todo.Task.InspectionConfig), &branches); err != nil {
