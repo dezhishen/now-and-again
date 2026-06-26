@@ -128,7 +128,6 @@ async function joinFamily() {
         </div>
       </div>
     </div>
-      </div>
     </div>
   </div>
 </template>
