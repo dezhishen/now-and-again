@@ -29,10 +29,14 @@ func (h *ApiKeyHandlers) List(c *gin.Context) {
 }
 
 func (h *ApiKeyHandlers) Revoke(c *gin.Context) {
-	keyID := c.Param("key_id")
+	keyID, err := paramUUID(c, "key_id")
+	if err != nil {
+		badRequest(c, "invalid key_id")
+		return
+	}
 	if err := h.C.Revoke(userCtx(c), keyID); err != nil {
 		serverError(c, err)
 		return
 	}
-	noContent(c)
+	ok(c, gin.H{"message": "key revoked"})
 }

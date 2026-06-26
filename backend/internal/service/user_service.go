@@ -6,17 +6,65 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/shared/types"
 )
 
+const (
+	accessTokenTTL  = 15 * time.Minute
+	refreshTokenTTL = 7 * 24 * time.Hour
+)
+
+// ─── Helpers ──────────────────────────────────────────────────────
+
+func userModelToUser(m *repository.UserModel) *types.User {
+	roles := make([]string, 0, len(m.Roles))
+	for _, ur := range m.Roles {
+		roles = append(roles, ur.Role.Name)
+	}
+	return &types.User{
+		ID:          m.ID,
+		DisplayName: m.DisplayName,
+		Email:       m.Email,
+		Phone:       m.Phone,
+		AvatarURL:   m.AvatarURL,
+		Roles:       roles,
+		CreatedAt:   m.CreatedAt,
+		UpdatedAt:   m.UpdatedAt,
+	}
+}
+
+func (s *UserService) generateTokens(ctx context.Context, userID string) (*types.TokenPair, error) {
+	claims := jwt.MapClaims{
+		"sub": userID,
+		"iat": time.Now().Unix(),
+		"exp": time.Now().Add(accessTokenTTL).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	accessToken, err := token.SignedString([]byte(s.jwtSecret))
+	if err != nil {
+		return nil, fmt.Errorf("sign token: %w", err)
+	}
+
+	refreshToken, err := s.repo.CreateRefreshToken(userID, refreshTokenTTL)
+	if err != nil {
+		return nil, fmt.Errorf("create refresh token: %w", err)
+	}
+
+	return &types.TokenPair{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    int64(accessTokenTTL.Seconds()),
+	}, nil
+}
+
 // ─── Setup ────────────────────────────────────────────────────────
 
 func (s *UserService) Setup(ctx context.Context, req *types.SetupRequest) (*types.User, error) {
-	count, err := s.repo.Count()
+	count, err := s.repo.CountUsers()
 	if err != nil {
 		return nil, fmt.Errorf("check users: %w", err)
 	}
@@ -29,24 +77,51 @@ func (s *UserService) Setup(ctx context.Context, req *types.SetupRequest) (*type
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
 
-	user := &repository.UserModel{
-		Username:     req.Username,
-		Email:        req.Email,
-		PasswordHash: string(hash),
-		DisplayName:  req.DisplayName,
-		IsAdmin:      true,
+	var userID string
+	err = s.repo.Tx(func(tx *gorm.DB) error {
+		user := &repository.UserModel{
+			DisplayName: req.DisplayName,
+			Email:       req.Email,
+		}
+		if err := tx.Create(user).Error; err != nil {
+			return fmt.Errorf("create user: %w", err)
+		}
+		userID = user.ID
+
+		acc := &repository.AccountModel{
+			UserID:       user.ID,
+			Provider:     "local",
+			Username:     req.Username,
+			PasswordHash: string(hash),
+		}
+		if err := tx.Create(acc).Error; err != nil {
+			return fmt.Errorf("create account: %w", err)
+		}
+
+		var role repository.RoleModel
+		if err := tx.Where("name = ?", "admin").First(&role).Error; err != nil {
+			return fmt.Errorf("find admin role: %w", err)
+		}
+		if err := tx.Create(&repository.UserRoleModel{UserID: user.ID, RoleID: role.ID}).Error; err != nil {
+			return fmt.Errorf("assign role: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	if err := s.repo.Create(user); err != nil {
-		return nil, fmt.Errorf("create admin: %w", err)
+	loaded, err := s.repo.FindUserByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("reload user: %w", err)
 	}
-	return modelToUser(user), nil
+	return userModelToUser(loaded), nil
 }
 
 // ─── CheckInit ────────────────────────────────────────────────────
 
 func (s *UserService) CheckInit(ctx context.Context) (*types.SystemStatus, error) {
-	count, err := s.repo.Count()
+	count, err := s.repo.CountUsers()
 	if err != nil {
 		return nil, fmt.Errorf("check init: %w", err)
 	}
@@ -56,7 +131,7 @@ func (s *UserService) CheckInit(ctx context.Context) (*types.SystemStatus, error
 // ─── Register ─────────────────────────────────────────────────────
 
 func (s *UserService) Register(ctx context.Context, req *types.CreateUserRequest) (*types.User, error) {
-	count, err := s.repo.Count()
+	count, err := s.repo.CountUsers()
 	if err != nil {
 		return nil, fmt.Errorf("check init: %w", err)
 	}
@@ -64,11 +139,8 @@ func (s *UserService) Register(ctx context.Context, req *types.CreateUserRequest
 		return nil, fmt.Errorf("system not initialized, please run setup first")
 	}
 
-	if existing, _ := s.repo.FindByUsername(req.Username); existing != nil {
+	if existing, _ := s.repo.FindAccountByUsername(req.Username); existing != nil {
 		return nil, fmt.Errorf("username already taken")
-	}
-	if existing, _ := s.repo.FindByEmail(req.Email); existing != nil {
-		return nil, fmt.Errorf("email already registered")
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -76,139 +148,160 @@ func (s *UserService) Register(ctx context.Context, req *types.CreateUserRequest
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
 
-	user := &repository.UserModel{
-		Username:     req.Username,
-		Email:        req.Email,
-		Phone:        req.Phone,
-		PasswordHash: string(hash),
-		DisplayName:  req.DisplayName,
-		IsAdmin:      false,
+	var userID string
+	err = s.repo.Tx(func(tx *gorm.DB) error {
+		user := &repository.UserModel{
+			DisplayName: req.DisplayName,
+			Email:       req.Email,
+			Phone:       req.Phone,
+		}
+		if err := tx.Create(user).Error; err != nil {
+			return fmt.Errorf("create user: %w", err)
+		}
+		userID = user.ID
+
+		acc := &repository.AccountModel{
+			UserID:       user.ID,
+			Provider:     "local",
+			Username:     req.Username,
+			PasswordHash: string(hash),
+		}
+		if err := tx.Create(acc).Error; err != nil {
+			return fmt.Errorf("create account: %w", err)
+		}
+
+		var role repository.RoleModel
+		if err := tx.Where("name = ?", "user").First(&role).Error; err != nil {
+			return fmt.Errorf("find user role: %w", err)
+		}
+		if err := tx.Create(&repository.UserRoleModel{UserID: user.ID, RoleID: role.ID}).Error; err != nil {
+			return fmt.Errorf("assign role: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	if err := s.repo.Create(user); err != nil {
-		return nil, fmt.Errorf("create user: %w", err)
+	loaded, err := s.repo.FindUserByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("reload user: %w", err)
 	}
-	return modelToUser(user), nil
+	return userModelToUser(loaded), nil
 }
 
 // ─── Login ────────────────────────────────────────────────────────
 
-const (
-	accessTokenTTL  = 15 * time.Minute
-	refreshTokenTTL = 7 * 24 * time.Hour
-)
-
 func (s *UserService) Login(ctx context.Context, req *types.LoginRequest) (*types.TokenPair, error) {
-	user, err := s.repo.FindByUsername(req.Username)
+	acc, err := s.repo.FindAccountByUsername(req.Username)
 	if err != nil {
-		return nil, fmt.Errorf("find user: %w", err)
-	}
-	if user == nil {
-		return nil, fmt.Errorf("invalid username or password")
+		return nil, fmt.Errorf("invalid credentials")
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		return nil, fmt.Errorf("invalid username or password")
+	if err := bcrypt.CompareHashAndPassword([]byte(acc.PasswordHash), []byte(req.Password)); err != nil {
+		return nil, fmt.Errorf("invalid credentials")
 	}
 
-	return s.generateTokenPair(user)
+	user, err := s.repo.FindUserByID(acc.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	pair, err := s.generateTokens(ctx, acc.UserID)
+	if err != nil {
+		return nil, err
+	}
+	pair.User = userModelToUser(user)
+	return pair, nil
 }
 
 // ─── Refresh ──────────────────────────────────────────────────────
 
 func (s *UserService) Refresh(ctx context.Context, refreshToken string) (*types.TokenPair, error) {
-	rt, err := s.repo.ValidateRefreshToken(refreshToken)
+	userID, err := s.repo.ValidateRefreshToken(refreshToken)
 	if err != nil {
-		return nil, fmt.Errorf("invalid or expired refresh token")
+		return nil, fmt.Errorf("invalid refresh token")
 	}
 
-	// Rotate: revoke old, issue new
 	_ = s.repo.RevokeRefreshToken(refreshToken)
 
-	user, err := s.repo.FindByID(rt.UserID)
-	if err != nil || user == nil {
-		return nil, fmt.Errorf("user not found")
+	pair, err := s.generateTokens(ctx, userID)
+	if err != nil {
+		return nil, err
 	}
 
-	return s.generateTokenPair(user)
+	user, err := s.repo.FindUserByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found")
+	}
+	pair.User = userModelToUser(user)
+	return pair, nil
 }
 
 // ─── Logout ───────────────────────────────────────────────────────
 
 func (s *UserService) Logout(ctx context.Context) error {
-	if rt, ok := ctx.Value("refresh_token").(string); ok && rt != "" {
-		_ = s.repo.RevokeRefreshToken(rt)
-	}
 	return nil
-}
-
-// ─── Token generation ─────────────────────────────────────────────
-
-func (s *UserService) generateTokenPair(user *repository.UserModel) (*types.TokenPair, error) {
-	// Access token (short-lived JWT)
-	now := time.Now()
-	accessExp := now.Add(accessTokenTTL)
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": user.ID,
-		"iat": now.Unix(),
-		"exp": accessExp.Unix(),
-	})
-	accessStr, err := accessToken.SignedString([]byte(s.jwtSecret))
-	if err != nil {
-		return nil, fmt.Errorf("sign access token: %w", err)
-	}
-
-	// Refresh token (opaque, stored in DB)
-	refreshStr, err := s.repo.CreateRefreshToken(user.ID, refreshTokenTTL)
-	if err != nil {
-		return nil, fmt.Errorf("create refresh token: %w", err)
-	}
-
-	return &types.TokenPair{
-		AccessToken:  accessStr,
-		RefreshToken: refreshStr,
-		ExpiresIn:    int(accessTokenTTL.Seconds()),
-		User:         *modelToUser(user),
-	}, nil
 }
 
 // ─── GetMe ────────────────────────────────────────────────────────
 
 func (s *UserService) GetMe(ctx context.Context) (*types.User, error) {
-	return nil, fmt.Errorf("not implemented")
+	userID := ctx.Value("user_id")
+	if userID == nil {
+		return nil, fmt.Errorf("not authenticated")
+	}
+
+	user, err := s.repo.FindUserByID(userID.(string))
+	if err != nil {
+		return nil, fmt.Errorf("user not found")
+	}
+	return userModelToUser(user), nil
 }
 
 // ─── UpdateMe ─────────────────────────────────────────────────────
 
 func (s *UserService) UpdateMe(ctx context.Context, req *types.UpdateUserRequest) (*types.User, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────
-
-func modelToUser(m *repository.UserModel) *types.User {
-	return &types.User{
-		ID:          uuid.MustParse(m.ID),
-		Username:    m.Username,
-		Email:       m.Email,
-		Phone:       m.Phone,
-		DisplayName: m.DisplayName,
-		AvatarURL:   m.AvatarURL,
-		IsAdmin:     m.IsAdmin,
+	userID := ctx.Value("user_id")
+	if userID == nil {
+		return nil, fmt.Errorf("not authenticated")
 	}
+
+	user, err := s.repo.FindUserByID(userID.(string))
+	if err != nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	if req.DisplayName != nil {
+		user.DisplayName = *req.DisplayName
+	}
+	if req.Email != nil {
+		user.Email = *req.Email
+	}
+	if req.Phone != nil {
+		user.Phone = *req.Phone
+	}
+	if req.AvatarURL != nil {
+		user.AvatarURL = *req.AvatarURL
+	}
+
+	if err := s.repo.UpdateUser(user); err != nil {
+		return nil, fmt.Errorf("update user: %w", err)
+	}
+	return userModelToUser(user), nil
 }
 
-// ─── ListUsers (admin) ────────────────────────────────────────────
+// ─── ListUsers ────────────────────────────────────────────────────
 
 func (s *UserService) ListUsers(ctx context.Context) ([]types.User, error) {
-	models, err := s.repo.ListAll()
+	users, err := s.repo.ListUsers()
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
-	users := make([]types.User, len(models))
-	for i, m := range models {
-		u := modelToUser(&m)
-		users[i] = *u
+
+	result := make([]types.User, len(users))
+	for i, u := range users {
+		result[i] = *userModelToUser(&u)
 	}
-	return users, nil
+	return result, nil
 }

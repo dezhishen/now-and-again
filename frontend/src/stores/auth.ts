@@ -14,8 +14,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => !!user.value && !!api.getAccessToken())
   const needsSetup = computed(() => initialized.value === false)
+  const isAdmin = computed(() => user.value?.roles?.includes('admin') ?? false)
 
-  // Register session expired callback (refresh token also expired → go to login)
   api.onExpired(() => {
     user.value = null
     const router = useRouter()
@@ -29,7 +29,6 @@ export const useAuthStore = defineStore('auth', () => {
     } catch { initialized.value = false }
   }
 
-  /** Called once on app load. Tries to restore session from refresh cookie. */
   async function initSession() {
     if (sessionChecked.value) return
     sessionChecked.value = true
@@ -67,7 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
-    try { await api.post('/auth/logout') } catch { /* ignore */ }
+    try { await api.post('/auth/logout') } catch { /* */ }
     api.setAccessToken(null)
     user.value = null
     families.value = []
@@ -75,7 +74,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
-    user, families, activeFamilyId, initialized, needsSetup, error, sessionChecked, isLoggedIn,
+    user, families, activeFamilyId, initialized, needsSetup, error, sessionChecked, isLoggedIn, isAdmin,
     checkInit, initSession, setup, register, login, logout,
   }
 })

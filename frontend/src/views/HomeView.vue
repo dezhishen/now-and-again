@@ -44,7 +44,7 @@ async function joinFamily() {
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
       <h1 class="text-2xl md:text-3xl font-bold text-primary">{{ t('app.title') }}</h1>
       <div class="flex gap-2 flex-wrap">
-        <button v-if="auth.user?.is_admin" class="btn-primary text-sm" @click="router.push('/admin')">管理面板</button>
+        <button v-if="auth.isAdmin" class="btn-primary text-sm" @click="router.push('/admin')">管理面板</button>
         <button class="btn-primary text-sm" @click="auth.logout(); router.push('/login')">退出登录</button>
       </div>
     </div>

@@ -43,26 +43,14 @@ export default {
   nav: {
     family: '家庭',
     dashboard: '仪表盘',
-    tasks: '任务',
-    chains: '事项链',
-    inspections: '巡检',
+    groups: '小组',
     members: '成员',
     settings: '设置',
   },
   dashboard: {
     heading: '仪表盘',
-    todoTasks: '待办任务',
-    inProgress: '进行中',
-    completed: '已完成',
-  },
-  tasks: {
-    heading: '任务列表',
-  },
-  chains: {
-    heading: '事项链',
-  },
-  inspections: {
-    heading: '巡检记录',
+    members: '家庭成员',
+    groups: '家庭小组',
   },
   members: {
     heading: '成员管理',

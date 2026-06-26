@@ -3,6 +3,8 @@ package repository
 import (
 	"fmt"
 	"log"
+	"math/rand"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
@@ -46,42 +48,41 @@ func Migrate(db *gorm.DB) error {
 	log.Println("running database migrations...")
 	return db.AutoMigrate(
 		&UserModel{},
+		&AccountModel{},
+		&RoleModel{},
+		&UserRoleModel{},
 		&FamilyModel{},
 		&FamilyMemberModel{},
-		&SubGroupModel{},
-		&SubGroupMemberModel{},
-		&TaskModel{},
-		&TaskAssigneeModel{},
-		&TaskDependencyModel{},
-		&TaskChainModel{},
-		&TaskChainStepModel{},
-		&TaskLogModel{},
-		&InspectionModel{},
-		&InspectionItemModel{},
-		&NotificationChannelModel{},
-		&NotificationTemplateModel{},
-		&UserChannelConfigModel{},
-		&NotificationModel{},
+		&FamilyGroupModel{},
+		&FamilyGroupMemberModel{},
 		&RefreshTokenModel{},
 		&ApiKeyModel{},
 	)
 }
 
-// Seed inserts default data (notification channels). Task types are seeded
-// from main.go using the scheduler registry to avoid import cycles.
+// Seed inserts default roles.
 func Seed(db *gorm.DB) error {
 	log.Println("seeding default data...")
 
-	// Default notification channels.
-	defaultChannels := []NotificationChannelModel{
-		{Code: "email", Name: "邮件通知", Description: "通过 SMTP 发送邮件", IsActive: true},
-		{Code: "push", Name: "App 推送", Description: "FCM / APNs 推送", IsActive: false},
-		{Code: "wechat_webhook", Name: "企业微信机器人", Description: "通过 Webhook 发送到企业微信群", IsActive: false},
-		{Code: "webhook", Name: "自定义 Webhook", Description: "发送到自定义 HTTP 端点", IsActive: false},
+	roles := []RoleModel{
+		{Name: "admin", Description: "系统管理员"},
+		{Name: "user", Description: "普通用户"},
 	}
-	for _, ch := range defaultChannels {
-		db.Where("code = ?", ch.Code).FirstOrCreate(&ch)
+	for _, r := range roles {
+		db.Where("name = ?", r.Name).FirstOrCreate(&r)
 	}
 
+	log.Println("seed complete")
 	return nil
+}
+
+// GenInviteCode generates an 8-char alphanumeric invite code.
+func GenInviteCode() string {
+	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, 8)
+	for i := range b {
+		b[i] = chars[rng.Intn(len(chars))]
+	}
+	return string(b)
 }

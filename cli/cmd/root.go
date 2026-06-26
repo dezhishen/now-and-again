@@ -10,21 +10,14 @@ var (
 	cfgFile   string
 	serverURL string
 	apiToken  string
-	apiKey    string
-	outputFmt string // "table" | "json" | "yaml"
+	outputFmt string
 )
 
 // rootCmd is the entry point for the CLI.
 var rootCmd = &cobra.Command{
 	Use:   "na",
 	Short: "Now & Again — manage family chores from the terminal",
-	Long: `Now & Again CLI (na) provides script-friendly access to your family tasks.
-
-Examples:
-  na task list --family-id <id>
-  na task create --family-id <id> --title "Buy milk" --type chore_shopping
-  na chain start --chain-id <id>
-  na inspection start --family-id <id> --title "Monthly check"`,
+	Long:  `Now & Again CLI (na) provides script-friendly access to your family and account.`,
 }
 
 // Execute runs the root command.
@@ -40,10 +33,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&apiToken, "token", "", "API auth token (or set NA_TOKEN env)")
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "table", "output format: table, json, yaml")
 
-	// Subcommands are registered via init() in their respective files.
-	rootCmd.AddCommand(taskCmd)
-	rootCmd.AddCommand(chainCmd)
-	rootCmd.AddCommand(inspectionCmd)
+	// Subcommands
 	rootCmd.AddCommand(familyCmd)
 	rootCmd.AddCommand(loginCmd)
 }

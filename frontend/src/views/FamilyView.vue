@@ -22,9 +22,7 @@ const showMenu = ref(false)
       <h3 class="text-lg font-semibold mb-3 dark:text-gray-200">{{ t('nav.family') }}</h3>
       <nav class="flex flex-col gap-1">
         <router-link :to="`/family/${$route.params.familyId}`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.dashboard') }}</router-link>
-        <router-link :to="`/family/${$route.params.familyId}/tasks`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.tasks') }}</router-link>
-        <router-link :to="`/family/${$route.params.familyId}/chains`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.chains') }}</router-link>
-        <router-link :to="`/family/${$route.params.familyId}/inspections`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.inspections') }}</router-link>
+        <router-link :to="`/family/${$route.params.familyId}/groups`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.groups') }}</router-link>
         <router-link :to="`/family/${$route.params.familyId}/members`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.members') }}</router-link>
         <router-link :to="`/family/${$route.params.familyId}/settings`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">{{ t('nav.settings') }}</router-link>
       </nav>

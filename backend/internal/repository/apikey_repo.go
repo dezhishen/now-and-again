@@ -1,79 +1,69 @@
 package repository
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"errors"
+	"fmt"
 	"time"
 
-	"gorm.io/gorm"
+	"github.com/google/uuid"
 )
 
-// ─── ApiKeyRepo ──────────────────────────────────────────────────
+// ─── API Key ──────────────────────────────────────────────────────
 
-// CreateApiKey generates a new API key. Returns the raw key (shown once).
-func (r *ApiKeyRepo) CreateApiKey(userID, name string, scopesJSON string, expiresAt *time.Time) (string, *ApiKeyModel, error) {
-	raw := "na_" + randomHex(32) // na_ prefix, 64 hex chars
-	hash := hashToken(raw)
+func (r *ApiKeyRepo) CreateApiKey(userID, name string, expiresAt *time.Time) (*ApiKeyModel, string, error) {
+	raw := "na_" + uuid.New().String()
+	prefix := raw[:12]
+	keyHash := hashToken(raw)
 
-	m := &ApiKeyModel{
+	ak := &ApiKeyModel{
 		UserID:    userID,
 		Name:      name,
-		KeyHash:   hash,
-		KeyPrefix: raw[:11], // "na_" + first 8 chars
-		Scopes:    scopesJSON,
+		KeyPrefix: prefix,
+		KeyHash:   keyHash,
 		ExpiresAt: expiresAt,
 	}
-	if err := r.db.Create(m).Error; err != nil {
-		return "", nil, err
+	if err := r.db.Create(ak).Error; err != nil {
+		return nil, "", fmt.Errorf("create api key: %w", err)
 	}
-	return raw, m, nil
+	return ak, raw, nil
 }
 
-// ValidateApiKeyRaw is the middleware-compatible version returning userID as string.
 func (r *ApiKeyRepo) ValidateApiKey(raw string) (userID string, err error) {
-	m, err := r.ValidateApiKeyModel(raw)
-	if err != nil || m == nil {
-		return "", err
-	}
-	return m.UserID, nil
-}
+	var ak ApiKeyModel
 
-// ValidateApiKeyModel looks up a raw API key and returns the full model.
-func (r *ApiKeyRepo) ValidateApiKeyModel(raw string) (*ApiKeyModel, error) {
-	hash := hashToken(raw)
-	var m ApiKeyModel
-	err := r.db.Where("key_hash = ? AND revoked = false", hash).First(&m).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
+	prefix := ""
+	if len(raw) >= 12 {
+		prefix = raw[:12]
+		err = r.db.Where("key_prefix = ? AND revoked = ?", prefix, false).First(&ak).Error
+	} else {
+		err = r.db.Where("key_hash = ? AND revoked = ?", hashToken(raw), false).First(&ak).Error
 	}
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("invalid api key")
 	}
-	if m.ExpiresAt != nil && time.Now().After(*m.ExpiresAt) {
-		return nil, nil
+
+	if hashToken(raw) != ak.KeyHash {
+		return "", fmt.Errorf("invalid api key")
 	}
-	// Update last used
-	r.db.Model(&m).Update("last_used_at", time.Now())
-	return &m, nil
+
+	if ak.ExpiresAt != nil && ak.ExpiresAt.Before(time.Now()) {
+		return "", fmt.Errorf("api key expired")
+	}
+
+	now := time.Now()
+	r.db.Model(&ak).Update("last_used_at", now)
+
+	return ak.UserID, nil
 }
 
-// ListApiKeys returns all API keys for a user (without the secret).
-func (r *ApiKeyRepo) ListApiKeys(userID string) ([]ApiKeyModel, error) {
+func (r *ApiKeyRepo) ListByUser(userID string) ([]ApiKeyModel, error) {
 	var keys []ApiKeyModel
-	err := r.db.Where("user_id = ?", userID).Order("created_at DESC").Find(&keys).Error
+	err := r.db.Where("user_id = ? AND revoked = ?", userID, false).
+		Order("created_at DESC").Find(&keys).Error
 	return keys, err
 }
 
-// RevokeApiKey marks a key as revoked.
-func (r *ApiKeyRepo) RevokeApiKey(userID, keyID string) error {
+func (r *ApiKeyRepo) Revoke(keyID, userID string) error {
 	return r.db.Model(&ApiKeyModel{}).
 		Where("id = ? AND user_id = ?", keyID, userID).
 		Update("revoked", true).Error
-}
-
-func randomHex(n int) string {
-	b := make([]byte, n)
-	rand.Read(b)
-	return hex.EncodeToString(b)
 }

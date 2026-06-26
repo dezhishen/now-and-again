@@ -1,26 +1,50 @@
 package types
 
-import "github.com/google/uuid"
+import "time"
 
 // ─── User ─────────────────────────────────────────────────────────
 
 type User struct {
-	ID          uuid.UUID `json:"id"`
-	Username    string    `json:"username"`
-	Email       string    `json:"email"`
-	Phone       string    `json:"phone,omitempty"`
+	ID          string    `json:"id"`
 	DisplayName string    `json:"display_name"`
-	AvatarURL   string    `json:"avatar_url,omitempty"`
-	IsAdmin     bool      `json:"is_admin"`
-	Timestamps
+	Email       string    `json:"email"`
+	Phone       string    `json:"phone"`
+	AvatarURL   string    `json:"avatar_url"`
+	Roles       []string  `json:"roles"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// ─── Account ──────────────────────────────────────────────────────
+
+type Account struct {
+	ID                string    `json:"id"`
+	UserID            string    `json:"user_id"`
+	Provider          string    `json:"provider"`
+	ProviderAccountID string    `json:"provider_account_id,omitempty"`
+	Username          string    `json:"username,omitempty"`
+	CreatedAt         time.Time `json:"created_at"`
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────
+
+type SetupRequest struct {
+	DisplayName string `json:"display_name" binding:"required"`
+	Username    string `json:"username" binding:"required,min=3"`
+	Email       string `json:"email" binding:"required,email"`
+	Password    string `json:"password" binding:"required,min=8"`
+}
+
+type SystemStatus struct {
+	Initialized bool `json:"initialized"`
 }
 
 type CreateUserRequest struct {
-	Username    string `json:"username" binding:"required,min=3,max=64"`
-	Email       string `json:"email" binding:"required,email"`
-	Phone       string `json:"phone,omitempty"`
-	Password    string `json:"password" binding:"required,min=8"`
 	DisplayName string `json:"display_name" binding:"required"`
+	Username    string `json:"username" binding:"required,min=3"`
+	Email       string `json:"email" binding:"required,email"`
+	Password    string `json:"password" binding:"required,min=8"`
+	Phone       string `json:"phone,omitempty"`
 }
 
 type LoginRequest struct {
@@ -28,10 +52,11 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-type LoginResponse struct {
-	Token     string `json:"token"`
-	ExpiresAt int64  `json:"expires_at"`
-	User      User   `json:"user"`
+type TokenPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int64  `json:"expires_in"`
+	User         *User  `json:"user"`
 }
 
 type UpdateUserRequest struct {
@@ -41,51 +66,24 @@ type UpdateUserRequest struct {
 	AvatarURL   *string `json:"avatar_url,omitempty"`
 }
 
-// ─── System Setup ─────────────────────────────────────────────────
-
-type SetupRequest struct {
-	Username    string `json:"username" binding:"required,min=3,max=64"`
-	Email       string `json:"email" binding:"required,email"`
-	Password    string `json:"password" binding:"required,min=8"`
-	DisplayName string `json:"display_name" binding:"required"`
-}
-
-type SystemStatus struct {
-	Initialized bool `json:"initialized"`
-}
-
-// ─── Auth Tokens ──────────────────────────────────────────────────
-
-type TokenPair struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	ExpiresIn    int    `json:"expires_in"` // seconds until access token expires
-	User         User   `json:"user"`
-}
-
-type RefreshRequest struct {
-	RefreshToken string `json:"refresh_token" binding:"required"`
-}
-
 // ─── API Key ──────────────────────────────────────────────────────
 
 type ApiKey struct {
-	ID         string  `json:"id"`
-	Name       string  `json:"name"`
-	KeyPrefix  string  `json:"key_prefix"`
-	Scopes     *string `json:"scopes,omitempty"`
-	LastUsedAt *string `json:"last_used_at,omitempty"`
-	ExpiresAt  *string `json:"expires_at,omitempty"`
-	Revoked    bool    `json:"revoked"`
-	CreatedAt  string  `json:"created_at"`
+	ID         string     `json:"id"`
+	Name       string     `json:"name"`
+	KeyPrefix  string     `json:"key_prefix"`
+	RawKey     string     `json:"raw_key,omitempty"` // only returned on creation
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 type CreateApiKeyRequest struct {
-	Name      string  `json:"name" binding:"required"`
-	ExpiresAt *string `json:"expires_at,omitempty"`
+	Name      string     `json:"name" binding:"required"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 
 type CreateApiKeyResponse struct {
-	ApiKey     ApiKey `json:"api_key"`
-	RawKey     string `json:"raw_key"` // only returned once!
+	ApiKey  *ApiKey `json:"api_key"`
+	Message string  `json:"message"`
 }

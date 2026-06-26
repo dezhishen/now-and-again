@@ -14,15 +14,14 @@ onMounted(async () => { users.value = await api.get<User[]>('/admin/users') })
       <table class="w-full text-sm min-w-[500px]">
         <thead>
           <tr class="border-b dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
-            <th class="py-2 px-3">用户名</th><th class="py-2 px-3">显示名称</th><th class="py-2 px-3">邮箱</th><th class="py-2 px-3">角色</th><th class="py-2 px-3 hidden sm:table-cell">注册时间</th>
+            <th class="py-2 px-3">显示名称</th><th class="py-2 px-3">邮箱</th><th class="py-2 px-3">角色</th><th class="py-2 px-3 hidden sm:table-cell">注册时间</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="u in users" :key="u.id" class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-            <td class="py-2 px-3 font-medium dark:text-gray-200">{{ u.username }}</td>
-            <td class="py-2 px-3 dark:text-gray-300">{{ u.display_name }}</td>
+            <td class="py-2 px-3 font-medium dark:text-gray-200">{{ u.display_name }}</td>
             <td class="py-2 px-3 dark:text-gray-300">{{ u.email }}</td>
-            <td class="py-2 px-3"><span v-if="u.is_admin" class="text-primary font-medium">管理员</span><span v-else class="text-gray-400">成员</span></td>
+            <td class="py-2 px-3"><span v-if="u.roles.includes('admin')" class="text-primary font-medium">管理员</span><span v-else class="text-gray-400">成员</span></td>
             <td class="py-2 px-3 text-gray-400 hidden sm:table-cell">{{ u.created_at?.split('T')[0] }}</td>
           </tr>
         </tbody>

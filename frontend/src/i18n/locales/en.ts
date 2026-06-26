@@ -43,26 +43,14 @@ export default {
   nav: {
     family: 'Family',
     dashboard: 'Dashboard',
-    tasks: 'Tasks',
-    chains: 'Chains',
-    inspections: 'Inspections',
+    groups: 'Groups',
     members: 'Members',
     settings: 'Settings',
   },
   dashboard: {
     heading: 'Dashboard',
-    todoTasks: 'Todo',
-    inProgress: 'In Progress',
-    completed: 'Completed',
-  },
-  tasks: {
-    heading: 'Tasks',
-  },
-  chains: {
-    heading: 'Chains',
-  },
-  inspections: {
-    heading: 'Inspections',
+    members: 'Family Members',
+    groups: 'Family Groups',
   },
   members: {
     heading: 'Members',

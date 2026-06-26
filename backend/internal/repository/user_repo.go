@@ -1,63 +1,79 @@
 package repository
 
 import (
-	"errors"
-
 	"gorm.io/gorm"
 )
 
-// ─── UserRepo Methods ─────────────────────────────────────────────
+// ─── User CRUD ────────────────────────────────────────────────────
 
-// Create inserts a new user. Returns error on duplicate username/email.
-func (r *UserRepo) Create(user *UserModel) error {
+func (r *UserRepo) CreateUser(user *UserModel) error {
 	return r.db.Create(user).Error
 }
 
-// FindByUsername looks up a user by username.
-func (r *UserRepo) FindByUsername(username string) (*UserModel, error) {
+func (r *UserRepo) FindUserByID(id string) (*UserModel, error) {
 	var u UserModel
-	err := r.db.Where("username = ?", username).First(&u).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
+	err := r.db.Preload("Roles.Role").Where("id = ?", id).First(&u).Error
+	if err != nil {
+		return nil, err
 	}
-	return &u, err
+	return &u, nil
 }
 
-// FindByEmail looks up a user by email.
-func (r *UserRepo) FindByEmail(email string) (*UserModel, error) {
-	var u UserModel
-	err := r.db.Where("email = ?", email).First(&u).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-	return &u, err
-}
-
-// FindByID looks up a user by ID.
-func (r *UserRepo) FindByID(id string) (*UserModel, error) {
-	var u UserModel
-	err := r.db.Where("id = ?", id).First(&u).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-	return &u, err
-}
-
-// Count returns the total number of users (used to check initialization).
-func (r *UserRepo) Count() (int64, error) {
+func (r *UserRepo) CountUsers() (int64, error) {
 	var count int64
 	err := r.db.Model(&UserModel{}).Count(&count).Error
 	return count, err
 }
 
-// Update saves changes to an existing user.
-func (r *UserRepo) Update(user *UserModel) error {
+func (r *UserRepo) ListUsers() ([]UserModel, error) {
+	var users []UserModel
+	err := r.db.Preload("Roles.Role").Order("created_at ASC").Find(&users).Error
+	return users, err
+}
+
+func (r *UserRepo) UpdateUser(user *UserModel) error {
 	return r.db.Save(user).Error
 }
 
-// ListAll returns all users (admin only).
-func (r *UserRepo) ListAll() ([]UserModel, error) {
-	var users []UserModel
-	err := r.db.Order("created_at ASC").Find(&users).Error
-	return users, err
+// ─── Account CRUD ─────────────────────────────────────────────────
+
+func (r *UserRepo) CreateAccount(acc *AccountModel) error {
+	return r.db.Create(acc).Error
+}
+
+func (r *UserRepo) FindAccountByUsername(username string) (*AccountModel, error) {
+	var a AccountModel
+	err := r.db.Where("username = ? AND provider = ?", username, "local").First(&a).Error
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+func (r *UserRepo) FindAccountByUserID(userID string) (*AccountModel, error) {
+	var a AccountModel
+	err := r.db.Where("user_id = ? AND provider = ?", userID, "local").First(&a).Error
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+// ─── Role ─────────────────────────────────────────────────────────
+
+func (r *UserRepo) FindRoleByName(name string) (*RoleModel, error) {
+	var role RoleModel
+	err := r.db.Where("name = ?", name).First(&role).Error
+	return &role, err
+}
+
+func (r *UserRepo) AddUserRole(userID, roleID string) error {
+	ur := UserRoleModel{UserID: userID, RoleID: roleID}
+	return r.db.Where(ur).FirstOrCreate(&ur).Error
+}
+
+// ─── Transaction ──────────────────────────────────────────────────
+
+func (r *UserRepo) Tx(fn func(tx *gorm.DB) error) error {
+	return r.db.Transaction(fn)
 }

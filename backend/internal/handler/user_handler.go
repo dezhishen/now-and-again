@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"time"
 
 	"github.com/dezhishen/now-and-again/shared/types"
 	"github.com/gin-gonic/gin"
@@ -111,25 +112,12 @@ func (h *UserHandlers) UpdateMe(c *gin.Context) {
 		badRequest(c, err.Error())
 		return
 	}
-	user, err := h.C.UpdateMe(c.Request.Context(), req)
+	user, err := h.C.UpdateMe(userCtx(c), req)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
 	ok(c, user)
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────
-
-func setRefreshCookie(c *gin.Context, token string) {
-	c.SetCookie(
-		"refresh_token", token,
-		7*24*3600, // 7 days
-		"/",
-		"",   // domain
-		true, // secure
-		true, // httpOnly
-	)
 }
 
 func (h *UserHandlers) ListUsers(c *gin.Context) {
@@ -139,4 +127,8 @@ func (h *UserHandlers) ListUsers(c *gin.Context) {
 		return
 	}
 	ok(c, users)
+}
+
+func setRefreshCookie(c *gin.Context, token string) {
+	c.SetCookie("refresh_token", token, int((7 * 24 * time.Hour).Seconds()), "/", "", true, true)
 }
