@@ -1,6 +1,6 @@
 .PHONY: help dev dev-backend dev-frontend dev-cli \
-        build build-backend build-cli \
-        test test-backend test-shared \
+        build build-backend build-cli build-frontend \
+        test test-backend test-cli \
         lint lint-backend lint-frontend \
         db-reset db-seed \
         install install-cli \
@@ -63,13 +63,10 @@ install-cli: build-cli ## 安装 CLI 到 $GOPATH/bin 或 /usr/local/bin
 
 # ─── Test ─────────────────────────────────────────────────────────
 
-test: test-backend test-shared ## 运行所有 Go 测试
+test: test-backend test-cli ## 运行所有 Go 测试
 
-test-backend: ## 运行 backend 测试
+test-backend: ## 运行 backend 测试（含 pkg/）
 	@cd backend && go test ./... -count=1 -short
-
-test-shared: ## 运行 shared 模块测试
-	@cd shared && go test ./... -count=1 -short
 
 test-cli: ## 运行 CLI 测试
 	@cd cli && go test ./... -count=1 -short
@@ -78,9 +75,7 @@ test-cli: ## 运行 CLI 测试
 
 lint: lint-backend lint-frontend ## 运行所有代码检查
 
-lint-backend: ## Go vet backend + shared + CLI
-	@echo "→ vet shared/"
-	@cd shared && go vet ./...
+lint-backend: ## Go vet backend + CLI
 	@echo "→ vet backend/"
 	@cd backend && go vet ./...
 	@echo "→ vet cli/"
@@ -131,8 +126,6 @@ clean: ## 清理所有构建产物
 # ─── Dependencies ─────────────────────────────────────────────────
 
 deps: ## 安装所有依赖
-	@echo "→ Go modules (shared)..."
-	@cd shared && go mod tidy
 	@echo "→ Go modules (backend)..."
 	@cd backend && go mod tidy
 	@echo "→ Go modules (CLI)..."
