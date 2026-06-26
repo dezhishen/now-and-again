@@ -27,7 +27,7 @@ func NewDB(cfg config.DatabaseConfig) (*gorm.DB, error) {
 	}
 
 	db, err := gorm.Open(dialector, &gorm.Config{
-		Logger: gormlogger.Default.LogMode(gormlogger.Warn),
+		Logger: gormlogger.Default.LogMode(gormlogger.Error),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
