@@ -32,7 +32,8 @@ const taskDays = ref<number[]>([])
 const taskGroupID = ref('')
 const taskLocationID = ref('')
 const isInspection = ref(false)
-const inspectionConfig = ref<any>({})
+interface InspBranch { name: string; create_todo: boolean; todo_name: string; group_id: string }
+const inspectionBranches = ref<InspBranch[]>([])
 const editingTask = ref<TaskTemplate | null>(null)
 
 const SCHEDULE_TYPES = [
@@ -58,7 +59,10 @@ const inspections = computed(() => tasks.value.filter(t => t.is_inspection))
 function openCreateInspection() {
   openCreate()
   isInspection.value = true
-  inspectionConfig.value = { abnormal_action: 'create_todo', abnormal_task_name: '修复{name}' }
+  inspectionBranches.value = [
+    { name: '正常', create_todo: false, todo_name: '', group_id: '' },
+    { name: '异常', create_todo: true, todo_name: '修复{name}', group_id: '' },
+  ]
 }
 
 async function loadLocations() {
@@ -98,7 +102,7 @@ function openCreate() {
   editingTask.value = null
   taskName.value = ''; taskSchedule.value = 'daily'; taskTime.value = '09:00'
   taskDate.value = ''; taskDays.value = []; taskGroupID.value = ''; taskLocationID.value = ''
-  isInspection.value = false; inspectionConfig.value = {}
+  isInspection.value = false; inspectionBranches.value = []
   showTaskForm.value = true
 }
 
@@ -109,7 +113,7 @@ function openEdit(task: TaskTemplate) {
   taskGroupID.value = task.group_id || ''
   taskLocationID.value = task.location_id || ''
   isInspection.value = task.is_inspection || false
-  inspectionConfig.value = task.inspection_config || {}
+  inspectionBranches.value = Array.isArray(task.inspection_config) ? [...task.inspection_config] : []
   showTaskForm.value = true
   const data = task.schedule_data || {}
   taskTime.value = data.time || '09:00'
@@ -128,7 +132,7 @@ async function saveTask() {
   if (taskGroupID.value) body.group_id = taskGroupID.value
   if (taskLocationID.value) body.location_id = taskLocationID.value
   body.is_inspection = isInspection.value
-  if (isInspection.value) body.inspection_config = inspectionConfig.value
+  if (isInspection.value) body.inspection_config = inspectionBranches.value
 
   try {
     if (editingTask.value) {
@@ -274,9 +278,11 @@ function scheduleSummary(task: TaskTemplate): string {
               <div v-if="task.group_id" class="flex items-center gap-1 mt-1">
                 <span class="text-xs text-gray-400">👥 {{ getGroupName(task.group_id) }}</span>
               </div>
-              <!-- Abnormal action hint -->
-              <div v-if="task.inspection_config?.abnormal_task_name" class="text-xs text-warning mt-1">
-                ⚠ 异常时: {{ task.inspection_config.abnormal_task_name }}
+              <!-- Branch hints -->
+              <div v-if="task.inspection_config?.length" class="text-xs text-gray-400 mt-1 flex flex-wrap gap-1">
+                <span v-for="b in task.inspection_config" :key="b.name" class="px-1 rounded" :class="b.create_todo ? 'text-warning' : 'text-green-600'">
+                  {{ b.create_todo ? '⚠' : '✓' }}{{ b.name }}
+                </span>
               </div>
             </div>
           </div>
@@ -372,16 +378,29 @@ function scheduleSummary(task: TaskTemplate): string {
                 <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
               </select>
             </div>
-            <!-- Inspection config -->
+            <!-- Inspection branches -->
             <div v-if="isInspection" class="space-y-2 border-l-2 border-warning pl-3">
-              <p class="text-xs text-warning font-medium">⚠ 标记异常时将自动创建修复待办</p>
-              <label class="text-xs text-gray-400 block">异常时创建的修复任务名称</label>
-              <input v-model="inspectionConfig.abnormal_task_name" class="input" placeholder="修复 {name}" />
-              <label class="text-xs text-gray-400 block">分配给小组（可选）</label>
-              <select v-model="inspectionConfig.abnormal_group_id" class="input">
-                <option value="">全部成员</option>
-                <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-              </select>
+              <div class="flex items-center justify-between">
+                <p class="text-xs text-warning font-medium">📋 巡检分支</p>
+                <button class="text-xs text-primary hover:underline" @click="inspectionBranches.push({ name: '', create_todo: false, todo_name: '', group_id: '' })">+ 添加</button>
+              </div>
+              <div v-for="(b, i) in inspectionBranches" :key="i" class="space-y-1 pb-2 border-b border-gray-100 dark:border-gray-700 last:border-0 last:pb-0">
+                <div class="flex gap-2 items-center">
+                  <input v-model="b.name" class="input flex-1 text-sm" placeholder="分支名称" />
+                  <button class="text-xs text-danger hover:underline flex-shrink-0" @click="inspectionBranches.splice(i, 1)">删除</button>
+                </div>
+                <label class="flex items-center gap-1 text-xs cursor-pointer">
+                  <input type="checkbox" v-model="b.create_todo" class="accent-warning" />
+                  <span class="text-gray-500">选择此项时创建待办</span>
+                </label>
+                <template v-if="b.create_todo">
+                  <input v-model="b.todo_name" class="input text-sm" placeholder="待办名称，如 修复{name}" />
+                  <select v-model="b.group_id" class="input text-sm">
+                    <option value="">分配给小组（可选）</option>
+                    <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+                  </select>
+                </template>
+              </div>
             </div>
           </div>
           <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">

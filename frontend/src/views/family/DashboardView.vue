@@ -113,10 +113,19 @@ onMounted(async () => {
             <span v-if="todo.location_id" class="ml-2 text-primary">📍 {{ todo.location_id }}</span>
           </p>
         </div>
-        <!-- Inspection buttons -->
-        <div v-if="todo.todo_type === 'inspection'" class="flex gap-1 flex-shrink-0">
-          <button class="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 hover:opacity-80" @click="completeInspection(todo, 'normal')">正常</button>
-          <button class="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 hover:opacity-80" @click="completeInspection(todo, 'abnormal')">异常</button>
+        <!-- Inspection branch buttons -->
+        <div v-if="todo.todo_type === 'inspection'" class="flex gap-1 flex-shrink-0 flex-wrap max-w-[120px] justify-end">
+          <template v-if="todo.task?.inspection_config?.length">
+            <button v-for="b in todo.task.inspection_config" :key="b.name"
+              class="text-xs px-2 py-1 rounded hover:opacity-80"
+              :class="b.create_todo ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300' : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'"
+              @click="completeInspection(todo, b.name)"
+            >{{ b.name }}</button>
+          </template>
+          <template v-else>
+            <button class="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 hover:opacity-80" @click="completeInspection(todo, 'normal')">正常</button>
+            <button class="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 hover:opacity-80" @click="completeInspection(todo, 'abnormal')">异常</button>
+          </template>
         </div>
         <!-- Regular task buttons -->
         <div v-else class="flex gap-1 flex-shrink-0">

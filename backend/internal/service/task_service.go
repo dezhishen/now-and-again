@@ -223,9 +223,9 @@ func (s *TaskService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 		if err := s.repo.CompleteInspection(todoID.String(), userID, req.InspectionResult); err != nil {
 			return nil, err
 		}
-		// If abnormal, create a follow-up todo based on inspection config
-		if req.InspectionResult == "abnormal" && todo.Task.InspectionConfig != "" {
-			s.handleAbnormalInspection(todo, userID)
+		// Find matching branch and create follow-up todo if configured
+		if todo.Task.InspectionConfig != "" {
+			s.handleInspectionBranch(todo, req.InspectionResult, userID)
 		}
 	} else {
 		if err := s.repo.CompleteTodo(todoID.String(), userID, req.Status); err != nil {
@@ -249,49 +249,43 @@ func (s *TaskService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 	return todoModelToType(t), nil
 }
 
-// handleAbnormalInspection creates a follow-up todo when inspection is abnormal
-func (s *TaskService) handleAbnormalInspection(todo *repository.TodoModel, userID string) {
-	var config struct {
-		AbnormalAction     string `json:"abnormal_action"`
-		AbnormalTaskName   string `json:"abnormal_task_name"`
-		AbnormalGroupID    string `json:"abnormal_group_id"`
-		AbnormalLocationID string `json:"abnormal_location_id"`
+// handleInspectionBranch looks up the selected branch from inspection config
+// and creates a follow-up todo if the branch has create_todo enabled.
+func (s *TaskService) handleInspectionBranch(todo *repository.TodoModel, branchName string, userID string) {
+	type branch struct {
+		Name      string `json:"name"`
+		CreateTodo bool   `json:"create_todo"`
+		TodoName  string `json:"todo_name"`
+		GroupID   string `json:"group_id"`
 	}
-	if err := json.Unmarshal([]byte(todo.Task.InspectionConfig), &config); err != nil {
+	var branches []branch
+	if err := json.Unmarshal([]byte(todo.Task.InspectionConfig), &branches); err != nil {
 		logger.Warnf("failed to parse inspection config: %v", err)
 		return
 	}
-	if config.AbnormalAction != "create_todo" {
-		return
+	for _, b := range branches {
+		if b.Name == branchName && b.CreateTodo {
+			name := b.TodoName
+			if name == "" {
+				name = todo.Task.Name + " - " + branchName
+			}
+			name = strings.Replace(name, "{name}", todo.Task.Name, -1)
+			followUp := &repository.TodoModel{
+				TaskID:     todo.TaskID,
+				FamilyID:   todo.FamilyID,
+				LocationID: todo.LocationID,
+				AssignedTo: b.GroupID,
+				Status:     "pending",
+				TodoType:   "task",
+				DueStart:   time.Now(),
+				DueDate:    time.Now().Add(24 * time.Hour),
+			}
+			if err := s.repo.CreateTodo(followUp); err != nil {
+				logger.Errorf("failed to create branch follow-up: %v", err)
+			}
+			return
+		}
 	}
-	// Generate follow-up name: replace {name} with the original task name
-	name := config.AbnormalTaskName
-	if name == "" {
-		name = "修复: " + todo.Task.Name
-	}
-	// Simple template replacement
-	name = strings.Replace(name, "{name}", todo.Task.Name, -1)
-
-	followUp := &repository.TodoModel{
-		TaskID:     todo.TaskID, // link to same template
-		FamilyID:   todo.FamilyID,
-		LocationID: firstNonEmpty(config.AbnormalLocationID, todo.LocationID),
-		AssignedTo: config.AbnormalGroupID,
-		Status:     "pending",
-		TodoType:   "task",
-		DueStart:   time.Now(),
-		DueDate:    time.Now().Add(24 * time.Hour),
-	}
-	if err := s.repo.CreateTodo(followUp); err != nil {
-		logger.Errorf("failed to create abnormal follow-up todo: %v", err)
-	}
-}
-
-func firstNonEmpty(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────
