@@ -67,7 +67,7 @@ func (s *TaskService) TriggerTask(ctx context.Context, taskID uuid.UUID) error {
 	return s.Trigger(ctx, taskID)
 }
 func (s *TaskService) ListTaskLogs(ctx context.Context, taskID uuid.UUID, limit int, userOnly bool) ([]types.TaskLog, error) {
-	return s.ListLogs(ctx, taskID, limit, userOnly)
+	return s.ListLogs(ctx, taskID, limit, 0, userOnly)
 }
 
 func (s *TaskService) registerToScheduler(task *repository.TaskTemplateModel) {
@@ -229,16 +229,16 @@ func (s *TaskService) Delete(ctx context.Context, taskID uuid.UUID) error {
 
 // ─── Logs ────────────────────────────────────────────────────────
 
-func (s *TaskService) ListLogs(ctx context.Context, taskID uuid.UUID, limit int, userOnly bool) ([]types.TaskLog, error) {
+func (s *TaskService) ListLogs(ctx context.Context, taskID uuid.UUID, limit, offset int, userOnly bool) ([]types.TaskLog, error) {
 	if limit <= 0 {
 		limit = 50
 	}
 	var logs []repository.TaskLogModel
 	var err error
 	if userOnly {
-		logs, err = s.repo.ListUserLogs(taskID.String(), limit)
+		logs, err = s.repo.ListUserLogs(taskID.String(), limit, offset)
 	} else {
-		logs, err = s.repo.ListLogs(taskID.String(), limit)
+		logs, err = s.repo.ListLogs(taskID.String(), limit, offset)
 	}
 	if err != nil {
 		return nil, err

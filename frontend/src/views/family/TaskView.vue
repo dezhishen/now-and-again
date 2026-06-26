@@ -33,10 +33,12 @@ const logTaskName = ref('')
 const showSystemLogs = ref(false)
 const logsLoading = ref(false)
 const logPage = ref(1)
-const logHasMore = ref(false)
+const logTotal = ref(0)
 const logSearch = ref('')
-const LOG_PAGE_SIZE = 30
+const LOG_PAGE_SIZE = 20
 const logs = ref<{ id: string; task_id: string; status: string; message?: string; log_type: string; operator_id?: string; created_at: string }[]>([])
+
+const logTotalPages = computed(() => Math.max(1, Math.ceil(logTotal.value / LOG_PAGE_SIZE)))
 
 // Task form
 const showTaskForm = ref(false)
@@ -177,12 +179,12 @@ async function triggerTask(id: string) {
 
 async function viewLogs(taskId: string) {
   logTaskId.value = taskId
-  // Find task name from loaded tasks
   const t = tasks.value.find(t => t.id === taskId)
   logTaskName.value = t?.name || taskId.slice(0, 8)
   showLogs.value = true
   showSystemLogs.value = false
   logPage.value = 1
+  logTotal.value = 0
   logSearch.value = ''
   await loadLogs()
 }
@@ -191,17 +193,19 @@ async function loadLogs() {
   logsLoading.value = true
   try {
     const type = showSystemLogs.value ? '' : 'user'
-    const params = new URLSearchParams({ type, limit: String(LOG_PAGE_SIZE * logPage.value) })
+    const params = new URLSearchParams({ type, limit: String(LOG_PAGE_SIZE), offset: String((logPage.value - 1) * LOG_PAGE_SIZE) })
     const result = await api.get<any[]>('/tasks/' + logTaskId.value + '/logs?' + params)
-    logHasMore.value = result.length >= LOG_PAGE_SIZE * logPage.value
     if (logSearch.value) {
-      logs.value = result.filter((l: any) =>
+      const filtered = result.filter((l: any) =>
         (l.message || '').includes(logSearch.value) || (l.status || '').includes(logSearch.value)
       )
+      logs.value = filtered
+      logTotal.value = filtered.length
     } else {
       logs.value = result
+      logTotal.value = result.length < LOG_PAGE_SIZE ? (logPage.value - 1) * LOG_PAGE_SIZE + result.length : (logPage.value + 1) * LOG_PAGE_SIZE
     }
-  } catch { logs.value = [] }
+  } catch { logs.value = []; logTotal.value = 0 }
   finally { logsLoading.value = false }
 }
 
@@ -211,8 +215,8 @@ async function toggleLogType() {
   await loadLogs()
 }
 
-function loadMoreLogs() {
-  logPage.value++
+function goLogPage(page: number) {
+  logPage.value = page
   loadLogs()
 }
 
@@ -322,7 +326,7 @@ function scheduleSummary(task: TaskTemplate): string {
               <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showLogs = false">✕</button>
             </div>
           </div>
-          <div class="flex-1 overflow-auto p-4" style="min-height: 300px">
+          <div class="flex-1 overflow-auto p-4" style="min-height: 320px; max-height: 400px">
             <div v-if="logsLoading" class="flex items-center justify-center py-8">
               <span class="animate-spin text-xl">⏳</span>
             </div>
@@ -335,9 +339,19 @@ function scheduleSummary(task: TaskTemplate): string {
               <span v-if="log.log_type === 'system'" class="text-xs text-gray-400">系统</span>
             </div>
             </template>
-            <div v-if="logHasMore && !logsLoading" class="text-center pt-3">
-              <button class="text-xs text-primary hover:underline" @click="loadMoreLogs">加载更多...</button>
-            </div>
+          </div>
+          <!-- Pagination -->
+          <div v-if="logTotalPages > 1" class="flex items-center justify-center gap-1 px-4 py-2 border-t dark:border-gray-700 flex-shrink-0">
+            <button class="w-7 h-7 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30" :disabled="logPage <= 1" @click="goLogPage(logPage - 1)">◀</button>
+            <template v-for="p in logTotalPages" :key="p">
+              <button v-if="p <= 3 || p > logTotalPages - 3 || Math.abs(p - logPage) <= 1"
+                class="w-7 h-7 rounded text-xs"
+                :class="p === logPage ? 'bg-primary text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700'"
+                @click="goLogPage(p)"
+              >{{ p }}</button>
+              <span v-else-if="p === 4 || p === logTotalPages - 3" class="text-xs text-gray-400">…</span>
+            </template>
+            <button class="w-7 h-7 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30" :disabled="logPage >= logTotalPages" @click="goLogPage(logPage + 1)">▶</button>
           </div>
         </div>
       </div>

@@ -122,15 +122,15 @@ func (r *TaskRepo) CreateUserLog(taskID, todoID, userID, action, message string)
 	}).Error
 }
 
-func (r *TaskRepo) ListLogs(taskID string, limit int) ([]TaskLogModel, error) {
+func (r *TaskRepo) ListLogs(taskID string, limit, offset int) ([]TaskLogModel, error) {
 	var logs []TaskLogModel
-	err := r.db.Where("task_id = ?", taskID).Order("created_at DESC").Limit(limit).Find(&logs).Error
+	err := r.db.Where("task_id = ?", taskID).Order("created_at DESC").Limit(limit).Offset(offset).Find(&logs).Error
 	return logs, err
 }
 
-func (r *TaskRepo) ListUserLogs(taskID string, limit int) ([]TaskLogModel, error) {
+func (r *TaskRepo) ListUserLogs(taskID string, limit, offset int) ([]TaskLogModel, error) {
 	var logs []TaskLogModel
-	err := r.db.Where("task_id = ? AND log_type = ?", taskID, "user").Order("created_at DESC").Limit(limit).Find(&logs).Error
+	err := r.db.Where("task_id = ? AND log_type = ?", taskID, "user").Order("created_at DESC").Limit(limit).Offset(offset).Find(&logs).Error
 	return logs, err
 }
 
