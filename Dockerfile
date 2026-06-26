@@ -34,6 +34,9 @@ FROM alpine:3.20
 
 RUN apk add --no-cache ca-certificates tzdata curl
 
+# Create non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 WORKDIR /app
 COPY --from=builder /app/server .
 
@@ -43,8 +46,11 @@ ENV JWT_SECRET=change-me-in-production
 ENV DATA_DIR=/data
 ENV GIN_MODE=release
 
-RUN mkdir -p /data/uploads /data/logs
+RUN mkdir -p /data/uploads /data/logs \
+    && chown -R appuser:appgroup /app /data
 VOLUME ["/data"]
+
+USER appuser
 
 EXPOSE 8080
 
