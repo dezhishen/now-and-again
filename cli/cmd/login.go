@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/dezhishen/now-and-again/shared/types"
 	"github.com/spf13/cobra"
 )
 
@@ -10,14 +12,30 @@ import (
 
 var loginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Authenticate and store a token",
+	Short: "Authenticate and get a token",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		username, _ := cmd.Flags().GetString("username")
 		password, _ := cmd.Flags().GetString("password")
-		fmt.Printf("TODO: login as %s\n", username)
-		_ = password
-		// 1. POST /api/auth/login
-		// 2. Store token in ~/.na.yaml
+		if username == "" || password == "" {
+			return fmt.Errorf("--username and --password are required")
+		}
+
+		pair, err := allClients.User.Login(context.Background(), &types.LoginRequest{
+			Username: username,
+			Password: password,
+		})
+		if err != nil {
+			return fmt.Errorf("login failed: %w", err)
+		}
+
+		fmt.Printf("Login successful!\n")
+		fmt.Printf("Access Token: %s\n", pair.AccessToken)
+		fmt.Printf("Expires in: %d seconds\n", pair.ExpiresIn)
+		if pair.User != nil {
+			fmt.Printf("User: %s (%s)\n", pair.User.DisplayName, pair.User.Email)
+		}
+
+		fmt.Println("\nTip: export NA_TOKEN=<access_token> to use it with other commands")
 		return nil
 	},
 }

@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/dezhishen/now-and-again/shared/types"
 	"github.com/spf13/cobra"
 )
 
@@ -18,7 +20,14 @@ var familyCreateCmd = &cobra.Command{
 	Short: "Create a new family",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name, _ := cmd.Flags().GetString("name")
-		fmt.Printf("TODO: create family name=%s\n", name)
+		if name == "" {
+			return fmt.Errorf("--name is required")
+		}
+		f, err := allClients.Family.Create(context.Background(), &types.CreateFamilyRequest{Name: name})
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Family created: %s (invite code: %s)\n", f.Name, f.InviteCode)
 		return nil
 	},
 }
@@ -28,7 +37,33 @@ var familyJoinCmd = &cobra.Command{
 	Short: "Join a family by invite code",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		code, _ := cmd.Flags().GetString("code")
-		fmt.Printf("TODO: join family with code=%s\n", code)
+		if code == "" {
+			return fmt.Errorf("--code is required")
+		}
+		m, err := allClients.Family.Join(context.Background(), &types.JoinFamilyRequest{InviteCode: code})
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Join request sent (status: %s)\n", m.Status)
+		return nil
+	},
+}
+
+var familyListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List my families",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		families, err := allClients.Family.ListMyFamilies(context.Background())
+		if err != nil {
+			return err
+		}
+		if len(families) == 0 {
+			fmt.Println("No families")
+			return nil
+		}
+		for _, f := range families {
+			fmt.Printf("  %s  %s  (code: %s)\n", f.ID[:8], f.Name, f.InviteCode)
+		}
 		return nil
 	},
 }
@@ -39,4 +74,5 @@ func init() {
 
 	familyCmd.AddCommand(familyCreateCmd)
 	familyCmd.AddCommand(familyJoinCmd)
+	familyCmd.AddCommand(familyListCmd)
 }
