@@ -113,44 +113,39 @@
 
 | 方法 | 路径 | 鉴权 | Scope | 说明 |
 |------|------|------|-------|------|
-| POST | `/api/families/:family_id/tasks` | JWT/APIKey | task:write | 创建任务模板（schedule_type: once/daily/weekly/monthly/interval） |
+| POST | `/api/families/:family_id/tasks` | JWT/APIKey | task:write | 创建任务模板 |
 | GET | `/api/families/:family_id/tasks` | JWT/APIKey | task:read | 任务模板列表 |
 | PUT | `/api/tasks/:task_id` | JWT/APIKey | task:write | 更新任务模板 |
 | DELETE | `/api/tasks/:task_id` | JWT/APIKey | task:write | 删除任务模板 |
-| GET | `/api/tasks/:task_id/logs` | JWT/APIKey | task:read | 任务执行日志 |
+| POST | `/api/tasks/:task_id/trigger` | JWT/APIKey | task:write | 手动生成待办 |
+| GET | `/api/tasks/:task_id/logs` | JWT/APIKey | task:read | 操作日志（?type=user 过滤用户日志） |
 
-### 创建一次性任务
+> 任务统一模型：`kind` 字段区分类型 — `"simple"` 普通任务 / `"branched"` 分支任务。未来可扩展 `"chain"` 等类型。
+> 分支任务通过 `branches` 数组配置选项，每个分支可选是否创建跟进任务。
+
+### 创建普通任务
 
 ```json
 {
   "name": "取快递",
   "schedule_type": "once",
-  "schedule_data": {"date": "2026-06-28", "time": "18:00"}
+  "schedule_data": {"date": "2026-06-28", "time": "18:00"},
+  "kind": "simple"
 }
 ```
 
-### 创建周期任务
-
-```json
-{
-  "name": "每日倒垃圾",
-  "schedule_type": "daily",
-  "schedule_data": {"time": "09:00"}
-}
-```
-
-### 创建巡检
+### 创建分支任务
 
 ```json
 {
   "name": "厨房安全巡检",
   "schedule_type": "daily",
   "schedule_data": {"time": "21:00"},
-  "is_inspection": true,
-  "inspection_config": {
-    "abnormal_action": "create_todo",
-    "abnormal_task_name": "修复{name}"
-  }
+  "kind": "branched",
+  "branches": [
+    {"name": "正常", "create_todo": false},
+    {"name": "漏水", "create_todo": true, "todo_name": "修复漏水-{name}"}
+  ]
 }
 ```
 
@@ -158,8 +153,18 @@
 
 | 方法 | 路径 | 鉴权 | Scope | 说明 |
 |------|------|------|-------|------|
-| GET | `/api/families/:family_id/todos?status=pending` | JWT/APIKey | task:read | 待办列表（含 due_start/due_date 时间窗口、todo_type、inspection_result） |
-| PUT | `/api/todos/:todo_id` | JWT/APIKey | task:write | 完成/跳过待办（巡检类需传 inspection_result: normal/abnormal） |
+| GET | `/api/families/:family_id/todos?status=pending` | JWT/APIKey | task:read | 待办列表 |
+| PUT | `/api/todos/:todo_id` | JWT/APIKey | task:write | 完成/跳过待办 |
+
+### 完成分支任务的待办
+
+```json
+{
+  "status": "done",
+  "branch_name": "漏水"
+}
+```
+> 选择分支后，系统自动创建独立的一次性跟进任务和待办。
 
 ## ICS 日历订阅
 

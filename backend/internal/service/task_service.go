@@ -22,7 +22,6 @@ type TaskService struct {
 
 func NewTaskService(repo *repository.TaskRepo, sched *scheduler.Scheduler) *TaskService {
 	svc := &TaskService{repo: repo, scheduler: sched}
-	// Load existing enabled tasks into scheduler
 	svc.loadExistingTasks()
 	return svc
 }
@@ -43,14 +42,12 @@ func (s *TaskService) registerToScheduler(task *repository.TaskTemplateModel) {
 		s.scheduler.RemoveJob(task.ID)
 		return
 	}
-
 	s.scheduler.RegisterJob(&scheduler.JobBuilder{
 		TaskID:       task.ID,
 		ScheduleType: task.ScheduleType,
 		ScheduleData: task.ScheduleData,
 		Callback: func(taskID string, triggeredAt time.Time) error {
 			err := s.onTaskTriggered(taskID, task.FamilyID)
-			// Auto-disable one-time tasks after first trigger
 			if task.ScheduleType == "once" {
 				task.Enabled = false
 				s.repo.UpdateTask(task)
@@ -64,7 +61,6 @@ func (s *TaskService) onTaskTriggered(taskID, familyID string) error {
 	return s.createTodo(taskID, familyID, false)
 }
 
-// createTodo creates a todo for the task. If force is true, skips the daily duplicate check.
 func (s *TaskService) createTodo(taskID, familyID string, force bool) error {
 	now := time.Now()
 	if !force {
@@ -85,7 +81,6 @@ func (s *TaskService) createTodo(taskID, familyID string, force bool) error {
 		DueStart:   now,
 		DueDate:    now.Add(window),
 		Status:     "pending",
-		TodoType:   task.TodoType(),
 	}
 	if err := s.repo.CreateTodo(todo); err != nil {
 		return err
@@ -98,31 +93,31 @@ func (s *TaskService) createTodo(taskID, familyID string, force bool) error {
 
 func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.TaskTemplate, error) {
 	userID := ctx.Value("user_id").(string)
-
+	kind := req.Kind
+	if kind == "" {
+		kind = "simple"
+	}
 	dataJSON, _ := json.Marshal(req.ScheduleData)
 	t := &repository.TaskTemplateModel{
-		FamilyID:         familyID.String(),
-		GroupID:          req.GroupID,
-		LocationID:       req.LocationID,
-		Name:             req.Name,
-		ScheduleType:     req.ScheduleType,
-		ScheduleData:     string(dataJSON),
-		Enabled:          true,
-		IsInspection:     req.IsInspection,
-		InspectionConfig: marshalJSON(req.InspectionConfig),
-		CreatedBy:        userID,
+		FamilyID:     familyID.String(),
+		GroupID:      req.GroupID,
+		LocationID:   req.LocationID,
+		Name:         req.Name,
+		ScheduleType: req.ScheduleType,
+		ScheduleData: string(dataJSON),
+		Enabled:      true,
+		Kind:         kind,
+		Branches:     marshalJSON(req.Branches),
+		CreatedBy:    userID,
 	}
 	if err := s.repo.CreateTask(t); err != nil {
 		return nil, err
 	}
-	// Register in scheduler
 	s.registerToScheduler(t)
-	// Generate the first todo immediately
 	s.onTaskTriggered(t.ID, t.FamilyID)
 	return taskModelToType(t), nil
 }
 
-// Trigger manually generates a new todo for the given task.
 func (s *TaskService) Trigger(ctx context.Context, taskID uuid.UUID) error {
 	userID := ctx.Value("user_id").(string)
 	task, err := s.repo.FindTaskByID(taskID.String())
@@ -169,16 +164,15 @@ func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.U
 	if req.LocationID != nil {
 		t.LocationID = *req.LocationID
 	}
-	if req.IsInspection != nil {
-		t.IsInspection = *req.IsInspection
+	if req.Kind != nil {
+		t.Kind = *req.Kind
 	}
-	if req.InspectionConfig != nil {
-		t.InspectionConfig = marshalJSON(req.InspectionConfig)
+	if req.Branches != nil {
+		t.Branches = marshalJSON(req.Branches)
 	}
 	if err := s.repo.UpdateTask(t); err != nil {
 		return nil, err
 	}
-	// Keep scheduler in sync
 	s.registerToScheduler(t)
 	return taskModelToType(t), nil
 }
@@ -224,7 +218,6 @@ func (s *TaskService) ListTodos(ctx context.Context, familyID uuid.UUID, groupID
 	}
 	result := make([]types.Todo, 0, len(todos))
 	for _, t := range todos {
-		// Filter by group if the task has a group_id
 		if groupID != "" && t.Task.GroupID != "" && t.Task.GroupID != groupID {
 			continue
 		}
@@ -235,29 +228,28 @@ func (s *TaskService) ListTodos(ctx context.Context, familyID uuid.UUID, groupID
 
 func (s *TaskService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *types.CompleteTodoRequest) (*types.Todo, error) {
 	userID := ctx.Value("user_id").(string)
-
-	// First load the todo to check its type
 	todo, err := s.repo.FindTodoByID(todoID.String())
 	if err != nil {
 		return nil, err
 	}
 
-	// For inspection todos, use special completion flow
-	if todo.TodoType == "inspection" && req.InspectionResult != "" {
-		if err := s.repo.CompleteInspection(todoID.String(), userID, req.InspectionResult); err != nil {
+	// Branch completion flow
+	if todo.Task.Kind == "branched" && req.BranchName != "" {
+		if err := s.repo.CompleteTodo(todoID.String(), userID, "done"); err != nil {
 			return nil, err
 		}
-		// Find matching branch and create follow-up todo if configured
-		if todo.Task.InspectionConfig != "" {
-			s.handleInspectionBranch(todo, req.InspectionResult, userID)
-		}
+		s.repo.CreateUserLog(todo.TaskID, userID, "branch:"+req.BranchName,
+			fmt.Sprintf("巡检完成 [%s]: %s", req.BranchName, todo.Task.Name))
+		s.handleBranchFollowUp(todo, req.BranchName, userID)
 	} else {
 		if err := s.repo.CompleteTodo(todoID.String(), userID, req.Status); err != nil {
 			return nil, err
 		}
+		s.repo.CreateUserLog(todo.TaskID, userID, req.Status,
+			fmt.Sprintf("完成待办: %s", todo.Task.Name))
 	}
 
-	// For one-time tasks completed as "done", auto-disable the parent task
+	// Auto-disable one-time tasks
 	if todo.Task.ScheduleType == "once" && req.Status == "done" {
 		s.repo.UpdateTask(&repository.TaskTemplateModel{
 			BaseModel: repository.BaseModel{ID: todo.TaskID},
@@ -266,13 +258,6 @@ func (s *TaskService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 		s.scheduler.RemoveJob(todo.TaskID)
 	}
 
-	// Log user action
-	action := req.Status
-	if req.InspectionResult != "" {
-		action = "inspection:" + req.InspectionResult
-	}
-	s.repo.CreateUserLog(todo.TaskID, userID, action, fmt.Sprintf("完成待办: %s", todo.Task.Name))
-
 	t, err := s.repo.FindTodoByID(todoID.String())
 	if err != nil {
 		return nil, err
@@ -280,18 +265,17 @@ func (s *TaskService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 	return todoModelToType(t), nil
 }
 
-// handleInspectionBranch looks up the selected branch from inspection config
-// and creates a follow-up todo if the branch has create_todo enabled.
-func (s *TaskService) handleInspectionBranch(todo *repository.TodoModel, branchName string, userID string) {
+// handleBranchFollowUp creates an independent one-time task for the selected branch.
+func (s *TaskService) handleBranchFollowUp(todo *repository.TodoModel, branchName string, userID string) {
 	type branch struct {
-		Name       string `json:"name"`
+		Name      string `json:"name"`
 		CreateTodo bool   `json:"create_todo"`
-		TodoName   string `json:"todo_name"`
-		GroupID    string `json:"group_id"`
+		TodoName  string `json:"todo_name"`
+		GroupID   string `json:"group_id"`
 	}
 	var branches []branch
-	if err := json.Unmarshal([]byte(todo.Task.InspectionConfig), &branches); err != nil {
-		logger.Warnf("failed to parse inspection config: %v", err)
+	if err := json.Unmarshal([]byte(todo.Task.Branches), &branches); err != nil {
+		logger.Warnf("failed to parse branches: %v", err)
 		return
 	}
 	for _, b := range branches {
@@ -301,19 +285,32 @@ func (s *TaskService) handleInspectionBranch(todo *repository.TodoModel, branchN
 				name = todo.Task.Name + " - " + branchName
 			}
 			name = strings.Replace(name, "{name}", todo.Task.Name, -1)
-			followUp := &repository.TodoModel{
-				TaskID:     todo.TaskID,
-				FamilyID:   todo.FamilyID,
-				LocationID: todo.LocationID,
-				AssignedTo: b.GroupID,
-				Status:     "pending",
-				TodoType:   "task",
-				DueStart:   time.Now(),
-				DueDate:    time.Now().Add(24 * time.Hour),
+
+			// Create independent one-time task
+			followTask := &repository.TaskTemplateModel{
+				FamilyID:     todo.FamilyID,
+				GroupID:      b.GroupID,
+				LocationID:   todo.LocationID,
+				Name:         name,
+				ScheduleType: "once",
+				ScheduleData: `{"time":"00:00"}`,
+				Enabled:      true,
+				Kind:         "simple",
+				CreatedBy:    userID,
 			}
-			if err := s.repo.CreateTodo(followUp); err != nil {
-				logger.Errorf("failed to create branch follow-up: %v", err)
+			if err := s.repo.CreateTask(followTask); err != nil {
+				logger.Errorf("failed to create follow-up task: %v", err)
+				return
 			}
+
+			// Log on both sides
+			s.repo.CreateUserLog(todo.TaskID, userID, "follow_up",
+				fmt.Sprintf("分支「%s」→ 创建跟进任务「%s」(%s)", branchName, name, followTask.ID))
+			s.repo.CreateUserLog(followTask.ID, userID, "created",
+				fmt.Sprintf("从巡检「%s」分支「%s」创建", todo.Task.Name, branchName))
+
+			// Create todo for the follow-up task
+			s.createTodo(followTask.ID, todo.FamilyID, true)
 			return
 		}
 	}
@@ -321,7 +318,6 @@ func (s *TaskService) handleInspectionBranch(todo *repository.TodoModel, branchN
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
-// scheduleWindow returns the duration until the next trigger for a schedule type.
 func scheduleWindow(scheduleType, scheduleData string) time.Duration {
 	switch scheduleType {
 	case "daily":
@@ -329,9 +325,9 @@ func scheduleWindow(scheduleType, scheduleData string) time.Duration {
 	case "weekly":
 		return 7 * 24 * time.Hour
 	case "monthly":
-		return 30 * 24 * time.Hour // approximate
+		return 30 * 24 * time.Hour
 	case "once":
-		return 24 * time.Hour // one-time tasks have a 24h window
+		return 24 * time.Hour
 	case "interval":
 		var data struct {
 			Days int    `json:"days"`
@@ -360,18 +356,17 @@ func marshalJSON(v any) string {
 func taskModelToType(t *repository.TaskTemplateModel) *types.TaskTemplate {
 	var data any
 	json.Unmarshal([]byte(t.ScheduleData), &data)
-	var inspCfg any
-	if t.InspectionConfig != "" {
-		json.Unmarshal([]byte(t.InspectionConfig), &inspCfg)
+	var branches any
+	if t.Branches != "" {
+		json.Unmarshal([]byte(t.Branches), &branches)
 	}
 	return &types.TaskTemplate{
 		ID: t.ID, FamilyID: t.FamilyID, GroupID: t.GroupID,
 		LocationID: t.LocationID,
-		Name:       t.Name, ScheduleType: t.ScheduleType, ScheduleData: data,
-		Enabled: t.Enabled, IsInspection: t.IsInspection,
-		InspectionConfig: inspCfg,
-		LastTodoAt:       t.LastTodoAt,
-		CreatedBy:        t.CreatedBy, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+		Name: t.Name, ScheduleType: t.ScheduleType, ScheduleData: data,
+		Enabled: t.Enabled, Kind: t.Kind, Branches: branches,
+		LastTodoAt: t.LastTodoAt,
+		CreatedBy: t.CreatedBy, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}
 }
 
@@ -387,11 +382,10 @@ func todoModelToType(t *repository.TodoModel) *types.Todo {
 	return &types.Todo{
 		ID: t.ID, TaskID: t.TaskID, FamilyID: t.FamilyID,
 		LocationID: t.LocationID,
-		AssignedTo: t.AssignedTo, Status: t.Status, TodoType: t.TodoType,
-		InspectionResult: t.InspectionResult,
-		DueStart:         t.DueStart,
-		DueDate:          t.DueDate,
-		CompletedAt:      t.CompletedAt, CompletedBy: t.CompletedBy,
+		AssignedTo: t.AssignedTo, Status: t.Status, BranchName: t.BranchName,
+		DueStart:    t.DueStart,
+		DueDate:     t.DueDate,
+		CompletedAt: t.CompletedAt, CompletedBy: t.CompletedBy,
 		Task: task, User: user,
 		CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}

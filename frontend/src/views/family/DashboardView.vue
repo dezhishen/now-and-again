@@ -43,11 +43,11 @@ async function completeTodo(todo: Todo, status: string) {
   } catch (e: any) { toast.error(e.message) }
 }
 
-async function completeInspection(todo: Todo, result: string) {
+async function completeBranch(todo: Todo, branchName: string) {
   try {
-    await api.put('/todos/' + todo.id, { status: 'done', inspection_result: result })
+    await api.put('/todos/' + todo.id, { status: 'done', branch_name: branchName })
     await loadTodos()
-    toast.success('巡检已完成: ' + result)
+    toast.success('已完成: ' + branchName)
   } catch (e: any) { toast.error(e.message) }
 }
 
@@ -123,26 +123,20 @@ onMounted(async () => {
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2">
             <p class="font-medium dark:text-gray-200">{{ todo.task?.name || todo.task_id }}</p>
-            <span v-if="todo.todo_type === 'inspection'" class="text-xs px-1 rounded bg-warning/20 text-amber-600 dark:text-amber-400">巡检</span>
+            <span v-if="todo.task?.kind === 'branched'" class="text-xs px-1 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">分支</span>
           </div>
           <p class="text-xs text-gray-400">
             🕐 {{ fmtRange(todo.due_start, todo.due_date) }}
             <span v-if="todo.location_id && getLocName(todo.location_id)" class="ml-2 text-primary">📍 {{ getLocName(todo.location_id) }}</span>
           </p>
         </div>
-        <!-- Inspection branch buttons -->
-        <div v-if="todo.todo_type === 'inspection'" class="flex gap-1 flex-shrink-0 flex-wrap max-w-[120px] justify-end">
-          <template v-if="todo.task?.inspection_config?.length">
-            <button v-for="b in todo.task.inspection_config" :key="b.name"
-              class="text-xs px-2 py-1 rounded hover:opacity-80"
-              :class="b.create_todo ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300' : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'"
-              @click="completeInspection(todo, b.name)"
-            >{{ b.name }}</button>
-          </template>
-          <template v-else>
-            <button class="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 hover:opacity-80" @click="completeInspection(todo, 'normal')">正常</button>
-            <button class="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 hover:opacity-80" @click="completeInspection(todo, 'abnormal')">异常</button>
-          </template>
+        <!-- Branch buttons -->
+        <div v-if="todo.task?.kind === 'branched' && todo.task?.branches?.length" class="flex gap-1 flex-shrink-0 flex-wrap max-w-[140px] justify-end">
+          <button v-for="b in todo.task.branches" :key="b.name"
+            class="text-xs px-2 py-1 rounded hover:opacity-80"
+            :class="b.create_todo ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300' : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'"
+            @click="completeBranch(todo, b.name)"
+          >{{ b.name }}</button>
         </div>
         <!-- Regular task buttons -->
         <div v-else class="flex gap-1 flex-shrink-0">

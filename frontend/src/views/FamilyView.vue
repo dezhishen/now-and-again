@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
@@ -8,6 +8,21 @@ const { t } = useI18n()
 const route = useRoute()
 const showMenu = ref(false)
 const familyName = ref('')
+
+const PAGE_LABELS: Record<string, string> = {
+  'family-dashboard': '仪表盘',
+  'family-groups': '小组',
+  'family-members': '成员',
+  'family-floor-plan': '户型图',
+  'family-tasks': '任务',
+  'family-ics': '日历',
+  'family-settings': '设置',
+}
+
+const pageTitle = computed(() => {
+  const name = (route.name as string) || ''
+  return PAGE_LABELS[name] || ''
+})
 
 onMounted(async () => {
   try {
@@ -31,7 +46,7 @@ onMounted(async () => {
       @click="showMenu = false"
     >
       <router-link :to="`/family/${$route.params.familyId}`" class="block mb-3">
-        <h3 class="text-lg font-semibold dark:text-gray-200 hover:text-primary transition-colors">🏠 {{ familyName || t('nav.family') }}</h3>
+        <h3 class="text-lg font-semibold dark:text-gray-200 hover:text-primary transition-colors">{{ familyName || t('nav.family') }}</h3>
       </router-link>
       <nav class="flex flex-col gap-1">
         <router-link :to="`/family/${$route.params.familyId}`" class="px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors">📊 {{ t('nav.dashboard') }}</router-link>
@@ -49,6 +64,12 @@ onMounted(async () => {
 
     <!-- Content -->
     <main class="flex-1 p-4 md:p-6 pt-14 md:pt-6">
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-2 text-sm text-gray-400 mb-4">
+        <router-link :to="`/family/${$route.params.familyId}`" class="hover:text-primary transition-colors">🏠 {{ familyName || t('nav.family') }}</router-link>
+        <span v-if="pageTitle">›</span>
+        <span v-if="pageTitle" class="text-gray-600 dark:text-gray-300">{{ pageTitle }}</span>
+      </div>
       <router-view />
     </main>
   </div>

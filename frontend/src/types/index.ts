@@ -116,12 +116,19 @@ export interface TaskTemplate {
   schedule_type: string
   schedule_data: any
   enabled: boolean
-  is_inspection: boolean
-  inspection_config?: any
+  kind: 'simple' | 'branched'  // future: 'chain'
+  branches?: Branch[]          // only for kind=branched
   last_todo_at?: string
   created_by: string
   created_at: string
   updated_at: string
+}
+
+export interface Branch {
+  name: string
+  create_todo: boolean
+  todo_name?: string
+  group_id?: string
 }
 
 export interface Todo {
@@ -131,8 +138,7 @@ export interface Todo {
   location_id?: string
   assigned_to?: string
   status: 'pending' | 'done' | 'skipped'
-  todo_type: 'task' | 'inspection'
-  inspection_result?: 'normal' | 'abnormal'
+  branch_name?: string         // selected branch (branched tasks)
   due_start: string
   due_date: string
   completed_at?: string
