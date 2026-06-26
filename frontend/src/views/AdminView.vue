@@ -108,7 +108,7 @@ const STORAGE_OPTIONS = [
           <p v-if="settings['storage.type'] === 'local' || !settings['storage.type']" class="text-xs text-green-600 mt-2">✓ 本地存储已激活，图片保存在服务器的 uploads 目录下。</p>
         </div>
       </div>
-    </div>
     </template>
+    </div>
   </div>
 </template>
