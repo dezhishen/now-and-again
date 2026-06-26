@@ -70,7 +70,7 @@ func main() {
 		logger.Fatalf("failed to create scheduler: %v", err)
 	}
 	taskSvc := service.NewTaskService(taskRepo, sched)
-	icsSvc := service.NewIcsService(icsRepo, taskRepo, apiKeyRepo)
+	icsSvc := service.NewIcsService(icsRepo, taskRepo, apiKeyRepo, userRepo)
 
 	// ── Seed admin ──────────────────────────────────────────────
 	seedAdmin(db)

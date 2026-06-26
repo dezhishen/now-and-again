@@ -28,7 +28,6 @@ const feedDays = ref(7)
 const feedGroupID = ref('')
 const feedAuthType = ref<'api_key' | 'basic'>('api_key')
 const feedApiKeyID = ref('')
-const feedAppUser = ref('')
 const feedAppPass = ref('')
 
 const baseUrl = window.location.origin
@@ -60,14 +59,13 @@ function openEdit(feed: IcsFeed) {
   feedGroupID.value = feed.filter_group_id || ''
   feedAuthType.value = feed.auth_type as 'api_key' | 'basic'
   feedApiKeyID.value = ''
-  feedAppUser.value = ''
   feedAppPass.value = ''
   showForm.value = true
 }
 function resetForm() {
   feedName.value = ''; feedDesc.value = ''; feedDays.value = 7
   feedGroupID.value = ''; feedAuthType.value = 'api_key'
-  feedApiKeyID.value = ''; feedAppUser.value = ''; feedAppPass.value = ''
+  feedApiKeyID.value = ''; feedAppPass.value = ''
 }
 
 async function saveFeed() {
@@ -82,7 +80,6 @@ async function saveFeed() {
   if (feedAuthType.value === 'api_key') {
     body.api_key_id = feedApiKeyID.value
   } else {
-    body.app_username = feedAppUser.value
     body.app_password = feedAppPass.value
   }
 
@@ -126,12 +123,11 @@ function getAuthLabel(feed: IcsFeed): string {
 
     <!-- Guide -->
     <div v-if="feeds.length === 0 && !showForm" class="card mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-      <h3 class="font-bold text-blue-700 dark:text-blue-300 mb-2">🔧 配置引导</h3>
+      <h3 class="font-bold text-blue-700 dark:text-blue-300 mb-2">� 日历订阅</h3>
       <ol class="text-sm text-blue-600 dark:text-blue-400 space-y-1 list-decimal pl-4">
-        <li>创建一个 ICS 订阅，选择认证方式（API Key 或应用账号密码）</li>
-        <li>如果选择 API Key，可以新建一个备注为"日历使用"的 Key，或选择已有的</li>
-        <li>如果选择 Basic Auth，设置用户名和密码（用户名全局唯一，冲突时会自动加后缀）</li>
-        <li>复制生成的 ICS 链接，导入到你的日历应用（Apple 日历、Google 日历、Outlook 等）</li>
+        <li>创建一个订阅，配置待办范围和认证方式</li>
+        <li>复制生成的链接</li>
+        <li>粘贴到 Apple 日历、Google 日历、Outlook 等任意日历应用中</li>
       </ol>
     </div>
 
@@ -186,21 +182,16 @@ function getAuthLabel(feed: IcsFeed): string {
           <option v-for="k in apiKeys" :key="k.id" :value="k.id">{{ k.name }} ({{ k.key_prefix }})</option>
         </select>
         <p class="text-xs text-gray-400 mt-1">
-          尚无合适的 Key？
-          <router-link to="/api-keys" class="text-primary underline">新建 API Key</router-link>，建议备注"日历使用"
+          尚无？<router-link to="/api-keys" class="text-primary underline">新建 API Key</router-link>
         </p>
       </div>
 
       <!-- Basic Auth -->
       <div v-if="feedAuthType === 'basic'" class="space-y-2">
-        <div>
-          <label class="text-xs text-gray-400 block mb-1">用户名</label>
-          <input v-model="feedAppUser" class="input" placeholder="如：calendar" />
-          <p class="text-xs text-gray-400 mt-1">全局唯一，冲突时自动添加随机后缀</p>
-        </div>
+        <p class="text-xs text-gray-500">用户名使用您的登录账号，只需设置密码</p>
         <div>
           <label class="text-xs text-gray-400 block mb-1">密码</label>
-          <input v-model="feedAppPass" type="password" class="input" placeholder="设置密码" />
+          <input v-model="feedAppPass" type="password" class="input" placeholder="设置 ICS 订阅密码" />
         </div>
       </div>
 

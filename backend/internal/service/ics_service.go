@@ -15,10 +15,11 @@ type IcsService struct {
 	repo       *repository.IcsRepo
 	taskRepo   *repository.TaskRepo
 	apiKeyRepo *repository.ApiKeyRepo
+	userRepo   *repository.UserRepo
 }
 
-func NewIcsService(repo *repository.IcsRepo, taskRepo *repository.TaskRepo, apiKeyRepo *repository.ApiKeyRepo) *IcsService {
-	return &IcsService{repo: repo, taskRepo: taskRepo, apiKeyRepo: apiKeyRepo}
+func NewIcsService(repo *repository.IcsRepo, taskRepo *repository.TaskRepo, apiKeyRepo *repository.ApiKeyRepo, userRepo *repository.UserRepo) *IcsService {
+	return &IcsService{repo: repo, taskRepo: taskRepo, apiKeyRepo: apiKeyRepo, userRepo: userRepo}
 }
 
 // ─── Feed CRUD ───────────────────────────────────────────────────
@@ -31,8 +32,7 @@ type CreateIcsFeedInput struct {
 	FilterType    string // "all" or "personal"
 	AuthType      string // "api_key" or "basic"
 	ApiKeyID      string
-	AppUsername   string
-	AppPassword   string
+	AppPassword   string // only used when AuthType=basic
 	FamilyID      string
 	CreatedBy     string
 }
@@ -62,19 +62,11 @@ func (s *IcsService) Create(input CreateIcsFeedInput) (*repository.IcsFeedModel,
 		CreatedBy:     input.CreatedBy,
 	}
 
-	// For basic auth, hash the password and ensure unique username
+	// For basic auth, look up the user's account username and hash the password
 	if input.AuthType == "basic" {
-		username := input.AppUsername
-		if username == "" {
-			username = "calendar"
-		}
-		// Check uniqueness; if taken, append suffix
-		taken, err := s.repo.IsUsernameTaken(username)
+		username, err := s.getAccountUsername(input.CreatedBy)
 		if err != nil {
-			return nil, fmt.Errorf("check username: %w", err)
-		}
-		if taken {
-			username = fmt.Sprintf("%s-%s", username, uuid.New().String()[:6])
+			return nil, fmt.Errorf("find account: %w", err)
 		}
 		hash, err := bcrypt.GenerateFromPassword([]byte(input.AppPassword), bcrypt.DefaultCost)
 		if err != nil {
@@ -115,14 +107,8 @@ func (s *IcsService) Update(feedID string, input CreateIcsFeedInput) (*repositor
 		feed.AuthType = input.AuthType
 		feed.ApiKeyID = input.ApiKeyID
 		if input.AuthType == "basic" {
-			username := input.AppUsername
-			if username == "" {
-				username = "calendar"
-			}
-			taken, _ := s.repo.IsUsernameTaken(username)
-			if taken && username != feed.AppUsername {
-				username = fmt.Sprintf("%s-%s", username, uuid.New().String()[:6])
-			}
+			// Always derive username from account
+			username, _ := s.getAccountUsername(feed.CreatedBy)
 			feed.AppUsername = username
 			if input.AppPassword != "" {
 				hash, _ := bcrypt.GenerateFromPassword([]byte(input.AppPassword), bcrypt.DefaultCost)
@@ -258,4 +244,13 @@ func escapeICS(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\\n")
 	s = strings.ReplaceAll(s, "\n", "\\n")
 	return s
+}
+
+// getAccountUsername returns the login username for the given user ID.
+func (s *IcsService) getAccountUsername(userID string) (string, error) {
+	acc, err := s.userRepo.FindAccountByUserID(userID)
+	if err != nil {
+		return "", err
+	}
+	return acc.Username, nil
 }

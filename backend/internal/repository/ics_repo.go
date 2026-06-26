@@ -31,9 +31,3 @@ func (r *IcsRepo) UpdateFeed(f *IcsFeedModel) error {
 func (r *IcsRepo) DeleteFeed(id string) error {
 	return r.db.Where("id = ?", id).Delete(&IcsFeedModel{}).Error
 }
-
-func (r *IcsRepo) IsUsernameTaken(username string) (bool, error) {
-	var count int64
-	err := r.db.Model(&IcsFeedModel{}).Where("app_username = ?", username).Count(&count).Error
-	return count > 0, err
-}

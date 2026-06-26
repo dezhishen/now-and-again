@@ -29,7 +29,6 @@ func (h *IcsHandlers) Create(c *gin.Context) {
 		FilterType:    req.FilterType,
 		AuthType:      req.AuthType,
 		ApiKeyID:      req.ApiKeyID,
-		AppUsername:   req.AppUsername,
 		AppPassword:   req.AppPassword,
 		FamilyID:      familyID,
 		CreatedBy:     userID,
@@ -81,7 +80,6 @@ func (h *IcsHandlers) Update(c *gin.Context) {
 		FilterType:    req.FilterType,
 		AuthType:      req.AuthType,
 		ApiKeyID:      req.ApiKeyID,
-		AppUsername:   req.AppUsername,
 		AppPassword:   req.AppPassword,
 	}
 	feed, err := h.Svc.Update(feedID, input)
@@ -133,7 +131,6 @@ type createIcsReq struct {
 	FilterType    string `json:"filter_type,omitempty"`
 	AuthType      string `json:"auth_type,omitempty"`
 	ApiKeyID      string `json:"api_key_id,omitempty"`
-	AppUsername   string `json:"app_username,omitempty"`
 	AppPassword   string `json:"app_password,omitempty"`
 }
 
