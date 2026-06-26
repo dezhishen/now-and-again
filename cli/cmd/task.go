@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/dezhishen/now-and-again/shared/types"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/spf13/cobra"
 )
 
@@ -88,7 +88,7 @@ var taskTodoCmd = &cobra.Command{
 		if familyID == "" {
 			return fmt.Errorf("--family-id is required")
 		}
-		todos, err := allClients.Task.ListTodos(familyID, "pending")
+		todos, err := allClients.Task.ListTodosSimple(familyID, "pending")
 		if err != nil {
 			return err
 		}
@@ -119,7 +119,7 @@ var taskDoneCmd = &cobra.Command{
 		if todoID == "" || status == "" {
 			return fmt.Errorf("--id and --status (done|skipped) are required")
 		}
-		t, err := allClients.Task.CompleteTodo(todoID, status)
+		t, err := allClients.Task.CompleteTodoSimple(todoID, status)
 		if err != nil {
 			return err
 		}

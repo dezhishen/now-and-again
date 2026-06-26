@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
@@ -12,7 +12,7 @@ const toast = useToast()
 const route = useRoute()
 const familyId = route.params.familyId as string
 
-const activeTab = ref<'todos' | 'overview'>('todos')
+const activeTab = ref<'todos' | 'overview' | 'stats'>('todos')
 const loading = ref(true)
 const family = ref<Family | null>(null)
 const memberCount = ref(0)
@@ -36,10 +36,28 @@ async function copyInviteCode() {
 }
 
 async function completeTodo(todo: Todo, status: string) {
+  // Show remark prompt
+  remarkTodo.value = todo
+  remarkAction.value = status
+  remarkText.value = ''
+  showRemark.value = true
+}
+
+// ─── Remark modal ──────────────────────────────────────────────
+
+const showRemark = ref(false)
+const remarkTodo = ref<Todo | null>(null)
+const remarkAction = ref('')
+const remarkText = ref('')
+
+async function submitRemark() {
+  const todo = remarkTodo.value
+  if (!todo) return
   try {
-    await api.put('/todos/' + todo.id, { status })
+    await api.put('/todos/' + todo.id, { status: remarkAction.value, remark: remarkText.value })
     await loadTodos()
-    toast.success(status === 'done' ? '已完成' : '已跳过')
+    toast.success(remarkAction.value === 'done' ? '已完成' : '已跳过')
+    showRemark.value = false
   } catch (e: any) { toast.error(e.message) }
 }
 
@@ -48,6 +66,49 @@ async function completeBranch(todo: Todo, branchName: string) {
     await api.put('/todos/' + todo.id, { status: 'done', branch_name: branchName })
     await loadTodos()
     toast.success('已完成: ' + branchName)
+  } catch (e: any) { toast.error(e.message) }
+}
+
+function skipRemarkAndComplete() {
+  showRemark.value = false
+  completeTodoDirect(remarkTodo.value!, remarkAction.value)
+}
+
+async function completeTodoDirect(todo: Todo, status: string) {
+  try {
+    await api.put('/todos/' + todo.id, { status })
+    await loadTodos()
+    toast.success(status === 'done' ? '已完成' : '已跳过')
+  } catch (e: any) { toast.error(e.message) }
+}
+
+// ─── Inspection Modal ──────────────────────────────────────────
+
+const showInspect = ref(false)
+const inspectTodo = ref<Todo | null>(null)
+const inspectSelections = ref<Record<string, string>>({})
+
+function openInspect(todo: Todo) {
+  inspectTodo.value = todo
+  inspectSelections.value = {}
+  showInspect.value = true
+}
+
+async function submitInspection() {
+  const todo = inspectTodo.value
+  if (!todo) return
+  const selections = Object.entries(inspectSelections.value).map(([item, branch]) => ({
+    item, branch
+  }))
+  if (selections.length === 0) {
+    toast.warning('请至少选择一个检查项')
+    return
+  }
+  try {
+    await api.post('/tasks/' + todo.task_id + '/inspection', { todo_id: todo.id, selections })
+    await loadTodos()
+    toast.success('巡检已提交')
+    showInspect.value = false
   } catch (e: any) { toast.error(e.message) }
 }
 
@@ -76,6 +137,71 @@ async function loadLocations() {
     locations.value = all
   } catch { locations.value = [] }
 }
+
+// ─── Statistics ──────────────────────────────────────────────────
+
+interface StatsResponse {
+  period: string
+  start_date: string
+  end_date: string
+  summary: { total_completed: number; total_skipped: number; total_manual: number; total_tasks: number; completion_rate: number }
+  daily: { date: string; completed: number; skipped: number; manual: number }[]
+  by_task: { task_id: string; task_name: string; completed: number; skipped: number; manual: number }[]
+}
+
+const statsPeriod = ref<'week' | 'month' | 'year'>('week')
+const statsDate = ref('')  // reference date for the period, empty = now
+const statsLoading = ref(false)
+const stats = ref<StatsResponse | null>(null)
+
+const PERIOD_LABELS: Record<string, string> = { week: '周', month: '月', year: '年' }
+
+function shiftPeriod(delta: number) {
+  const d = statsDate.value ? new Date(statsDate.value) : new Date()
+  switch (statsPeriod.value) {
+    case 'week': d.setDate(d.getDate() + delta * 7); break
+    case 'month': d.setMonth(d.getMonth() + delta); break
+    case 'year': d.setFullYear(d.getFullYear() + delta); break
+  }
+  statsDate.value = d.toISOString().slice(0, 10)
+}
+
+function resetStatsDate() {
+  statsDate.value = ''
+}
+
+async function loadStats() {
+  statsLoading.value = true
+  try {
+    const params = new URLSearchParams({ period: statsPeriod.value })
+    if (statsDate.value) params.set('date', statsDate.value)
+    stats.value = await api.get<StatsResponse>(`/families/${familyId}/statistics?${params}`)
+  } catch {
+    stats.value = null
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+// Compute bar chart max for scaling
+const maxDailyCount = computed(() => {
+  if (!stats.value) return 1
+  let max = 0
+  for (const d of stats.value.daily) {
+    const sum = d.completed + d.skipped + d.manual
+    if (sum > max) max = sum
+  }
+  return max || 1
+})
+
+const statsRangeLabel = computed(() => {
+  if (!stats.value) return ''
+  const fmt = (d: string) => d.slice(5) // MM-DD
+  return `${fmt(stats.value.start_date)} ~ ${fmt(stats.value.end_date)}`
+})
+
+watch([statsPeriod, statsDate], () => { if (activeTab.value === 'stats') loadStats() })
+watch(activeTab, (tab) => { if (tab === 'stats' && !stats.value) loadStats() })
 
 onMounted(async () => {
   loading.value = true
@@ -114,38 +240,65 @@ onMounted(async () => {
         :class="activeTab === 'overview' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
         @click="activeTab = 'overview'"
       >概览</button>
+      <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+        :class="activeTab === 'stats' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+        @click="activeTab = 'stats'"
+      >📊 统计</button>
     </div>
 
     <!-- Todos Tab -->
     <div v-if="activeTab === 'todos'">
       <div v-if="todos.length === 0" class="text-center text-gray-400 py-8">暂无待办事项 🎉</div>
-      <div v-for="todo in displayTodos" :key="todo.id" class="card mb-2 flex items-center justify-between gap-3">
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2">
-            <p class="font-medium dark:text-gray-200">{{ todo.task?.name || todo.task_id }}</p>
-            <span v-if="todo.task?.kind === 'branched'" class="text-xs px-1 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">分支</span>
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl items-stretch">
+        <div v-for="todo in displayTodos" :key="todo.id"
+          class="card flex flex-col gap-1.5 hover:shadow-md transition-shadow h-full"
+        >
+          <!-- Header: name + kind badge -->
+          <div class="flex items-start justify-between gap-2">
+            <p class="font-medium dark:text-gray-200 text-sm leading-snug line-clamp-2">{{ todo.task?.name || todo.task_id }}</p>
+            <span v-if="todo.task?.kind === 'inspection'"
+              class="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex-shrink-0"
+            >巡检</span>
           </div>
-          <p class="text-xs text-gray-400">
-            🕐 {{ fmtRange(todo.due_start, todo.due_date) }}
-            <span v-if="todo.location_id && getLocName(todo.location_id)" class="ml-2 text-primary">📍 {{ getLocName(todo.location_id) }}</span>
-          </p>
-        </div>
-        <!-- Branch buttons -->
-        <div v-if="todo.task?.kind === 'branched' && todo.task?.branches?.length" class="flex gap-1 flex-shrink-0 flex-wrap max-w-[140px] justify-end">
-          <button v-for="b in todo.task.branches" :key="b.name"
-            class="text-xs px-2 py-1 rounded hover:opacity-80"
-            :class="b.create_todo ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300' : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'"
-            @click="completeBranch(todo, b.name)"
-          >{{ b.name }}</button>
-        </div>
-        <!-- Regular task buttons -->
-        <div v-else class="flex gap-1 flex-shrink-0">
-          <button class="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 hover:opacity-80" @click="completeTodo(todo, 'done')">完成</button>
-          <button v-if="todo.task?.schedule_type !== 'once'" class="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 hover:opacity-80" @click="completeTodo(todo, 'skipped')">跳过</button>
+
+          <!-- Meta info -->
+          <div class="space-y-0.5">
+            <p class="text-xs text-gray-400 flex items-center gap-1">
+              <span>🕐</span>
+              <span>{{ fmtRange(todo.due_start, todo.due_date) }}</span>
+            </p>
+            <p v-if="todo.task?.kind === 'inspection' && todo.task?.check_items?.length" class="text-xs text-purple-400 flex items-center gap-1">
+              <span>📋</span>
+              <span>{{ todo.task!.check_items!.length }} 个检查项</span>
+            </p>
+            <p v-if="todo.location_id && getLocName(todo.location_id)" class="text-xs text-primary flex items-center gap-1">
+              <span>📍</span>
+              <span>{{ getLocName(todo.location_id) }}</span>
+            </p>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex gap-1.5 pt-1.5 border-t border-gray-100 dark:border-gray-700 mt-auto">
+            <!-- Inspection -->
+            <template v-if="todo.task?.kind === 'inspection'">
+              <button class="flex-1 text-xs py-1.5 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors font-medium" @click="openInspect(todo)">
+                🔍 巡检
+              </button>
+            </template>
+            <!-- Regular -->
+            <template v-else>
+              <button class="flex-1 text-xs py-1.5 rounded-lg bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors font-medium" @click="completeTodo(todo, 'done')">
+                ✅ 完成
+              </button>
+              <button v-if="todo.task?.schedule_type !== 'once'" class="flex-1 text-xs py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium" @click="completeTodo(todo, 'skipped')">
+                ⏭️ 跳过
+              </button>
+            </template>
+          </div>
         </div>
       </div>
-      <div v-if="hasMore" class="text-center mt-3">
-        <button class="text-xs text-primary hover:underline" @click="showAll = !showAll">
+      <div v-if="hasMore" class="text-center mt-4">
+        <button class="text-sm text-primary hover:underline font-medium" @click="showAll = !showAll">
           {{ showAll ? '收起' : `显示全部 (${todos.length})` }}
         </button>
       </div>
@@ -167,6 +320,169 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- Stats Tab -->
+    <div v-if="activeTab === 'stats'">
+      <!-- Period selector -->
+      <div class="flex items-center gap-2 mb-4 flex-wrap">
+        <div class="flex gap-0.5 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+          <button v-for="p in (['week','month','year'] as const)" :key="p"
+            class="px-3 py-1 text-xs rounded-md transition-colors"
+            :class="statsPeriod === p ? 'bg-white dark:bg-gray-700 text-primary font-medium shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+            @click="statsPeriod = p; resetStatsDate()"
+          >{{ PERIOD_LABELS[p] }}</button>
+        </div>
+        <button class="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-gray-100 dark:hover:bg-gray-700" @click="shiftPeriod(-1)">◀</button>
+        <span class="text-sm text-gray-600 dark:text-gray-400 min-w-[100px] text-center">{{ statsRangeLabel }}</span>
+        <button class="w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-gray-100 dark:hover:bg-gray-700" @click="shiftPeriod(1)">▶</button>
+        <button v-if="statsDate" class="text-xs text-primary hover:underline ml-1" @click="resetStatsDate()">回到今天</button>
+      </div>
+
+      <LoadingSpinner v-if="statsLoading" />
+
+      <template v-else-if="stats">
+        <!-- Summary cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div class="card text-center">
+            <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ stats.summary.total_completed }}</p>
+            <p class="text-xs text-gray-400 mt-1">已完成</p>
+          </div>
+          <div class="card text-center">
+            <p class="text-2xl font-bold text-orange-500">{{ stats.summary.total_skipped }}</p>
+            <p class="text-xs text-gray-400 mt-1">已跳过</p>
+          </div>
+          <div class="card text-center">
+            <p class="text-2xl font-bold text-blue-500">{{ stats.summary.total_manual }}</p>
+            <p class="text-xs text-gray-400 mt-1">手动触发</p>
+          </div>
+          <div class="card text-center">
+            <p class="text-2xl font-bold text-primary">{{ (stats.summary.completion_rate * 100).toFixed(0) }}%</p>
+            <p class="text-xs text-gray-400 mt-1">完成率</p>
+          </div>
+        </div>
+
+        <!-- Daily bar chart -->
+        <div class="card mb-6">
+          <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">每日统计</h3>
+          <div v-if="stats.daily.length === 0" class="text-center text-gray-400 py-4 text-sm">暂无数据</div>
+          <div v-else class="flex items-end gap-0.5 h-32">
+            <div v-for="d in stats.daily" :key="d.date"
+              class="flex-1 flex flex-col items-center gap-0.5 min-w-0"
+            >
+              <div class="w-full flex flex-col justify-end" style="height: 100px">
+                <div v-if="d.completed" class="w-full bg-green-400 dark:bg-green-600 rounded-t-sm transition-all"
+                  :style="{ height: (d.completed / maxDailyCount * 100) + '%' }"
+                  :title="`${d.date.slice(5)} 完成: ${d.completed}`"
+                ></div>
+                <div v-if="d.skipped" class="w-full bg-orange-300 dark:bg-orange-700 transition-all"
+                  :style="{ height: (d.skipped / maxDailyCount * 100) + '%' }"
+                  :title="`${d.date.slice(5)} 跳过: ${d.skipped}`"
+                ></div>
+                <div v-if="d.manual" class="w-full bg-blue-300 dark:bg-blue-700 rounded-b-sm transition-all"
+                  :style="{ height: (d.manual / maxDailyCount * 100) + '%' }"
+                  :title="`${d.date.slice(5)} 手动: ${d.manual}`"
+                ></div>
+              </div>
+              <span class="text-[9px] text-gray-400 truncate w-full text-center">{{ d.date.slice(5) }}</span>
+            </div>
+          </div>
+          <div class="flex gap-4 mt-3 text-[10px] text-gray-400">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-green-400 dark:bg-green-600"></span>已完成</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-orange-300 dark:bg-orange-700"></span>已跳过</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-blue-300 dark:bg-blue-700"></span>手动</span>
+          </div>
+        </div>
+
+        <!-- Per-task breakdown -->
+        <div class="card">
+          <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">按任务统计</h3>
+          <div v-if="stats.by_task.length === 0" class="text-center text-gray-400 py-4 text-sm">暂无数据</div>
+          <table v-else class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-gray-400 border-b dark:border-gray-700">
+                <th class="pb-2 font-normal">任务</th>
+                <th class="pb-2 font-normal text-center w-14">✅</th>
+                <th class="pb-2 font-normal text-center w-14">⏭️</th>
+                <th class="pb-2 font-normal text-center w-14">🔧</th>
+                <th class="pb-2 font-normal text-right w-16">完成率</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="bt in stats.by_task" :key="bt.task_id" class="border-b border-gray-50 dark:border-gray-800">
+                <td class="py-2 pr-2 truncate max-w-[120px] dark:text-gray-200">{{ bt.task_name || bt.task_id.slice(0, 8) }}</td>
+                <td class="py-2 text-center text-green-600">{{ bt.completed || '-' }}</td>
+                <td class="py-2 text-center text-orange-500">{{ bt.skipped || '-' }}</td>
+                <td class="py-2 text-center text-blue-500">{{ bt.manual || '-' }}</td>
+                <td class="py-2 text-right">
+                  <span v-if="bt.completed + bt.skipped > 0" class="text-xs font-medium"
+                    :class="bt.completed / (bt.completed + bt.skipped) >= 0.8 ? 'text-green-600' : bt.completed / (bt.completed + bt.skipped) >= 0.5 ? 'text-amber-500' : 'text-red-500'"
+                  >{{ (bt.completed / (bt.completed + bt.skipped) * 100).toFixed(0) }}%</span>
+                  <span v-else class="text-gray-300">-</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
+      <div v-else class="text-center text-gray-400 py-8 text-sm">加载统计失败</div>
+    </div>
     </template>
+
+    <!-- Inspection Modal -->
+    <Teleport to="body">
+      <div v-if="showInspect" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showInspect = false">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-lg max-h-[80vh] flex flex-col">
+          <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
+            <h3 class="font-bold dark:text-gray-200">🔍 {{ inspectTodo?.task?.name }}</h3>
+            <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showInspect = false">✕</button>
+          </div>
+          <div class="flex-1 overflow-auto p-4 space-y-4">
+            <div v-for="item in (inspectTodo?.task?.check_items as any[] || [])" :key="item.name" class="space-y-1">
+              <p class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ item.name }}</p>
+              <div class="flex flex-wrap gap-1">
+                <button v-for="b in item.branches" :key="b.name"
+                  class="text-xs px-2 py-1 rounded border transition-colors"
+                  :class="inspectSelections[item.name] === b.name
+                    ? (b.create_todo ? 'bg-red-500 text-white border-red-500' : 'bg-green-500 text-white border-green-500')
+                    : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-primary'"
+                  @click="inspectSelections[item.name] = b.name"
+                >{{ b.name }}</button>
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">
+            <button class="btn-primary text-sm flex-1" @click="submitInspection">提交巡检</button>
+            <button class="text-sm px-4 py-2 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="showInspect = false">取消</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Remark Modal -->
+    <Teleport to="body">
+      <div v-if="showRemark" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showRemark = false">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-md">
+          <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
+            <h3 class="font-bold dark:text-gray-200">{{ remarkAction === 'done' ? '✅ 完成' : '⏭️ 跳过' }} — 备注</h3>
+            <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showRemark = false">✕</button>
+          </div>
+          <div class="p-4 space-y-3">
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ remarkTodo?.task?.name }}</p>
+            <textarea
+              v-model="remarkText"
+              class="input w-full h-20 resize-none text-sm"
+              placeholder="添加备注（可选）..."
+              @keydown.ctrl.enter="submitRemark"
+            ></textarea>
+            <div class="flex gap-2">
+              <button class="btn-primary text-sm flex-1" @click="submitRemark">确认</button>
+              <button class="text-sm px-4 py-2 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="skipRemarkAndComplete">跳过备注</button>
+            </div>
+            <p class="text-[10px] text-gray-400">Ctrl+Enter 快速提交</p>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

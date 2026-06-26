@@ -2,7 +2,7 @@ package handler
 
 import (
 	"github.com/dezhishen/now-and-again/backend/internal/service"
-	"github.com/dezhishen/now-and-again/shared/types"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/gin-gonic/gin"
 )
 
@@ -137,4 +137,44 @@ func (h *TaskHandlers) Trigger(c *gin.Context) {
 		return
 	}
 	ok(c, gin.H{"message": "todo generated"})
+}
+
+func (h *TaskHandlers) GetCalendar(c *gin.Context) {
+	familyID := c.Param("family_id")
+	year := queryInt(c, "year", 0)
+	month := queryInt(c, "month", 0)
+	groupID := c.Query("group_id")
+
+	if year <= 0 || month <= 0 || month > 12 {
+		badRequest(c, "year and month are required (1-12)")
+		return
+	}
+
+	days, err := h.Svc.GetCalendar(userCtx(c), familyID, year, month, groupID)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, days)
+}
+
+func (h *TaskHandlers) GetStatistics(c *gin.Context) {
+	familyID := c.Param("family_id")
+	period := c.Query("period")
+	refDate := c.Query("date")
+
+	if period == "" {
+		period = "month"
+	}
+	if period != "week" && period != "month" && period != "year" {
+		badRequest(c, "period must be week, month, or year")
+		return
+	}
+
+	stats, err := h.Svc.GetStatistics(userCtx(c), familyID, service.StatsPeriod(period), refDate)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, stats)
 }

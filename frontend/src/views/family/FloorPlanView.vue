@@ -31,7 +31,7 @@ const editImgRef = ref<HTMLImageElement | null>(null)
 const imgNatural = ref({ w: 0, h: 0 })
 const displaySize = ref({ w: 0, h: 0 })
 
-onMounted(async () => { await loadPlans() })
+onMounted(async () => { loading.value = true; await loadPlans(); loading.value = false })
 
 async function loadPlans() {
   try { floorPlans.value = await api.get<FloorPlan[]>('/families/' + familyId + '/floor-plans') } catch { floorPlans.value = [] }

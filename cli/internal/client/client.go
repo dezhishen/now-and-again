@@ -1,13 +1,4 @@
-// Package client provides HTTP API clients that implement
-// the shared contract interfaces. Each client struct embeds the
-// base HTTP client and satisfies the corresponding contract.
-//
-// Compile-time assertions ensure the CLI client layer always stays
-// in sync with the shared contracts:
-//
-//	var _ contracts.UserContract   = (*UserClient)(nil)
-//	var _ contracts.FamilyContract = (*FamilyClient)(nil)
-//	var _ contracts.ApiKeyContract = (*ApiKeyClient)(nil)
+// Package client provides HTTP API clients for interacting with the Now & Again server.
 package client
 
 import (

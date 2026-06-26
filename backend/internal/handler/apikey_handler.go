@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/dezhishen/now-and-again/shared/types"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/gin-gonic/gin"
 )
 

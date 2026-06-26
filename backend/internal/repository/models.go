@@ -186,17 +186,18 @@ func (LocationModel) TableName() string { return "locations" }
 
 type TaskTemplateModel struct {
 	BaseModel
-	FamilyID     string     `gorm:"index;type:char(36);not null"`
-	GroupID      string     `gorm:"index;type:char(36)"`
-	LocationID   string     `gorm:"index;type:char(36)"`
-	Name         string     `gorm:"size:128;not null"`
-	ScheduleType string     `gorm:"size:32;not null"`   // once/daily/weekly/monthly/interval
-	ScheduleData string     `gorm:"type:text;not null"` // JSON config
-	Enabled      bool       `gorm:"not null;default:true"`
-	Kind         string     `gorm:"size:16;not null;default:simple"` // simple | branched (future: chain)
-	Branches     string     `gorm:"type:text"`                       // JSON array, only for kind=branched
+	FamilyID     string           `gorm:"index;type:char(36);not null"`
+	GroupID      string           `gorm:"index;type:char(36)"`
+	Group        FamilyGroupModel `gorm:"foreignKey:GroupID"`
+	LocationID   string           `gorm:"index;type:char(36)"`
+	Name         string           `gorm:"size:128;not null"`
+	ScheduleType string           `gorm:"size:32;not null"`   // once/daily/weekly/monthly/interval
+	ScheduleData string           `gorm:"type:text;not null"` // JSON config
+	Enabled      bool             `gorm:"not null;default:true"`
+	Kind         string           `gorm:"size:16;not null;default:simple"` // simple | inspection (future: chain)
+	CheckItems   string           `gorm:"type:text"`                       // JSON array, only for kind=inspection
 	LastTodoAt   *time.Time
-	CreatedBy    string     `gorm:"type:char(36);not null"`
+	CreatedBy    string `gorm:"type:char(36);not null"`
 }
 
 func (TaskTemplateModel) TableName() string { return "task_templates" }
@@ -209,6 +210,7 @@ type TodoModel struct {
 	AssignedTo  string    `gorm:"index;type:char(36)"`
 	Status      string    `gorm:"size:16;not null;default:pending"` // pending/done/skipped
 	BranchName  string    `gorm:"size:128"`                         // selected branch (only for kind=branched)
+	Remark      string    `gorm:"type:text"`                        // user note on completion
 	DueStart    time.Time `gorm:"not null"`
 	DueDate     time.Time `gorm:"not null"`
 	CompletedAt *time.Time
@@ -224,7 +226,8 @@ func (TodoModel) TableName() string { return "todos" }
 type TaskLogModel struct {
 	BaseModel
 	TaskID     string `gorm:"index;type:char(36);not null"`
-	Status     string `gorm:"size:32;not null"` // registered/triggered/created/completed/manual etc
+	TodoID     string `gorm:"index;type:char(36)"` // linked todo (for completion/skip logs)
+	Status     string `gorm:"size:32;not null"`    // registered/triggered/created/completed/manual etc
 	Message    string `gorm:"type:text"`
 	LogType    string `gorm:"size:16;not null;default:system"` // system / user
 	OperatorID string `gorm:"index;type:char(36)"`             // user who triggered (empty for system)

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dezhishen/now-and-again/shared/types"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/spf13/cobra"
 )
 

@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
-	"github.com/dezhishen/now-and-again/shared/types"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 )
 
 // ─── Floor Plan ──────────────────────────────────────────────────

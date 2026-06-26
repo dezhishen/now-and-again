@@ -116,15 +116,20 @@ export interface TaskTemplate {
   schedule_type: string
   schedule_data: any
   enabled: boolean
-  kind: 'simple' | 'branched'  // future: 'chain'
-  branches?: Branch[]          // only for kind=branched
+  kind: 'simple' | 'inspection'  // future: 'chain'
+  check_items?: CheckItem[]      // only for kind=inspection
   last_todo_at?: string
   created_by: string
   created_at: string
   updated_at: string
 }
 
-export interface Branch {
+export interface CheckItem {
+  name: string
+  branches: BranchItem[]
+}
+
+export interface BranchItem {
   name: string
   create_todo: boolean
   todo_name?: string
@@ -138,7 +143,8 @@ export interface Todo {
   location_id?: string
   assigned_to?: string
   status: 'pending' | 'done' | 'skipped'
-  branch_name?: string         // selected branch (branched tasks)
+  branch_name?: string
+  remark?: string
   due_start: string
   due_date: string
   completed_at?: string

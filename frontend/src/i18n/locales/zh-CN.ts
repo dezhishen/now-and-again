@@ -49,6 +49,7 @@ export default {
     floorPlan: '户型图',
     settings: '设置',
     ics: '日历',
+    calendar: '大屏日历',
   },
   groups: {
     heading: '小组',

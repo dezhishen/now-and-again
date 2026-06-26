@@ -4,8 +4,16 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import TaskCard from '@/components/tasks/TaskCard.vue'
+import TaskFormCheckItems from '@/components/tasks/TaskFormCheckItems.vue'
 import { useToast } from '@/composables/useToast'
-import type { TaskTemplate, FamilyGroup } from '@/types'
+import { getTaskCard, getCreateLabel, getDefaultCheckItems, getTaskKinds } from '@/composables/useTaskKinds'
+import { initTaskKinds } from '@/components/tasks/init'
+import type { TaskTemplate, FamilyGroup, CheckItem } from '@/types'
+
+// Initialize plugin task kinds
+initTaskKinds()
+const TASK_KINDS = getTaskKinds()
 
 const { t } = useI18n()
 const toast = useToast()
@@ -15,13 +23,19 @@ const familyId = route.params.familyId as string
 const tasks = ref<TaskTemplate[]>([])
 const groups = ref<FamilyGroup[]>([])
 const locations = ref<{ id: string; name: string; color: string; floor_plan_id: string }[]>([])
-const activeTab = ref<'all' | 'branched'>('all')
+const activeTab = ref('all')
 const loading = ref(true)
 
 // Log modal
 const showLogs = ref(false)
 const logTaskId = ref('')
+const logTaskName = ref('')
 const showSystemLogs = ref(false)
+const logsLoading = ref(false)
+const logPage = ref(1)
+const logHasMore = ref(false)
+const logSearch = ref('')
+const LOG_PAGE_SIZE = 30
 const logs = ref<{ id: string; task_id: string; status: string; message?: string; log_type: string; operator_id?: string; created_at: string }[]>([])
 
 // Task form
@@ -33,9 +47,8 @@ const taskDate = ref('')
 const taskDays = ref<number[]>([])
 const taskGroupID = ref('')
 const taskLocationID = ref('')
-const taskKind = ref<'simple' | 'branched'>('simple')
-interface Branch { name: string; create_todo: boolean; todo_name: string; group_id: string }
-const branches = ref<Branch[]>([])
+const taskKind = ref<'simple' | 'inspection'>('simple')
+const checkItems = ref<CheckItem[]>([])
 const editingTask = ref<TaskTemplate | null>(null)
 
 const SCHEDULE_TYPES = [
@@ -55,17 +68,14 @@ onMounted(async () => {
   loading.value = false
 })
 
-const simpleTasks = computed(() => tasks.value.filter(t => t.kind !== 'branched' && (t.enabled || t.schedule_type !== 'once')))
-const branchedTasks = computed(() => tasks.value.filter(t => t.kind === 'branched'))
-const displayTasks = computed(() => activeTab.value === 'all' ? simpleTasks.value : branchedTasks.value)
+// Active tasks: exclude disabled one-shot tasks (already completed).
+const activeTasks = computed(() => tasks.value.filter(t => t.enabled || t.schedule_type !== 'once'))
+const displayTasks = computed(() => activeTab.value === 'all' ? activeTasks.value : activeTasks.value.filter(t => t.kind === activeTab.value))
 
-function openCreateBranched() {
+function openCreateInspection() {
   openCreate()
-  taskKind.value = 'branched'
-  branches.value = [
-    { name: '正常', create_todo: false, todo_name: '', group_id: '' },
-    { name: '异常', create_todo: true, todo_name: '修复{name}', group_id: '' },
-  ]
+  taskKind.value = 'inspection'
+  checkItems.value = getDefaultCheckItems('inspection') || []
 }
 
 async function loadLocations() {
@@ -105,7 +115,7 @@ function openCreate() {
   editingTask.value = null
   taskName.value = ''; taskSchedule.value = 'daily'; taskTime.value = '09:00'
   taskDate.value = ''; taskDays.value = []; taskGroupID.value = ''; taskLocationID.value = ''
-  taskKind.value = 'simple'; branches.value = []
+  taskKind.value = 'simple'; checkItems.value = []
   showTaskForm.value = true
 }
 
@@ -115,8 +125,8 @@ function openEdit(task: TaskTemplate) {
   taskSchedule.value = task.schedule_type
   taskGroupID.value = task.group_id || ''
   taskLocationID.value = task.location_id || ''
-  taskKind.value = (task.kind as 'simple' | 'branched') || 'simple'
-  branches.value = Array.isArray(task.branches) ? [...task.branches] : []
+  taskKind.value = (task.kind as 'simple' | 'inspection') || 'simple'
+  checkItems.value = Array.isArray(task.check_items) ? [...task.check_items] : []
   showTaskForm.value = true
   const data = task.schedule_data || {}
   taskTime.value = data.time || '09:00'
@@ -125,7 +135,6 @@ function openEdit(task: TaskTemplate) {
 }
 
 async function saveTask() {
-  error.value = ''
   const data = buildScheduleData()
   const body: any = {
     name: taskName.value,
@@ -135,7 +144,7 @@ async function saveTask() {
   if (taskGroupID.value) body.group_id = taskGroupID.value
   if (taskLocationID.value) body.location_id = taskLocationID.value
   body.kind = taskKind.value
-  if (taskKind.value === 'branched') body.branches = branches.value
+  if (taskKind.value === 'inspection') body.check_items = checkItems.value
 
   try {
     if (editingTask.value) {
@@ -168,19 +177,48 @@ async function triggerTask(id: string) {
 
 async function viewLogs(taskId: string) {
   logTaskId.value = taskId
+  // Find task name from loaded tasks
+  const t = tasks.value.find(t => t.id === taskId)
+  logTaskName.value = t?.name || taskId.slice(0, 8)
   showLogs.value = true
   showSystemLogs.value = false
+  logPage.value = 1
+  logSearch.value = ''
+  await loadLogs()
+}
+
+async function loadLogs() {
+  logsLoading.value = true
   try {
-    logs.value = await api.get<any[]>('/tasks/' + taskId + '/logs?type=user&limit=50')
+    const type = showSystemLogs.value ? '' : 'user'
+    const params = new URLSearchParams({ type, limit: String(LOG_PAGE_SIZE * logPage.value) })
+    const result = await api.get<any[]>('/tasks/' + logTaskId.value + '/logs?' + params)
+    logHasMore.value = result.length >= LOG_PAGE_SIZE * logPage.value
+    if (logSearch.value) {
+      logs.value = result.filter((l: any) =>
+        (l.message || '').includes(logSearch.value) || (l.status || '').includes(logSearch.value)
+      )
+    } else {
+      logs.value = result
+    }
   } catch { logs.value = [] }
+  finally { logsLoading.value = false }
 }
 
 async function toggleLogType() {
   showSystemLogs.value = !showSystemLogs.value
-  try {
-    const type = showSystemLogs.value ? '' : 'user'
-    logs.value = await api.get<any[]>('/tasks/' + logTaskId.value + '/logs?type=' + type + '&limit=50')
-  } catch { logs.value = [] }
+  logPage.value = 1
+  await loadLogs()
+}
+
+function loadMoreLogs() {
+  logPage.value++
+  loadLogs()
+}
+
+function onLogSearch() {
+  logPage.value = 1
+  loadLogs()
 }
 
 const LOG_LABELS: Record<string, string> = {
@@ -228,73 +266,77 @@ function scheduleSummary(task: TaskTemplate): string {
       <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
         :class="activeTab === 'all' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
         @click="activeTab = 'all'"
-      >📋 任务 ({{ simpleTasks.length }})</button>
-      <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
-        :class="activeTab === 'branched' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
-        @click="activeTab = 'branched'"
-      >🔀 分支 ({{ branchedTasks.length }})</button>
+      >📋 全部 ({{ activeTasks.length }})</button>
+      <button v-for="k in TASK_KINDS" :key="k.kind"
+        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+        :class="activeTab === k.kind ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+        @click="activeTab = k.kind"
+      >{{ k.label }} ({{ activeTasks.filter(t => t.kind === k.kind).length }})</button>
     </div>
 
     <!-- Content -->
     <div>
-      <button v-if="activeTab === 'all'" class="btn-primary text-sm mb-3" @click="openCreate">+ 创建任务</button>
-      <button v-if="activeTab === 'branched'" class="btn-primary text-sm mb-3" @click="openCreateBranched">+ 创建分支任务</button>
+      <button class="btn-primary text-sm mb-3" @click="activeTab === 'all' ? openCreate() : openCreateInspection()">
+        + {{ activeTab === 'all' ? '创建任务' : getCreateLabel(activeTab) }}
+      </button>
 
       <div v-if="displayTasks.length === 0" class="text-center text-gray-400 py-8">暂无任务</div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-        <div v-for="task in displayTasks" :key="task.id" class="card hover:shadow-md transition-shadow">
-          <div class="flex items-start justify-between mb-2">
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <span class="font-medium dark:text-gray-200 truncate">{{ task.name }}</span>
-                <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full" :class="task.enabled ? 'bg-green-500' : 'bg-gray-300'"></span>
-                <span v-if="task.kind === 'branched'" class="text-xs px-1 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">分支</span>
-              </div>
-              <p class="text-xs text-gray-400 mt-1">{{ scheduleSummary(task) }}</p>
-              <!-- Location -->
-              <div v-if="task.location_id" class="flex items-center gap-1 mt-1.5">
-                <span class="text-xs px-1.5 py-0.5 rounded" :style="{ background: getLocColor(task.location_id) + '20', color: getLocColor(task.location_id) }">
-                  📍 {{ getLocName(task.location_id) }}
-                </span>
-              </div>
-              <!-- Group -->
-              <div v-if="task.group_id" class="flex items-center gap-1 mt-1">
-                <span class="text-xs text-gray-400">👥 {{ getGroupName(task.group_id) }}</span>
-              </div>
-            </div>
-          </div>
-          <div class="flex gap-1 border-t dark:border-gray-700 pt-2 mt-2">
-            <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="openEdit(task)">编辑</button>
-            <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="viewLogs(task.id)">日志</button>
-            <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="triggerTask(task.id)">生成</button>
-            <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="toggleTask(task)">{{ task.enabled ? '禁用' : '启用' }}</button>
-            <button class="text-xs px-2 py-0.5 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/30 flex-1" @click="deleteTask(task.id)">删除</button>
-          </div>
-        </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 items-start">
+        <TaskCard
+          v-for="task in displayTasks" :key="task.id"
+          :task="task"
+          :loc-name="getLocName"
+          :loc-color="getLocColor"
+          :group-name="getGroupName"
+          :summary="scheduleSummary"
+          @edit="openEdit"
+          @logs="viewLogs"
+          @trigger="triggerTask"
+          @toggle="toggleTask"
+          @delete="deleteTask"
+        >
+          <template #body>
+            <component :is="getTaskCard(task.kind)" :task="task" :loc-name="getLocName" :loc-color="getLocColor" :group-name="getGroupName" :summary="scheduleSummary" />
+          </template>
+        </TaskCard>
       </div>
     </div>
 
     <!-- Log Modal -->
     <Teleport to="body">
       <div v-if="showLogs" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showLogs = false">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-md max-h-[70vh] flex flex-col">
-          <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
-            <h3 class="font-bold dark:text-gray-200">操作记录</h3>
-            <div class="flex items-center gap-2">
-              <label class="text-xs text-gray-400 flex items-center gap-1 cursor-pointer">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-2xl max-h-[75vh] flex flex-col">
+          <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700 flex-shrink-0">
+            <h3 class="font-bold dark:text-gray-200 truncate mr-2">📋 {{ logTaskName }}</h3>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <input
+                v-model="logSearch"
+                class="text-xs px-2 py-1 rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 w-28"
+                placeholder="搜索..."
+                @input="onLogSearch"
+              />
+              <label class="text-xs text-gray-400 flex items-center gap-1 cursor-pointer whitespace-nowrap">
                 <input type="checkbox" :checked="showSystemLogs" @change="toggleLogType" class="accent-primary" />
-                系统日志
+                系统
               </label>
               <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showLogs = false">✕</button>
             </div>
           </div>
-          <div class="flex-1 overflow-auto p-4">
-            <div v-if="logs.length === 0" class="text-center text-gray-400 py-4 text-sm">暂无操作记录</div>
+          <div class="flex-1 overflow-auto p-4" style="min-height: 300px">
+            <div v-if="logsLoading" class="flex items-center justify-center py-8">
+              <span class="animate-spin text-xl">⏳</span>
+            </div>
+            <div v-else-if="logs.length === 0" class="text-center text-gray-400 py-4 text-sm">暂无操作记录</div>
+            <template v-else>
             <div v-for="log in logs" :key="log.id" class="flex items-start gap-2 py-1.5 text-sm border-b dark:border-gray-700 last:border-0">
               <span class="text-xs text-gray-400 w-32 flex-shrink-0">{{ new Date(log.created_at).toLocaleString() }}</span>
               <span class="font-medium w-20 flex-shrink-0" :class="LOG_CLASSES[log.status] || 'text-gray-500'">{{ LOG_LABELS[log.status] || log.status }}</span>
               <span v-if="log.message" class="text-gray-400 truncate flex-1">{{ log.message }}</span>
               <span v-if="log.log_type === 'system'" class="text-xs text-gray-400">系统</span>
+            </div>
+            </template>
+            <div v-if="logHasMore && !logsLoading" class="text-center pt-3">
+              <button class="text-xs text-primary hover:underline" @click="loadMoreLogs">加载更多...</button>
             </div>
           </div>
         </div>
@@ -304,13 +346,13 @@ function scheduleSummary(task: TaskTemplate): string {
     <!-- Create/Edit Task Modal -->
     <Teleport to="body">
       <div v-if="showTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showTaskForm = false">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-lg max-h-[85vh] flex flex-col">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-xl max-h-[85vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
-            <h3 class="font-bold dark:text-gray-200">{{ editingTask ? '编辑' : taskKind === 'branched' ? '创建分支任务' : '创建任务' }}</h3>
+            <h3 class="font-bold dark:text-gray-200">{{ editingTask ? '编辑' : taskKind === 'inspection' ? '创建巡检' : '创建任务' }}</h3>
             <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showTaskForm = false">✕</button>
           </div>
           <div class="flex-1 overflow-auto p-4 space-y-3">
-            <input v-model="taskName" class="input" :placeholder="isInspection ? '巡检名称，如：厨房安全检查' : '任务名称，如：每日倒垃圾'" />
+            <input v-model="taskName" class="input" :placeholder="taskKind === 'inspection' ? '巡检名称，如：厨房安全检查' : '任务名称，如：每日倒垃圾'" />
             <div>
               <label class="text-xs text-gray-400 block mb-1">调度方式</label>
               <select v-model="taskSchedule" class="input">
@@ -364,29 +406,7 @@ function scheduleSummary(task: TaskTemplate): string {
               </select>
             </div>
             <!-- Branch editor -->
-            <div v-if="taskKind === 'branched'" class="space-y-2 border-l-2 border-purple-400 pl-3">
-              <div class="flex items-center justify-between">
-                <p class="text-xs text-purple-600 dark:text-purple-400 font-medium">🔀 分支配置</p>
-                <button class="text-xs text-primary hover:underline" @click="branches.push({ name: '', create_todo: false, todo_name: '', group_id: '' })">+ 添加</button>
-              </div>
-              <div v-for="(b, i) in branches" :key="i" class="space-y-1 pb-2 border-b border-gray-100 dark:border-gray-700 last:border-0 last:pb-0">
-                <div class="flex gap-2 items-center">
-                  <input v-model="b.name" class="input flex-1 text-sm" placeholder="分支名称" />
-                  <button class="text-xs text-danger hover:underline flex-shrink-0" @click="branches.splice(i, 1)">删除</button>
-                </div>
-                <label class="flex items-center gap-1 text-xs cursor-pointer">
-                  <input type="checkbox" v-model="b.create_todo" class="accent-purple-500" />
-                  <span class="text-gray-500">选择此项时创建跟进任务</span>
-                </label>
-                <template v-if="b.create_todo">
-                  <input v-model="b.todo_name" class="input text-sm" placeholder="跟进任务名称，如 修复{name}" />
-                  <select v-model="b.group_id" class="input text-sm">
-                    <option value="">分配给小组（可选）</option>
-                    <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-                  </select>
-                </template>
-              </div>
-            </div>
+            <TaskFormCheckItems v-if="taskKind === 'inspection'" v-model="checkItems" :groups="groups" />
           </div>
           <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">
             <button class="btn-primary text-sm flex-1" @click="saveTask">{{ editingTask ? '保存' : '创建' }}</button>

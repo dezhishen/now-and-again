@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/dezhishen/now-and-again/shared/scopes"
+	"github.com/dezhishen/now-and-again/backend/pkg/scopes"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )

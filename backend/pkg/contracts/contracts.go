@@ -4,7 +4,7 @@ import (
 	"context"
 	"mime/multipart"
 
-	"github.com/dezhishen/now-and-again/shared/types"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/google/uuid"
 )
 
@@ -78,6 +78,25 @@ type FloorPlanContract interface {
 	DeleteLocation(ctx context.Context, locationID uuid.UUID) error
 }
 
+// ─── Task ─────────────────────────────────────────────────────────
+
+// TaskContract defines the core task/todo operations that both server and CLI must implement.
+type TaskContract interface {
+	// Task CRUD
+	CreateTask(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.TaskTemplate, error)
+	UpdateTask(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.TaskTemplate, error)
+	DeleteTask(ctx context.Context, taskID uuid.UUID) error
+	ListTasks(ctx context.Context, familyID uuid.UUID) ([]types.TaskTemplate, error)
+	TriggerTask(ctx context.Context, taskID uuid.UUID) error
+
+	// Todos
+	ListTodos(ctx context.Context, familyID uuid.UUID, groupID, status string) ([]types.Todo, error)
+	CompleteTodo(ctx context.Context, todoID uuid.UUID, req *types.CompleteTodoRequest) (*types.Todo, error)
+
+	// Logs
+	ListTaskLogs(ctx context.Context, taskID uuid.UUID, limit int, userOnly bool) ([]types.TaskLog, error)
+}
+
 // ─── Aggregate ────────────────────────────────────────────────────
 
 type AllContracts struct {
@@ -85,4 +104,5 @@ type AllContracts struct {
 	Family    FamilyContract
 	ApiKey    ApiKeyContract
 	FloorPlan FloorPlanContract
+	Task      TaskContract
 }

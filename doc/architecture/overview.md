@@ -5,10 +5,9 @@
 | 层 | 技术 | 说明 |
 |---|------|------|
 | 前端 | Vue 3 + Vite + TypeScript + Pinia + Tailwind CSS + vue-i18n | SPA, pnpm |
-| 后端 | Go + Gin + GORM | RESTful API |
-| CLI | Go + Cobra + Viper | 通过 HTTP / API Key 调用后端 |
+| 后端 | Go + Gin + GORM | RESTful API，`backend/pkg/` 为可复用公共库 |
+| CLI | Go + Cobra + Viper | 通过 HTTP / API Key 调用后端，引用 `backend/pkg/` |
 | 数据库 | SQLite (开发) / PostgreSQL (生产) | GORM AutoMigrate |
-| 共享层 | `shared/types` + `shared/contracts` | backend 编译期强制同步 |
 
 ## 分层架构
 
@@ -24,9 +23,35 @@
 ├─────────────────────────────────────────────────┤
 │  SQLite / PostgreSQL                             │  ← 存储
 └─────────────────────────────────────────────────┘
-         ↑
-  shared/contracts  ← 编译期强制同步
-  shared/types      ← DTO 定义
+
+backend/pkg/   ← 类型定义、调度器、任务类型插件（CLI 可引用）
+```
+
+## 项目结构
+
+```
+backend/
+  cmd/server/        入口
+  pkg/               公共包（CLI 可直接引用）
+    types/           共享 DTO
+    contracts/       API 接口定义
+    scheduler/       调度引擎 + 内置处理器
+    taskkind/        任务类型插件系统（simple, inspection）
+    scopes/          权限范围
+  internal/          内部实现
+    handler/         HTTP 处理器
+    service/         业务逻辑
+    repository/      数据访问
+    middleware/      认证/鉴权
+    config/          配置
+  migrations/        数据库迁移
+
+cli/
+  cmd/               CLI 命令
+  internal/client/   HTTP 客户端（引用 backend/pkg/）
+
+frontend/
+  src/               Vue 3 SPA
 ```
 
 ## 核心模块

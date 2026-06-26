@@ -2,16 +2,7 @@ package service
 
 import (
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
-	"github.com/dezhishen/now-and-again/shared/contracts"
-)
-
-// ─── Compile-time contract compliance ─────────────────────────────
-
-var (
-	_ contracts.UserContract      = (*UserService)(nil)
-	_ contracts.FamilyContract    = (*FamilyService)(nil)
-	_ contracts.ApiKeyContract    = (*ApiKeyService)(nil)
-	_ contracts.FloorPlanContract = (*FloorPlanService)(nil)
+	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
 )
 
 // ─── User ─────────────────────────────────────────────────────────
@@ -61,11 +52,12 @@ func NewFloorPlanService(repo *repository.FloorPlanRepo, userRepo *repository.Us
 
 // ─── All Contracts ────────────────────────────────────────────────
 
-func NewAllContracts(user *UserService, family *FamilyService, apiKey *ApiKeyService, floorPlan *FloorPlanService) *contracts.AllContracts {
+func NewAllContracts(user *UserService, family *FamilyService, apiKey *ApiKeyService, floorPlan *FloorPlanService, task *TaskService) *contracts.AllContracts {
 	return &contracts.AllContracts{
 		User:      user,
 		Family:    family,
 		ApiKey:    apiKey,
 		FloorPlan: floorPlan,
+		Task:      task,
 	}
 }

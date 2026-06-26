@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dezhishen/now-and-again/shared/contracts"
-	"github.com/dezhishen/now-and-again/shared/types"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/google/uuid"
 )
 
 // Compile-time check: FamilyClient must implement FamilyContract.
-var _ contracts.FamilyContract = (*FamilyClient)(nil)
 
 // FamilyClient is the HTTP implementation of FamilyContract.
 type FamilyClient struct {

@@ -24,6 +24,7 @@ type JobBuilder struct {
 	ScheduleType string
 	ScheduleData string // raw JSON
 	Callback     Callback
+	AfterFire    func(taskID string) // optional, called after Callback succeeds
 }
 
 // Scheduler wraps gocron.Scheduler, providing Register/Remove by task ID
@@ -81,6 +82,10 @@ func (s *Scheduler) RegisterJob(b *JobBuilder) error {
 		s.log("triggered", b.TaskID, "")
 		if err := b.Callback(b.TaskID, now); err != nil {
 			s.log("error", b.TaskID, err.Error())
+			return
+		}
+		if b.AfterFire != nil {
+			b.AfterFire(b.TaskID)
 		}
 	})
 

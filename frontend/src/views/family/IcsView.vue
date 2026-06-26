@@ -118,6 +118,24 @@ function getAuthLabel(feed: IcsFeed): string {
   if (feed.api_key_prefix) return `API Key: ${feed.api_key_prefix}`
   return 'API Key'
 }
+
+function getIcsUrl(feed: IcsFeed): string {
+  const base = baseUrl + feed.ics_url
+  if (feed.auth_type === 'api_key') {
+    return base + '?key=你的API_KEY'
+  }
+  return base
+}
+
+function getUsageHint(feed: IcsFeed): string {
+  if (feed.auth_type === 'api_key') {
+    return '将 ?key= 替换为你的 API Key 完整值'
+  }
+  if (feed.auth_type === 'basic') {
+    return `用户名: ${feed.app_username}，密码: 你设置的密码`
+  }
+  return ''
+}
 </script>
 
 <template>
@@ -190,6 +208,10 @@ function getAuthLabel(feed: IcsFeed): string {
         <p class="text-xs text-gray-400 mt-1">
           尚无？<router-link to="/api-keys" class="text-primary underline">新建 API Key</router-link>
         </p>
+        <p class="text-xs text-gray-500 mt-2">
+          💡 创建后，订阅 URL 格式为：<br/>
+          <code class="text-primary">{{ baseUrl }}/api/ics/xxx.ics?key=你的API_KEY</code>
+        </p>
       </div>
 
       <!-- Basic Auth -->
@@ -226,9 +248,12 @@ function getAuthLabel(feed: IcsFeed): string {
               </span>
             </div>
             <!-- URL -->
-            <div class="mt-2 flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1.5">
-              <code class="text-xs text-primary break-all flex-1">{{ baseUrl }}{{ feed.ics_url }}</code>
-              <button class="text-xs px-2 py-0.5 rounded bg-primary text-white hover:opacity-80 flex-shrink-0" @click="copyLink(feed.ics_url)">复制</button>
+            <div class="mt-2 space-y-1">
+              <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1.5">
+                <code class="text-xs text-primary break-all flex-1">{{ getIcsUrl(feed) }}</code>
+                <button class="text-xs px-2 py-0.5 rounded bg-primary text-white hover:opacity-80 flex-shrink-0" @click="copyLink(getIcsUrl(feed))">复制</button>
+              </div>
+              <p class="text-xs text-gray-500">{{ getUsageHint(feed) }}</p>
             </div>
           </div>
           <div class="flex gap-1 flex-shrink-0">

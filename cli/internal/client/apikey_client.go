@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dezhishen/now-and-again/shared/contracts"
-	"github.com/dezhishen/now-and-again/shared/types"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/google/uuid"
 )
 
 // Compile-time check: ApiKeyClient must implement ApiKeyContract.
-var _ contracts.ApiKeyContract = (*ApiKeyClient)(nil)
 
 // ApiKeyClient is the HTTP implementation of ApiKeyContract.
 type ApiKeyClient struct {

@@ -49,6 +49,7 @@ export default {
     floorPlan: 'Floor Plan',
     settings: 'Settings',
     ics: 'Calendar',
+    calendar: 'Full Calendar',
   },
   groups: {
     heading: 'Groups',

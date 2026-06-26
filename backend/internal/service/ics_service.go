@@ -1,6 +1,9 @@
 package service
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -145,13 +148,11 @@ func (s *IcsService) GenerateICS(token, apiKey, username, password string) (stri
 		return "", fmt.Errorf("authentication required")
 	}
 
-	todos, err := s.taskRepo.ListTodosByFamily(feed.FamilyID, "pending")
+	// Get all tasks for this family
+	tasks, err := s.taskRepo.ListTasksByFamily(feed.FamilyID)
 	if err != nil {
 		return "", err
 	}
-
-	now := time.Now()
-	cutoff := now.AddDate(0, 0, feed.FilterDays)
 
 	var sb strings.Builder
 	sb.WriteString("BEGIN:VCALENDAR\r\n")
@@ -161,45 +162,118 @@ func (s *IcsService) GenerateICS(token, apiKey, username, password string) (stri
 	sb.WriteString("X-WR-CALDESC:" + escapeICS(feed.Description) + "\r\n")
 	sb.WriteString("REFRESH-INTERVAL;VALUE=DURATION:PT1H\r\n")
 
-	for _, todo := range todos {
-		// Filter by date range
-		if todo.DueDate.After(cutoff) {
+	for _, task := range tasks {
+		if !task.Enabled {
 			continue
 		}
 		// Filter by group
-		if feed.FilterGroupID != "" && todo.Task.GroupID != "" && todo.Task.GroupID != feed.FilterGroupID {
+		if feed.FilterGroupID != "" && task.GroupID != "" && task.GroupID != feed.FilterGroupID {
 			continue
 		}
-		// Filter by type (personal = only todos with group)
-		// For "personal", we'd need the user context. Here "all" means all.
-		// Personal filter is handled in the authenticated endpoint variant.
 
-		taskName := todo.Task.Name
-		if taskName == "" {
-			taskName = "Task"
-		}
-		summary := taskName
-		desc := ""
-		if todo.User.DisplayName != "" {
-			desc = "Assigned: " + todo.User.DisplayName
-		}
+		// Parse time from schedule data
+		schedTime := parseScheduleTime(task.ScheduleType, task.ScheduleData)
+		rrule := buildRRule(task.ScheduleType, task.ScheduleData)
+		window := scheduleWindow(task.ScheduleType, task.ScheduleData)
 
 		sb.WriteString("BEGIN:VEVENT\r\n")
-		sb.WriteString("UID:" + todo.ID + "\r\n")
-		dtStart := todo.DueStart.Format("20060102T150405Z")
-		dtEnd := todo.DueDate.Format("20060102T150405Z")
+		sb.WriteString("UID:" + task.ID + "\r\n")
+		dtStart := schedTime.Format("20060102T150405Z")
+		dtEnd := schedTime.Add(window).Format("20060102T150405Z")
 		sb.WriteString("DTSTART:" + dtStart + "\r\n")
 		sb.WriteString("DTEND:" + dtEnd + "\r\n")
-		sb.WriteString("SUMMARY:" + escapeICS(summary) + "\r\n")
-		if desc != "" {
-			sb.WriteString("DESCRIPTION:" + escapeICS(desc) + "\r\n")
+		sb.WriteString("SUMMARY:" + escapeICS(task.Name) + "\r\n")
+		if rrule != "" {
+			sb.WriteString("RRULE:" + rrule + "\r\n")
 		}
-		sb.WriteString("STATUS:NEEDS-ACTION\r\n")
 		sb.WriteString("END:VEVENT\r\n")
 	}
 	sb.WriteString("END:VCALENDAR\r\n")
 
 	return sb.String(), nil
+}
+
+// parseScheduleTime returns the next occurrence time for a task.
+func parseScheduleTime(scheduleType, scheduleData string) time.Time {
+	var data struct {
+		Time string `json:"time"`
+		Date string `json:"date"`
+	}
+	json.Unmarshal([]byte(scheduleData), &data)
+
+	now := time.Now()
+	t := data.Time
+	if t == "" {
+		t = "09:00"
+	}
+
+	if scheduleType == "once" && data.Date != "" {
+		parsed, err := time.ParseInLocation("2006-01-02 15:04", data.Date+" "+t, time.Local)
+		if err == nil {
+			return parsed
+		}
+	}
+
+	h, m := 9, 0
+	fmt.Sscanf(t, "%d:%d", &h, &m)
+	next := time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, time.Local)
+	if next.Before(now) {
+		next = next.Add(24 * time.Hour)
+	}
+	return next
+}
+
+// buildRRule returns an iCalendar RRULE string for the given schedule.
+func buildRRule(scheduleType, scheduleData string) string {
+	switch scheduleType {
+	case "daily":
+		return "FREQ=DAILY"
+	case "weekly":
+		var data struct {
+			Days []int `json:"days"`
+		}
+		json.Unmarshal([]byte(scheduleData), &data)
+		if len(data.Days) == 0 {
+			return "FREQ=WEEKLY"
+		}
+		// Map 1=Monday...7=Sunday to iCal days MO,TU,WE,TH,FR,SA,SU
+		days := []string{"MO", "TU", "WE", "TH", "FR", "SA", "SU"}
+		parts := make([]string, 0, len(data.Days))
+		for _, d := range data.Days {
+			if d >= 1 && d <= 7 {
+				parts = append(parts, days[d-1])
+			}
+		}
+		if len(parts) > 0 {
+			return "FREQ=WEEKLY;BYDAY=" + strings.Join(parts, ",")
+		}
+		return "FREQ=WEEKLY"
+	case "monthly":
+		var data struct {
+			Days []int `json:"days"`
+		}
+		json.Unmarshal([]byte(scheduleData), &data)
+		if len(data.Days) == 0 {
+			return "FREQ=MONTHLY"
+		}
+		daysStr := make([]string, len(data.Days))
+		for i, d := range data.Days {
+			daysStr[i] = fmt.Sprintf("%d", d)
+		}
+		return "FREQ=MONTHLY;BYMONTHDAY=" + strings.Join(daysStr, ",")
+	case "interval":
+		var data struct {
+			Days int `json:"days"`
+		}
+		json.Unmarshal([]byte(scheduleData), &data)
+		if data.Days <= 0 {
+			data.Days = 1
+		}
+		return fmt.Sprintf("FREQ=DAILY;INTERVAL=%d", data.Days)
+	case "once":
+		return "" // no recurrence
+	}
+	return ""
 }
 
 // ─── Auth Validation ─────────────────────────────────────────────
@@ -217,8 +291,7 @@ func (s *IcsService) validateFeedAccess(feed *repository.IcsFeedModel, apiKey, u
 		}
 		for _, k := range keys {
 			if k.ID == feed.ApiKeyID && !k.Revoked {
-				// Validate raw key against hash
-				if bcrypt.CompareHashAndPassword([]byte(k.KeyHash), []byte(apiKey)) == nil {
+				if hashSHA256(apiKey) == k.KeyHash {
 					return true
 				}
 			}
@@ -244,6 +317,11 @@ func escapeICS(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\\n")
 	s = strings.ReplaceAll(s, "\n", "\\n")
 	return s
+}
+
+func hashSHA256(raw string) string {
+	h := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(h[:])
 }
 
 // getAccountUsername returns the login username for the given user ID.

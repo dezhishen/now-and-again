@@ -14,7 +14,7 @@ import (
 	"github.com/dezhishen/now-and-again/backend/internal/logger"
 	"github.com/dezhishen/now-and-again/backend/internal/middleware"
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
-	"github.com/dezhishen/now-and-again/backend/internal/scheduler"
+	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
 	"github.com/dezhishen/now-and-again/backend/internal/service"
 	"github.com/dezhishen/now-and-again/backend/internal/webui"
 	"github.com/gin-gonic/gin"
@@ -77,7 +77,7 @@ func main() {
 	seedAdmin(db)
 
 	// ── Bundle contracts ────────────────────────────────────────
-	allContracts := service.NewAllContracts(userSvc, familySvc, apiKeySvc, floorPlanSvc)
+	allContracts := service.NewAllContracts(userSvc, familySvc, apiKeySvc, floorPlanSvc, taskSvc)
 
 	// ── HTTP Router ─────────────────────────────────────────────
 	router := gin.Default()
@@ -93,7 +93,7 @@ func main() {
 	auth := router.Group("")
 	auth.Use(middleware.JWTAuth(cfg.JWTSecret, apiKeyRepo))
 	auth.Use(middleware.ScopeGuard())
-	handler.RegisterRoutes(router, auth, allContracts, imageHandler, settingsHandler, taskHandler, icsHandler)
+	handler.RegisterRoutes(router, auth, allContracts, imageHandler, settingsHandler, taskHandler, icsHandler, taskSvc.Ops)
 
 	// ── Frontend SPA ───────────────────────────────────────────
 	webui.Serve(router)

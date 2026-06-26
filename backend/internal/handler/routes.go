@@ -3,10 +3,11 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/dezhishen/now-and-again/shared/contracts"
+	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
+	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
 )
 
-func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers, taskHandler *TaskHandlers, icsHandler *IcsHandlers) {
+func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers, taskHandler *TaskHandlers, icsHandler *IcsHandlers, taskOps *taskkind.Ops) {
 	h := NewHandlers(c)
 
 	// ── Public ──────────────────────────────────────────────────
@@ -86,6 +87,12 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 	auth.GET("/api/families/:family_id/todos", taskHandler.ListTodos)
 	auth.PUT("/api/todos/:todo_id", taskHandler.CompleteTodo)
 
+	// Calendar
+	auth.GET("/api/families/:family_id/calendar", taskHandler.GetCalendar)
+
+	// Statistics
+	auth.GET("/api/families/:family_id/statistics", taskHandler.GetStatistics)
+
 	// ICS Feeds (authenticated management)
 	auth.POST("/api/families/:family_id/ics-feeds", icsHandler.Create)
 	auth.GET("/api/families/:family_id/ics-feeds", icsHandler.List)
@@ -95,4 +102,14 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 
 	// ICS public endpoint (no JWT - custom auth)
 	public.GET("/api/ics/:token", icsHandler.ServeICS)
+
+	// ── Task-kind-specific routes ────────────────────────────
+	// Each registered task kind may expose additional API endpoints
+	// under /api/tasks/:task_id/{kind}/...
+	for _, h := range taskkind.All() {
+		if rr, ok := h.(taskkind.RouteRegistrar); ok {
+			prefix := "/api/tasks/:task_id/" + h.Kind()
+			rr.RegisterRoutes(auth.Group(prefix), taskOps)
+		}
+	}
 }

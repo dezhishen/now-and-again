@@ -20,10 +20,12 @@ const router = createRouter({
         { path: 'floor-plan', name: 'family-floor-plan', component: () => import('@/views/family/FloorPlanView.vue') },
         { path: 'tasks', name: 'family-tasks', component: () => import('@/views/family/TaskView.vue') },
         { path: 'ics', name: 'family-ics', component: () => import('@/views/family/IcsView.vue') },
+        { path: 'calendar', name: 'family-calendar', component: () => import('@/views/family/CalendarView.vue') },
         { path: 'settings', name: 'family-settings', component: () => import('@/views/family/SettingsView.vue') },
       ],
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
+    { path: '/calendar/:familyId', name: 'calendar-full', component: () => import('@/views/family/CalendarView.vue'), meta: { requiresAuth: true, fullscreen: true } },
   ],
 })
 

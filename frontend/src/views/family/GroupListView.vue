@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -20,18 +20,27 @@ const newDesc = ref('')
 const error = ref('')
 const loading = ref<Record<string, boolean>>({})
 
-// Expanded group: { groupId: { members: [...], requests: [...] } }
 interface GroupDetail {
   members: FamilyGroupMember[]
   requests: FamilyGroupMember[]
 }
-const details = ref<Record<string, GroupDetail>>({})
-const activeTab = ref<Record<string, 'members' | 'requests'>>({})
+const memberCache = ref<Record<string, FamilyGroupMember[]>>({})
+
+// Member management modal
+const manageGroupId = ref('')
+const manageTab = ref<'members' | 'requests'>('members')
+const manageDetail = ref<GroupDetail | null>(null)
+const manageLoading = ref(false)
 
 onMounted(async () => { pageLoading.value = true; await loadGroups(); pageLoading.value = false })
 
 async function loadGroups() {
   try { groups.value = await api.get<FamilyGroup[]>('/families/' + familyId + '/groups') } catch { groups.value = [] }
+  for (const g of groups.value) {
+    try {
+      memberCache.value[g.id] = await api.get<FamilyGroupMember[]>('/groups/' + g.id + '/members')
+    } catch { memberCache.value[g.id] = [] }
+  }
 }
 
 async function createGroup() {
@@ -43,69 +52,53 @@ async function createGroup() {
   } catch (e: any) { error.value = e.message }
 }
 
-async function toggleGroup(groupId: string) {
-  if (details.value[groupId]) {
-    delete details.value[groupId]
-    delete activeTab.value[groupId]
-    return
-  }
-  activeTab.value[groupId] = 'members'
-  await loadDetail(groupId)
-}
-
-async function loadDetail(groupId: string) {
+async function openManage(groupId: string) {
+  manageGroupId.value = groupId
+  manageTab.value = 'members'
+  manageLoading.value = true
   try {
     const [members, requests] = await Promise.all([
       api.get<FamilyGroupMember[]>('/groups/' + groupId + '/members'),
       api.get<FamilyGroupMember[]>('/groups/' + groupId + '/join-requests').catch(() => [] as FamilyGroupMember[]),
     ])
-    details.value[groupId] = { members, requests }
+    manageDetail.value = { members, requests }
   } catch {
-    details.value[groupId] = { members: [], requests: [] }
+    manageDetail.value = { members: [], requests: [] }
   }
+  finally { manageLoading.value = false }
+}
+
+function isGroupOwner(): boolean {
+  return manageDetail.value?.members.some(m => m.user_id === auth.user?.id && m.role === 'owner') ?? false
 }
 
 async function joinGroup(groupId: string) {
   loading.value[groupId] = true
-  error.value = ''
-  try {
-    await api.post('/groups/' + groupId + '/join')
-    await loadDetail(groupId)
-  } catch (e: any) { error.value = e.message }
+  try { await api.post('/groups/' + groupId + '/join') } catch (e: any) { error.value = e.message }
   finally { loading.value[groupId] = false }
 }
 
 async function leaveGroup(groupId: string) {
   loading.value[groupId] = true
-  error.value = ''
-  try {
-    await api.post('/groups/' + groupId + '/leave')
-    await loadDetail(groupId)
-  } catch (e: any) { error.value = e.message }
+  try { await api.post('/groups/' + groupId + '/leave') } catch (e: any) { error.value = e.message }
   finally { loading.value[groupId] = false }
 }
 
-function isGroupOwner(detail: GroupDetail): boolean {
-  return detail.members.some(m => m.user_id === auth.user?.id && m.role === 'owner')
-}
-
-async function reviewRequest(groupId: string, userId: string, action: 'active' | 'rejected') {
+async function reviewRequest(userId: string, action: 'active' | 'rejected') {
   loading.value[userId] = true
-  error.value = ''
   try {
-    await api.put('/groups/' + groupId + '/join-requests', { user_id: userId, action })
-    await loadDetail(groupId)
+    await api.put('/groups/' + manageGroupId.value + '/join-requests', { user_id: userId, action })
+    await openManage(manageGroupId.value)
   } catch (e: any) { error.value = e.message }
   finally { loading.value[userId] = false }
 }
 
-async function removeMember(groupId: string, userId: string) {
+async function removeMember(userId: string) {
   if (!confirm(t('groups.removeConfirm'))) return
   loading.value[userId] = true
-  error.value = ''
   try {
-    await api.delete('/groups/' + groupId + '/members/' + userId)
-    await loadDetail(groupId)
+    await api.delete('/groups/' + manageGroupId.value + '/members/' + userId)
+    await openManage(manageGroupId.value)
   } catch (e: any) { error.value = e.message }
   finally { loading.value[userId] = false }
 }
@@ -134,91 +127,116 @@ async function removeMember(groupId: string, userId: string) {
 
     <div v-if="groups.length === 0" class="text-center text-gray-400 py-8">{{ t('groups.empty') }}</div>
 
-    <!-- Group cards -->
-    <div v-for="g in groups" :key="g.id" class="card mb-3">
-      <!-- Header -->
-      <div class="flex items-center justify-between cursor-pointer select-none" @click="toggleGroup(g.id)">
-        <div>
-          <span class="font-medium dark:text-gray-200">{{ g.name }}</span>
-          <span v-if="g.description" class="text-xs text-gray-400 ml-2">{{ g.description }}</span>
-        </div>
-        <span class="text-xs text-gray-400">{{ details[g.id] ? '▲' : '▼' }}</span>
-      </div>
-
-      <!-- Expanded detail -->
-      <div v-if="details[g.id]" class="mt-3 border-t dark:border-gray-700 pt-3">
-        <!-- Action buttons -->
-        <div class="flex gap-2 mb-3">
-          <button class="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:opacity-80" :disabled="loading[g.id]" @click="joinGroup(g.id)">{{ t('groups.join') }}</button>
-          <button class="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 hover:opacity-80" :disabled="loading[g.id]" @click="leaveGroup(g.id)">{{ t('groups.leave') }}</button>
+    <!-- Group cards grid -->
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-4xl items-start">
+      <div v-for="g in groups" :key="g.id"
+        class="card flex flex-col gap-1.5 hover:shadow-md transition-shadow h-full"
+      >
+        <!-- Header -->
+        <div class="min-w-0">
+          <p class="font-medium dark:text-gray-200 text-sm leading-snug truncate">{{ g.name }}</p>
+          <p v-if="g.description" class="text-xs text-gray-400 truncate mt-0.5">{{ g.description }}</p>
         </div>
 
-        <!-- Tabs -->
-        <div class="flex gap-1 mb-3 border-b dark:border-gray-700">
-          <button
-            class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors"
-            :class="(activeTab[g.id] || 'members') === 'members' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
-            @click="activeTab[g.id] = 'members'"
-          >{{ t('groups.role_member') }} ({{ details[g.id].members.length }})</button>
-          <button
-            v-if="isGroupOwner(details[g.id])"
-            class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors relative"
-            :class="activeTab[g.id] === 'requests' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
-            @click="activeTab[g.id] = 'requests'"
-          >
-            {{ t('groups.pendingTab') }}
-            <span v-if="details[g.id].requests.length" class="ml-1 px-1 py-0.5 rounded-full bg-danger text-white text-[10px]">{{ details[g.id].requests.length }}</span>
-          </button>
-        </div>
-
-        <!-- Members tab -->
-        <div v-if="(activeTab[g.id] || 'members') === 'members'">
-          <div v-if="details[g.id].members.length === 0" class="text-sm text-gray-400 py-4 text-center">{{ t('groups.noMembers') }}</div>
-          <div v-for="m in details[g.id].members" :key="m.id" class="flex items-center justify-between py-2">
-            <div class="flex items-center gap-2 min-w-0">
-              <div class="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">
-                {{ (m.user?.display_name || m.user_id)[0]?.toUpperCase() }}
-              </div>
-              <span class="text-sm dark:text-gray-300 truncate">{{ m.user?.display_name || m.user_id }}</span>
-              <span class="text-xs px-1.5 py-0.5 rounded-full"
-                :class="m.role === 'owner' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'"
-              >{{ t(m.role === 'owner' ? 'groups.role_owner' : 'groups.role_member') }}</span>
+        <!-- Member avatars -->
+        <div class="flex items-center -space-x-2">
+          <template v-if="memberCache[g.id]?.length">
+            <div v-for="(m, i) in memberCache[g.id].slice(0, 3)" :key="m.id"
+              class="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-[10px] ring-2 ring-white dark:ring-gray-800 flex-shrink-0"
+              :style="{ zIndex: 3 - i }"
+            >
+              {{ (m.user?.display_name || m.user_id)[0]?.toUpperCase() }}
             </div>
-            <button
-              v-if="isGroupOwner(details[g.id]) && m.role !== 'owner'"
-              :disabled="loading[m.user_id]"
-              class="text-xs px-2 py-0.5 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-              @click="removeMember(g.id, m.user_id)"
-            >{{ t('groups.remove') }}</button>
-          </div>
+            <div v-if="memberCache[g.id].length > 3"
+              class="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-gray-400 dark:text-gray-300 font-bold text-[10px] ring-2 ring-white dark:ring-gray-800 flex-shrink-0"
+            >+{{ memberCache[g.id].length - 3 }}</div>
+          </template>
+          <span v-else class="text-xs text-gray-400">-</span>
         </div>
 
-        <!-- Requests tab -->
-        <div v-if="activeTab[g.id] === 'requests'">
-          <div v-if="details[g.id].requests.length === 0" class="text-sm text-gray-400 py-4 text-center">{{ t('groups.noPending') }}</div>
-          <div v-for="r in details[g.id].requests" :key="r.id" class="flex items-center justify-between py-2">
-            <div class="flex items-center gap-2 min-w-0">
-              <div class="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 font-bold text-xs flex-shrink-0">
-                {{ (r.user?.display_name || r.user_id)[0]?.toUpperCase() }}
-              </div>
-              <span class="text-sm dark:text-gray-300 truncate">{{ r.user?.display_name || r.user_id }}</span>
-            </div>
-            <div class="flex gap-1.5 flex-shrink-0">
-              <button
-                :disabled="loading[r.user_id]"
-                class="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 hover:opacity-80"
-                @click="reviewRequest(g.id, r.user_id, 'active')"
-              >{{ t('groups.approve') }}</button>
-              <button
-                :disabled="loading[r.user_id]"
-                class="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 hover:opacity-80"
-                @click="reviewRequest(g.id, r.user_id, 'rejected')"
-              >{{ t('groups.reject') }}</button>
-            </div>
-          </div>
+        <!-- Actions -->
+        <div class="flex gap-1.5 pt-1.5 border-t border-gray-100 dark:border-gray-700 mt-auto">
+          <button class="flex-1 text-xs py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors font-medium" :disabled="loading[g.id]" @click="joinGroup(g.id)">加入</button>
+          <button class="flex-1 text-xs py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium" :disabled="loading[g.id]" @click="leaveGroup(g.id)">离开</button>
+          <button class="flex-1 text-xs py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium" @click="openManage(g.id)">管理</button>
         </div>
       </div>
     </div>
     </template>
+
+    <!-- Member Management Modal -->
+    <Teleport to="body">
+      <div v-if="manageDetail" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="manageDetail = null">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-lg max-h-[80vh] flex flex-col">
+          <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
+            <h3 class="font-bold dark:text-gray-200">成员管理</h3>
+            <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="manageDetail = null">✕</button>
+          </div>
+
+          <LoadingSpinner v-if="manageLoading" />
+
+          <template v-else>
+            <!-- Tabs -->
+            <div class="flex gap-1 px-4 pt-3 border-b dark:border-gray-700">
+              <button
+                class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors"
+                :class="manageTab === 'members' ? 'border-primary text-primary' : 'border-transparent text-gray-400'"
+                @click="manageTab = 'members'"
+              >成员 ({{ manageDetail.members.length }})</button>
+              <button
+                v-if="isGroupOwner()"
+                class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors relative"
+                :class="manageTab === 'requests' ? 'border-primary text-primary' : 'border-transparent text-gray-400'"
+                @click="manageTab = 'requests'"
+              >
+                待审核
+                <span v-if="manageDetail.requests.length" class="ml-1 px-1 py-0.5 rounded-full bg-danger text-white text-[10px]">{{ manageDetail.requests.length }}</span>
+              </button>
+            </div>
+
+            <!-- Members list -->
+            <div class="flex-1 overflow-auto p-4">
+              <div v-if="manageTab === 'members'">
+                <div v-if="manageDetail.members.length === 0" class="text-sm text-gray-400 py-4 text-center">暂无成员</div>
+                <div v-for="m in manageDetail.members" :key="m.id" class="flex items-center justify-between py-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <div class="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">
+                      {{ (m.user?.display_name || m.user_id)[0]?.toUpperCase() }}
+                    </div>
+                    <span class="text-sm dark:text-gray-300 truncate">{{ m.user?.display_name || m.user_id }}</span>
+                    <span class="text-xs px-1.5 py-0.5 rounded-full"
+                      :class="m.role === 'owner' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'"
+                    >{{ m.role === 'owner' ? '组长' : '成员' }}</span>
+                  </div>
+                  <button
+                    v-if="isGroupOwner() && m.role !== 'owner'"
+                    :disabled="loading[m.user_id]"
+                    class="text-xs px-2 py-0.5 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                    @click="removeMember(m.user_id)"
+                  >移除</button>
+                </div>
+              </div>
+
+              <!-- Requests list -->
+              <div v-if="manageTab === 'requests'">
+                <div v-if="manageDetail.requests.length === 0" class="text-sm text-gray-400 py-4 text-center">没有待审核的申请</div>
+                <div v-for="r in manageDetail.requests" :key="r.id" class="flex items-center justify-between py-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <div class="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 font-bold text-xs flex-shrink-0">
+                      {{ (r.user?.display_name || r.user_id)[0]?.toUpperCase() }}
+                    </div>
+                    <span class="text-sm dark:text-gray-300 truncate">{{ r.user?.display_name || r.user_id }}</span>
+                  </div>
+                  <div class="flex gap-1.5 flex-shrink-0">
+                    <button :disabled="loading[r.user_id]" class="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 hover:opacity-80" @click="reviewRequest(r.user_id, 'active')">通过</button>
+                    <button :disabled="loading[r.user_id]" class="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 hover:opacity-80" @click="reviewRequest(r.user_id, 'rejected')">拒绝</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

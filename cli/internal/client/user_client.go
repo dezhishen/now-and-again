@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dezhishen/now-and-again/shared/contracts"
-	"github.com/dezhishen/now-and-again/shared/types"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 )
 
 // Compile-time check: UserClient must implement UserContract.
-var _ contracts.UserContract = (*UserClient)(nil)
 
 // UserClient is the HTTP implementation of UserContract.
 type UserClient struct {

@@ -16,7 +16,7 @@ func (r *TaskRepo) FindTaskByID(id string) (*TaskTemplateModel, error) {
 
 func (r *TaskRepo) ListTasksByFamily(familyID string) ([]TaskTemplateModel, error) {
 	var tasks []TaskTemplateModel
-	err := r.db.Where("family_id = ?", familyID).Order("created_at ASC").Find(&tasks).Error
+	err := r.db.Preload("Group").Where("family_id = ?", familyID).Order("created_at ASC").Find(&tasks).Error
 	return tasks, err
 }
 
@@ -28,6 +28,11 @@ func (r *TaskRepo) ListEnabledTasks() ([]TaskTemplateModel, error) {
 
 func (r *TaskRepo) UpdateTask(t *TaskTemplateModel) error {
 	return r.db.Save(t).Error
+}
+
+// DisableTask sets enabled=false on a single task without touching other columns.
+func (r *TaskRepo) DisableTask(id string) error {
+	return r.db.Model(&TaskTemplateModel{}).Where("id = ?", id).Update("enabled", false).Error
 }
 
 func (r *TaskRepo) DeleteTask(id string) error {
@@ -70,10 +75,11 @@ func (r *TaskRepo) ListTodosByUser(userID string, status string) ([]TodoModel, e
 	return todos, err
 }
 
-func (r *TaskRepo) CompleteTodo(id, userID, status string) error {
+func (r *TaskRepo) CompleteTodo(id, userID, status, remark string) error {
 	now := time.Now()
 	return r.db.Model(&TodoModel{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":       status,
+		"remark":       remark,
 		"completed_at": now,
 		"completed_by": userID,
 	}).Error
@@ -98,7 +104,7 @@ func (r *TaskRepo) HasPendingTodoForTaskToday(taskID string, today time.Time) (b
 	startOfDay := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
 	endOfDay := startOfDay.Add(24 * time.Hour)
 	err := r.db.Model(&TodoModel{}).
-		Where("task_id = ? AND created_at >= ? AND created_at < ?", taskID, startOfDay, endOfDay).
+		Where("task_id = ? AND status = 'pending' AND created_at >= ? AND created_at < ?", taskID, startOfDay, endOfDay).
 		Count(&count).Error
 	return count > 0, err
 }
@@ -109,8 +115,11 @@ func (r *TaskRepo) CreateLog(taskID, status, message string) error {
 	return r.db.Create(&TaskLogModel{TaskID: taskID, Status: status, Message: message, LogType: "system"}).Error
 }
 
-func (r *TaskRepo) CreateUserLog(taskID, userID, action, message string) error {
-	return r.db.Create(&TaskLogModel{TaskID: taskID, Status: action, Message: message, LogType: "user", OperatorID: userID}).Error
+func (r *TaskRepo) CreateUserLog(taskID, todoID, userID, action, message string) error {
+	return r.db.Create(&TaskLogModel{
+		TaskID: taskID, TodoID: todoID,
+		Status: action, Message: message, LogType: "user", OperatorID: userID,
+	}).Error
 }
 
 func (r *TaskRepo) ListLogs(taskID string, limit int) ([]TaskLogModel, error) {
@@ -122,5 +131,32 @@ func (r *TaskRepo) ListLogs(taskID string, limit int) ([]TaskLogModel, error) {
 func (r *TaskRepo) ListUserLogs(taskID string, limit int) ([]TaskLogModel, error) {
 	var logs []TaskLogModel
 	err := r.db.Where("task_id = ? AND log_type = ?", taskID, "user").Order("created_at DESC").Limit(limit).Find(&logs).Error
+	return logs, err
+}
+
+// ListLogsByFamily returns all task logs for a family within a date range,
+// joined through task_templates.
+func (r *TaskRepo) ListLogsByFamily(familyID string, since, until string) ([]TaskLogModel, error) {
+	var logs []TaskLogModel
+	err := r.db.
+		Table("task_logs").
+		Joins("JOIN task_templates ON task_templates.id = task_logs.task_id").
+		Where("task_templates.family_id = ?", familyID).
+		Where("task_logs.created_at >= ? AND task_logs.created_at < ?", since, until).
+		Order("task_logs.created_at ASC").
+		Find(&logs).Error
+	return logs, err
+}
+
+// ListLogsByFamilyAndTask returns task logs for a specific task within a date range.
+func (r *TaskRepo) ListLogsByFamilyAndTask(familyID, taskID, since, until string) ([]TaskLogModel, error) {
+	var logs []TaskLogModel
+	err := r.db.
+		Table("task_logs").
+		Joins("JOIN task_templates ON task_templates.id = task_logs.task_id").
+		Where("task_templates.family_id = ? AND task_logs.task_id = ?", familyID, taskID).
+		Where("task_logs.created_at >= ? AND task_logs.created_at < ?", since, until).
+		Order("task_logs.created_at ASC").
+		Find(&logs).Error
 	return logs, err
 }

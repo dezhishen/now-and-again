@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/dezhishen/now-and-again/shared/contracts"
+	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
