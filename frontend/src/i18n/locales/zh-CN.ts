@@ -48,6 +48,7 @@ export default {
     members: '成员',
     floorPlan: '户型图',
     settings: '设置',
+    ics: '日历',
   },
   groups: {
     heading: '小组',

@@ -215,7 +215,7 @@ function scheduleSummary(task: TaskTemplate): string {
 
 <template>
   <div>
-    <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">任务管理</h2>
+    <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">📋 任务管理</h2>
     <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
 
     <LoadingSpinner v-if="loading" />
@@ -227,18 +227,18 @@ function scheduleSummary(task: TaskTemplate): string {
       <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
         :class="activeTab === 'tasks' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
         @click="activeTab = 'tasks'"
-      >任务模板</button>
+      >任务</button>
       <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
         :class="activeTab === 'inspections' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
         @click="activeTab = 'inspections'"
-      >巡检</button>
+      >🔍 巡检</button>
     </div>
 
     <!-- Tasks Tab -->
     <div v-if="activeTab === 'tasks'">
       <button class="btn-primary text-sm mb-3" @click="openCreate">+ 创建任务</button>
 
-      <div v-if="tasks.length === 0" class="text-center text-gray-400 py-8">暂无任务模板</div>
+      <div v-if="tasks.length === 0" class="text-center text-gray-400 py-8">暂无任务</div>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
         <div v-for="task in filteredTasks" :key="task.id" class="card hover:shadow-md transition-shadow">
           <div class="flex items-start justify-between mb-2">
@@ -276,7 +276,7 @@ function scheduleSummary(task: TaskTemplate): string {
     <div v-if="activeTab === 'inspections'">
       <button class="btn-primary text-sm mb-3" @click="openCreateInspection">+ 创建巡检</button>
 
-      <div v-if="inspections.length === 0" class="text-center text-gray-400 py-8">暂无巡检模板</div>
+      <div v-if="inspections.length === 0" class="text-center text-gray-400 py-8">暂无巡检</div>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
         <div v-for="task in inspections" :key="task.id" class="card hover:shadow-md transition-shadow">
           <div class="flex items-start justify-between mb-2">

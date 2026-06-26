@@ -48,6 +48,7 @@ export default {
     members: 'Members',
     floorPlan: 'Floor Plan',
     settings: 'Settings',
+    ics: 'Calendar',
   },
   groups: {
     heading: 'Groups',
