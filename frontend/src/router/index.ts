@@ -38,7 +38,11 @@ router.beforeEach(async (to, _from, next) => {
 
   if (!auth.sessionChecked) await auth.initSession()
 
-  if (to.meta.requiresAuth && !auth.isLoggedIn) return next('/login')
+  if (to.meta.requiresAuth && !auth.isLoggedIn) {
+    // Allow calendar-full with API key query param to bypass login
+    if (to.name === 'calendar-full' && to.query.key) return next()
+    return next('/login')
+  }
   if (to.meta.requiresAdmin && !auth.isAdmin) return next('/')
   if (auth.isLoggedIn && (to.name === 'login' || to.name === 'register')) return next('/')
 
