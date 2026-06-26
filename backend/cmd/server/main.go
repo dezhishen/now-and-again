@@ -16,6 +16,7 @@ import (
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/backend/internal/scheduler"
 	"github.com/dezhishen/now-and-again/backend/internal/service"
+	"github.com/dezhishen/now-and-again/backend/internal/webui"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -93,6 +94,9 @@ func main() {
 	auth.Use(middleware.JWTAuth(cfg.JWTSecret, apiKeyRepo))
 	auth.Use(middleware.ScopeGuard())
 	handler.RegisterRoutes(router, auth, allContracts, imageHandler, settingsHandler, taskHandler, icsHandler)
+
+	// ── Frontend SPA ───────────────────────────────────────────
+	webui.Serve(router)
 
 	// ── Scheduler ──────────────────────────────────────────────
 	sched.Start()

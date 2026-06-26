@@ -148,9 +148,9 @@ ci: deps check-contracts lint test build ## CI 完整流水线
 
 # ─── Docker ───────────────────────────────────────────────────────
 
-docker-build: ## 构建 Docker 镜像
-	docker build -t now-and-again-backend -f backend/Dockerfile .
-	docker build -t now-and-again-frontend -f frontend/Dockerfile .
+docker-build: ## 构建 Docker 镜像（server + CLI）
+	docker build --target runtime -t now-and-again .
+	docker build --target cli-runtime -t now-and-again-cli .
 
 docker-up: ## 启动 docker-compose
 	docker compose up -d

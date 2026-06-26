@@ -2,15 +2,14 @@ name: Build and Push Docker Images
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
   pull_request:
     branches: [main]
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/now-and-again-backend
-  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/now-and-again-frontend
+  SERVER_IMAGE: ghcr.io/${{ github.repository_owner }}/now-and-again
+  CLI_IMAGE: ghcr.io/${{ github.repository_owner }}/now-and-again-cli
 
 jobs:
   build-and-push:
@@ -25,6 +24,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -33,48 +35,54 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (backend)
-        id: meta-backend
+      - name: Extract metadata (server)
+        id: meta-server
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.BACKEND_IMAGE }}
+          images: ${{ env.SERVER_IMAGE }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
             type=sha,format=short
+          flavor: |
+            latest=${{ startsWith(github.ref, 'refs/tags/v') }}
 
-      - name: Extract metadata (frontend)
-        id: meta-frontend
+      - name: Extract metadata (cli)
+        id: meta-cli
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.FRONTEND_IMAGE }}
+          images: ${{ env.CLI_IMAGE }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
             type=sha,format=short
+          flavor: |
+            latest=${{ startsWith(github.ref, 'refs/tags/v') }}
 
-      - name: Build and push backend
+      - name: Build and push server (multi-arch)
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: backend/Dockerfile
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          target: runtime
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
+          tags: ${{ steps.meta-server.outputs.tags }}
+          labels: ${{ steps.meta-server.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push frontend
+      - name: Build and push CLI (multi-arch)
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: frontend/Dockerfile
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          target: cli-runtime
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
+          tags: ${{ steps.meta-cli.outputs.tags }}
+          labels: ${{ steps.meta-cli.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
