@@ -42,6 +42,7 @@ const feedAppPass = ref('')
 const baseUrl = window.location.origin
 
 // ─── Embed calendar ─────────────────────────────────────────────
+const showEmbed = ref(false)
 const embedApiKey = ref('')
 const embedGroupID = ref('')
 const embedCopied = ref(false)
@@ -182,7 +183,10 @@ function getUsageHint(feed: IcsFeed): string {
       </ol>
     </div>
 
-    <button class="btn-primary text-sm mb-4" @click="openCreate">+ 创建订阅</button>
+    <div class="flex gap-2 mb-4">
+      <button class="btn-primary text-sm" @click="openCreate">+ 创建订阅</button>
+      <button class="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="showEmbed = true">🖥️ 大屏日历嵌入</button>
+    </div>
 
     <!-- Create/Edit Form -->
     <div v-if="showForm" class="card mb-6 space-y-3">
@@ -292,37 +296,42 @@ function getUsageHint(feed: IcsFeed): string {
     </div>
     </template>
 
-    <!-- Embed Calendar -->
-    <div class="card mt-6">
-      <h3 class="font-bold dark:text-gray-200 mb-3">🖥️ 大屏日历嵌入</h3>
-      <p class="text-xs text-gray-400 mb-4">生成嵌入代码，粘贴到任意网页中展示家庭日历大屏。</p>
-
-      <div class="space-y-3">
-        <div>
-          <label class="text-xs text-gray-400 block mb-1">API Key</label>
-          <input v-model="embedApiKey" class="input text-sm" placeholder="na_xxxxxxxx" />
+    <!-- Embed Modal -->
+    <div v-if="showEmbed" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showEmbed = false">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-lg dark:text-gray-200">🖥️ 大屏日历嵌入</h3>
+          <button class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="showEmbed = false">✕</button>
         </div>
-        <div>
-          <label class="text-xs text-gray-400 block mb-1">筛选小组（可选）</label>
-          <select v-model="embedGroupID" class="input text-sm">
-            <option value="">全部</option>
-            <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-          </select>
-        </div>
+        <p class="text-xs text-gray-400 mb-4">生成嵌入代码，粘贴到任意网页中展示家庭日历大屏。</p>
 
-        <div>
-          <label class="text-xs text-gray-400 block mb-1">嵌入代码</label>
-          <div class="flex gap-2">
-            <code class="flex-1 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-lg text-xs font-mono break-all select-all dark:text-gray-200">{{ embedCode }}</code>
-            <button class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity whitespace-nowrap" @click="copyEmbed">
-              {{ embedCopied ? '已复制' : '复制' }}
-            </button>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-gray-400 block mb-1">API Key</label>
+            <input v-model="embedApiKey" class="input text-sm" placeholder="na_xxxxxxxx" />
           </div>
-        </div>
+          <div>
+            <label class="text-xs text-gray-400 block mb-1">筛选小组（可选）</label>
+            <select v-model="embedGroupID" class="input text-sm">
+              <option value="">全部</option>
+              <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+            </select>
+          </div>
 
-        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-          <p class="text-xs text-gray-400 mb-1">预览地址</p>
-          <a :href="embedUrl" target="_blank" class="text-xs text-primary hover:underline break-all">{{ embedUrl }}</a>
+          <div>
+            <label class="text-xs text-gray-400 block mb-1">嵌入代码</label>
+            <div class="flex gap-2">
+              <code class="flex-1 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-lg text-xs font-mono break-all select-all dark:text-gray-200">{{ embedCode }}</code>
+              <button class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity whitespace-nowrap" @click="copyEmbed">
+                {{ embedCopied ? '已复制' : '复制' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1">预览地址</p>
+            <a :href="embedUrl" target="_blank" class="text-xs text-primary hover:underline break-all">{{ embedUrl }}</a>
+          </div>
         </div>
       </div>
     </div>
