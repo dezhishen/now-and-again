@@ -8,8 +8,15 @@ const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
 const form = ref({ username: '', email: '', password: '', display_name: '' })
+const submitting = ref(false)
 
-async function handleRegister() { if (await auth.register(form.value)) router.push('/login') }
+async function handleRegister() {
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    if (await auth.register(form.value)) router.push('/login')
+  } finally { submitting.value = false }
+}
 </script>
 
 <template>
@@ -22,7 +29,7 @@ async function handleRegister() { if (await auth.register(form.value)) router.pu
         <input v-model="form.email" type="email" class="input" :placeholder="t('register.emailPlaceholder')" required />
         <input v-model="form.password" type="password" class="input" :placeholder="t('register.passwordPlaceholder')" required minlength="8" />
         <p v-if="auth.error" class="text-danger text-sm">{{ auth.error }}</p>
-        <button type="submit" class="btn-primary w-full mt-2">{{ t('register.submit') }}</button>
+        <button type="submit" class="btn-primary w-full mt-2" :disabled="submitting">{{ submitting ? '...' : t('register.submit') }}</button>
       </form>
       <p class="text-center text-sm text-gray-400 dark:text-gray-500 mt-4">
         {{ t('register.hasAccount') }}<router-link to="/login">{{ t('register.toLogin') }}</router-link>

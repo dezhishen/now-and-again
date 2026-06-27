@@ -54,24 +54,36 @@ async function completeTodo(todo: Todo, _status: string) {
 const showRemark = ref(false)
 const remarkTodo = ref<Todo | null>(null)
 const remarkText = ref('')
+const remarkSubmitting = ref(false)
 
 async function submitRemark() {
   const todo = remarkTodo.value
-  if (!todo) return
+  if (!todo || remarkSubmitting.value) return
+  remarkSubmitting.value = true
   try {
     await api.put('/todos/' + todo.id, { status: 'done', remark: remarkText.value })
     await loadTodos()
     toast.success('已完成')
     showRemark.value = false
   } catch (e: any) { toast.error(e.message) }
+  finally { remarkSubmitting.value = false }
 }
 
+const processingTodos = ref<Set<string>>(new Set())
+
 async function completeTodoDirect(todo: Todo, status: string) {
+  if (processingTodos.value.has(todo.id)) return
+  processingTodos.value = new Set([...processingTodos.value, todo.id])
   try {
     await api.put('/todos/' + todo.id, { status })
     await loadTodos()
     toast.success(status === 'done' ? '已完成' : '已跳过')
   } catch (e: any) { toast.error(e.message) }
+  finally {
+    const next = new Set(processingTodos.value)
+    next.delete(todo.id)
+    processingTodos.value = next
+  }
 }
 
 async function loadTodos() {
@@ -221,7 +233,7 @@ onMounted(async () => {
               @keydown.ctrl.enter="submitRemark"
             ></textarea>
             <div class="flex gap-2">
-              <button class="btn-primary text-sm flex-1" @click="submitRemark">确认完成</button>
+              <button class="btn-primary text-sm flex-1" :disabled="remarkSubmitting" @click="submitRemark">{{ remarkSubmitting ? '...' : '确认完成' }}</button>
               <button class="text-sm px-4 py-2 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="showRemark = false">取消</button>
             </div>
             <p class="text-[10px] text-gray-400">Ctrl+Enter 快速提交</p>

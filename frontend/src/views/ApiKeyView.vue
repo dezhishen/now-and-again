@@ -11,6 +11,7 @@ const newName = ref('')
 const newScopes = ref('')
 const newExpires = ref('')
 const error = ref('')
+const creating = ref(false)
 const createdKey = ref<string | null>(null)
 
 const SCOPE_OPTIONS = [
@@ -91,6 +92,8 @@ function toggleScope(scope: string) {
 }
 
 async function create() {
+  if (creating.value) return
+  creating.value = true
   error.value = ''
   try {
     const scopes = newScopes.value ? newScopes.value.split(',').map(s => s.trim()).filter(Boolean) : undefined
@@ -103,6 +106,7 @@ async function create() {
     newName.value = ''; newScopes.value = ''; newExpires.value = ''
     await load()
   } catch (e: any) { error.value = e.message }
+  finally { creating.value = false }
 }
 
 async function revoke(id: string) {
@@ -165,7 +169,7 @@ function copyKey() {
         <label class="text-xs text-gray-400 block mb-1">过期时间（可选，留空则永不过期）：</label>
         <input v-model="newExpires" type="datetime-local" class="input" />
       </div>
-      <button class="btn-primary text-sm" :disabled="!newName" @click="create">创建</button>
+      <button class="btn-primary text-sm" :disabled="!newName || creating" @click="create">{{ creating ? '...' : '创建' }}</button>
     </div>
 
     <!-- Key list -->

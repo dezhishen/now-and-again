@@ -54,6 +54,7 @@ const taskLocationID = ref('')
 const taskKind = ref('simple')
 const checkItems = ref<CheckItem[]>([])
 const editingTask = ref<Task | null>(null)
+const saving = ref(false)
 
 const SCHEDULE_TYPES = [
   { value: 'once', label: '一次性' },
@@ -138,6 +139,8 @@ async function openEdit(task: Task) {
 }
 
 async function saveTask() {
+  if (saving.value) return
+  saving.value = true
   const data = buildScheduleData()
   const taskFields: any = {
     name: taskName.value,
@@ -165,6 +168,7 @@ async function saveTask() {
     showTaskForm.value = false
     await loadTasks()
   } catch (e: any) { toast.error(e.message) }
+  finally { saving.value = false }
 }
 
 async function toggleTask(task: Task) {
@@ -438,7 +442,7 @@ function scheduleSummary(task: Task): string {
             />
           </div>
           <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">
-            <button class="btn-primary text-sm flex-1" @click="saveTask">{{ editingTask ? '保存' : '创建' }}</button>
+            <button class="btn-primary text-sm flex-1" :disabled="saving" @click="saveTask">{{ saving ? '...' : editingTask ? '保存' : '创建' }}</button>
             <button class="text-sm px-4 py-2 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="showTaskForm = false">取消</button>
           </div>
         </div>

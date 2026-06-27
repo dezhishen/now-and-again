@@ -9,10 +9,15 @@ const router = useRouter()
 const auth = useAuthStore()
 const username = ref('')
 const password = ref('')
+const submitting = ref(false)
 
 async function handleLogin() {
-  const ok = await auth.login(username.value, password.value)
-  if (ok) router.push('/')
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    const ok = await auth.login(username.value, password.value)
+    if (ok) router.push('/')
+  } finally { submitting.value = false }
 }
 </script>
 
@@ -24,7 +29,7 @@ async function handleLogin() {
         <input v-model="username" class="input" :placeholder="t('login.usernamePlaceholder')" required />
         <input v-model="password" type="password" class="input" :placeholder="t('login.passwordPlaceholder')" required />
         <p v-if="auth.error" class="text-danger text-sm">{{ auth.error }}</p>
-        <button type="submit" class="btn-primary w-full mt-2">{{ t('login.submit') }}</button>
+        <button type="submit" class="btn-primary w-full mt-2" :disabled="submitting">{{ submitting ? '...' : t('login.submit') }}</button>
       </form>
       <p class="text-center text-sm text-gray-400 dark:text-gray-500 mt-4">
         {{ t('login.noAccount') }}<router-link to="/register">{{ t('login.toRegister') }}</router-link>
