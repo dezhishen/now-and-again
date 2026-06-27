@@ -170,13 +170,40 @@ go run . task create --family-id <id> --title "取快递" --type chore_general
 
 ### 环境变量
 
+> 📄 完整模板见 [`.env.example`](.env.example)，可复制为 `.env` 使用。
+
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `PORT` | `8080` | 后端监听端口 |
-| `JWT_SECRET` | (dev default) | JWT 签名密钥，生产环境务必修改 |
+| `PORT` | `8080` | 后端 HTTP 监听端口 |
+| `JWT_SECRET` | `now-and-again-dev-secret-change-me` | JWT 签名密钥，**生产环境务必修改** |
+| `ADMIN_DEFAULT_PASSWORD` | (随机生成) | 首次运行时默认管理员密码，仅未初始化时生效 |
 | `DB_DRIVER` | `sqlite` | 数据库驱动：`sqlite` 或 `postgres` |
-| `DB_DSN` | `now-and-again.db` | 数据库连接串 |
-| `NA_TOKEN` | — | CLI 的 API Token（也可通过 `na login` 写入 `~/.na.yaml`） |
+| `DB_DSN` | `now-and-again.db` | 数据库连接串。SQLite 为文件路径，PostgreSQL 为完整 DSN |
+| `DATA_DIR` | — | 数据根目录。设置后自动将 DB 和上传文件放在该目录下 |
+| `UPLOAD_DIR` | `./uploads` | 上传文件存储目录（`DATA_DIR` 未设置时生效） |
+| `GIN_MODE` | `debug` | Gin 运行模式：`debug`（开发）/ `release`（生产）/ `test` |
+
+#### 快速配置
+
+```bash
+# 方式一：环境变量
+export JWT_SECRET="$(openssl rand -base64 64)"
+export ADMIN_DEFAULT_PASSWORD="my-secure-password"
+export GIN_MODE=release
+go run ./cmd/server
+
+# 方式二：使用 .env 文件
+cp .env.example .env
+# 编辑 .env 填入实际值
+export $(cat .env | xargs) && go run ./cmd/server
+```
+
+#### PostgreSQL 配置示例
+
+```bash
+export DB_DRIVER=postgres
+export DB_DSN="host=localhost user=postgres password=xxx dbname=now_and_again port=5432 sslmode=disable"
+```
 
 ---
 
