@@ -13,10 +13,6 @@ export interface User {
   updated_at: string
 }
 
-export interface SystemStatus {
-  initialized: boolean
-}
-
 export interface Family {
   id: string
   name: string

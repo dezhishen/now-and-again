@@ -5,7 +5,6 @@ import { api } from '@/api/client'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/setup', name: 'setup', component: () => import('@/views/SetupView.vue') },
     { path: '/login', name: 'login', component: () => import('@/views/LoginView.vue') },
     { path: '/register', name: 'register', component: () => import('@/views/RegisterView.vue') },
     { path: '/', name: 'home', component: () => import('@/views/HomeView.vue'), meta: { requiresAuth: true } },
@@ -33,10 +32,6 @@ const router = createRouter({
 
 router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore()
-
-  if (auth.initialized === null) await auth.checkInit()
-  if (auth.needsSetup && to.name !== 'setup') return next('/setup')
-  if (!auth.needsSetup && to.name === 'setup') return next('/login')
 
   // Token is persisted to sessionStorage by ApiClient constructor.
   // hasValidToken() checks both memory and sessionStorage — no network call.

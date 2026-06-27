@@ -4,18 +4,6 @@ export default {
     subtitle: 'Life is just a mix of "Now" and "Again".',
     tagline: 'Family chore management, starting now.',
   },
-  setup: {
-    title: 'Now & Again',
-    heading: 'Welcome! Set up the admin account',
-    displayName: 'Display Name',
-    username: 'Username',
-    usernamePlaceholder: 'Used to login',
-    email: 'Email',
-    emailPlaceholder: 'admin@example.com',
-    password: 'Password',
-    passwordPlaceholder: 'At least 8 characters',
-    submit: 'Initialize System',
-  },
   register: {
     heading: 'Create Account',
     displayName: 'Display Name',

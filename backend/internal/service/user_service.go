@@ -62,84 +62,10 @@ func (s *UserService) generateTokens(ctx context.Context, userID string) (*types
 	}, nil
 }
 
-// ─── Setup ────────────────────────────────────────────────────────
-
-func (s *UserService) Setup(ctx context.Context, req *types.SetupRequest) (*types.User, error) {
-	count, err := s.repo.CountUsers()
-	if err != nil {
-		return nil, fmt.Errorf("check users: %w", err)
-	}
-	if count > 0 {
-		return nil, fmt.Errorf("system already initialized")
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
-	}
-
-	var userID string
-	err = s.repo.Tx(func(tx *gorm.DB) error {
-		user := &repository.UserModel{
-			DisplayName: req.DisplayName,
-			Email:       req.Email,
-		}
-		if err := tx.Create(user).Error; err != nil {
-			return fmt.Errorf("create user: %w", err)
-		}
-		userID = user.ID
-
-		acc := &repository.AccountModel{
-			UserID:       user.ID,
-			Provider:     "local",
-			Username:     req.Username,
-			PasswordHash: string(hash),
-		}
-		if err := tx.Create(acc).Error; err != nil {
-			return fmt.Errorf("create account: %w", err)
-		}
-
-		var role repository.RoleModel
-		if err := tx.Where("name = ?", "admin").First(&role).Error; err != nil {
-			return fmt.Errorf("find admin role: %w", err)
-		}
-		if err := tx.Create(&repository.UserRoleModel{UserID: user.ID, RoleID: role.ID}).Error; err != nil {
-			return fmt.Errorf("assign role: %w", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	loaded, err := s.repo.FindUserByID(userID)
-	if err != nil {
-		return nil, fmt.Errorf("reload user: %w", err)
-	}
-	return userModelToUser(loaded), nil
-}
-
-// ─── CheckInit ────────────────────────────────────────────────────
-
-func (s *UserService) CheckInit(ctx context.Context) (*types.SystemStatus, error) {
-	count, err := s.repo.CountUsers()
-	if err != nil {
-		return nil, fmt.Errorf("check init: %w", err)
-	}
-	return &types.SystemStatus{Initialized: count > 0}, nil
-}
-
 // ─── Register ─────────────────────────────────────────────────────
 
 func (s *UserService) Register(ctx context.Context, req *types.CreateUserRequest) (*types.User, error) {
-	count, err := s.repo.CountUsers()
-	if err != nil {
-		return nil, fmt.Errorf("check init: %w", err)
-	}
-	if count == 0 {
-		return nil, fmt.Errorf("system not initialized, please run setup first")
-	}
-
+	// Allow registration on first run (system auto-initializes via seedAdmin)
 	if existing, _ := s.repo.FindAccountByUsername(req.Username); existing != nil {
 		return nil, fmt.Errorf("username already taken")
 	}

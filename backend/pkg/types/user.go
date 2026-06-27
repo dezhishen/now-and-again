@@ -28,17 +28,6 @@ type Account struct {
 
 // ─── Auth ─────────────────────────────────────────────────────────
 
-type SetupRequest struct {
-	DisplayName string `json:"display_name" binding:"required"`
-	Username    string `json:"username" binding:"required,min=3"`
-	Email       string `json:"email" binding:"required,email"`
-	Password    string `json:"password" binding:"required,min=8"`
-}
-
-type SystemStatus struct {
-	Initialized bool `json:"initialized"`
-}
-
 type CreateUserRequest struct {
 	DisplayName string `json:"display_name" binding:"required"`
 	Username    string `json:"username" binding:"required,min=3"`

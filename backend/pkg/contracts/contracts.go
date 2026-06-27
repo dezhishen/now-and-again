@@ -11,8 +11,6 @@ import (
 // ─── User ─────────────────────────────────────────────────────────
 
 type UserContract interface {
-	Setup(ctx context.Context, req *types.SetupRequest) (*types.User, error)
-	CheckInit(ctx context.Context) (*types.SystemStatus, error)
 	Register(ctx context.Context, req *types.CreateUserRequest) (*types.User, error)
 	Login(ctx context.Context, req *types.LoginRequest) (*types.TokenPair, error)
 	Refresh(ctx context.Context, refreshToken string) (*types.TokenPair, error)

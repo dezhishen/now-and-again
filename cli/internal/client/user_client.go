@@ -18,22 +18,6 @@ func NewUserClient(http *HTTPClient) *UserClient {
 	return &UserClient{http: http}
 }
 
-func (c *UserClient) Setup(ctx context.Context, req *types.SetupRequest) (*types.User, error) {
-	var user types.User
-	if err := c.http.do("POST", "/api/setup", req, &user); err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
-func (c *UserClient) CheckInit(ctx context.Context) (*types.SystemStatus, error) {
-	var status types.SystemStatus
-	if err := c.http.do("GET", "/api/system/status", nil, &status); err != nil {
-		return nil, err
-	}
-	return &status, nil
-}
-
 func (c *UserClient) Register(ctx context.Context, req *types.CreateUserRequest) (*types.User, error) {
 	var user types.User
 	if err := c.http.do("POST", "/api/auth/register", req, &user); err != nil {

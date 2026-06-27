@@ -10,29 +10,6 @@ import (
 
 type rtKey struct{}
 
-func (h *UserHandlers) Setup(c *gin.Context) {
-	req, err := bindJSON[types.SetupRequest](c)
-	if err != nil {
-		badRequest(c, err.Error())
-		return
-	}
-	user, err := h.C.Setup(c.Request.Context(), req)
-	if err != nil {
-		serverError(c, err)
-		return
-	}
-	created(c, user)
-}
-
-func (h *UserHandlers) CheckInit(c *gin.Context) {
-	status, err := h.C.CheckInit(c.Request.Context())
-	if err != nil {
-		serverError(c, err)
-		return
-	}
-	ok(c, status)
-}
-
 func (h *UserHandlers) Register(c *gin.Context) {
 	req, err := bindJSON[types.CreateUserRequest](c)
 	if err != nil {

@@ -4,18 +4,6 @@ export default {
     subtitle: 'Life is just a mix of "Now" and "Again".',
     tagline: '家庭事务管理，从此刻开始。',
   },
-  setup: {
-    title: 'Now & Again',
-    heading: '欢迎！请先设置管理员账号',
-    displayName: '显示名称',
-    username: '用户名',
-    usernamePlaceholder: '用于登录',
-    email: '邮箱',
-    emailPlaceholder: 'admin@example.com',
-    password: '密码',
-    passwordPlaceholder: '至少 8 位',
-    submit: '初始化系统',
-  },
   register: {
     heading: '注册账号',
     displayName: '显示名称',

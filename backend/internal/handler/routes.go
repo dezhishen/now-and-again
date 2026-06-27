@@ -10,8 +10,6 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 	h := NewHandlers(c)
 
 	// ── Public ──────────────────────────────────────────────────
-	public.GET("/api/system/status", h.User.CheckInit)
-	public.POST("/api/setup", h.User.Setup)
 	public.POST("/api/auth/register", h.User.Register)
 	public.POST("/api/auth/login", h.User.Login)
 	public.POST("/api/auth/refresh", h.User.Refresh)
