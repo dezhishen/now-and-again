@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, inject, watch, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useToast } from '@/composables/useToast'
 import type { FamilyGroup, ApiKey } from '@/types'
+
+const { t } = useI18n()
 
 interface IcsFeed {
   id: string; family_id: string; name: string; description?: string
@@ -121,10 +124,10 @@ async function saveFeed() {
   try {
     if (editingFeed.value) {
       await api.put('/ics-feeds/' + editingFeed.value.id, body)
-      toast.success('订阅已更新')
+      toast.success(t('ics.updated'))
     } else {
       await api.post('/families/' + familyId + '/ics-feeds', body)
-      toast.success('ICS 订阅已创建')
+      toast.success(t('ics.created'))
     }
     showForm.value = false
     await loadFeeds()
@@ -132,14 +135,14 @@ async function saveFeed() {
 }
 
 async function deleteFeed(id: string) {
-  if (!confirm('确定删除此 ICS 订阅？')) return
-  try { await api.delete('/ics-feeds/' + id); await loadFeeds(); toast.success('已删除') } catch (e: any) { toast.error(e.message) }
+  if (!confirm(t('ics.deleteConfirm'))) return
+  try { await api.delete('/ics-feeds/' + id); await loadFeeds(); toast.success(t('ics.deleted')) } catch (e: any) { toast.error(e.message) }
 }
 
 function copyLink(url: string) {
   const full = baseUrl + url
   navigator.clipboard.writeText(full).then(() => {
-    toast.success('链接已复制！')
+    toast.success(t('ics.copyLinkDone'))
   })
 }
 
@@ -176,40 +179,40 @@ function getUsageHint(feed: IcsFeed): string {
 
     <!-- Guide -->
     <div v-if="feeds.length === 0 && !showForm" class="card mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-      <h3 class="font-bold text-blue-700 dark:text-blue-300 mb-2">� 日历订阅</h3>
+      <h3 class="font-bold text-blue-700 dark:text-blue-300 mb-2">📅 {{ t('ics.guide') }}</h3>
       <ol class="text-sm text-blue-600 dark:text-blue-400 space-y-1 list-decimal pl-4">
-        <li>创建一个订阅，配置待办范围和认证方式</li>
-        <li>复制生成的链接</li>
-        <li>粘贴到 Apple 日历、Google 日历、Outlook 等任意日历应用中</li>
+        <li>{{ t('ics.guideStep1') }}</li>
+        <li>{{ t('ics.guideStep2') }}</li>
+        <li>{{ t('ics.guideStep3') }}</li>
       </ol>
     </div>
 
     <div class="flex gap-2 mb-4">
-      <button class="btn-primary text-sm" @click="openCreate">+ 创建订阅</button>
-      <button class="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="showEmbed = true">🖥️ 大屏日历嵌入</button>
+      <button class="btn-primary" @click="openCreate">+ {{ t('ics.createFeed') }}</button>
+      <button class="btn-secondary" @click="showEmbed = true">🖥️ {{ t('ics.embedBtn') }}</button>
     </div>
 
     <!-- Create/Edit Form -->
     <div v-if="showForm" class="card mb-6 space-y-3">
-      <h3 class="font-bold dark:text-gray-200">{{ editingFeed ? '编辑订阅' : '创建 ICS 订阅' }}</h3>
+      <h3 class="font-bold dark:text-gray-200">{{ editingFeed ? t('ics.editFeed') : t('ics.createFeedTitle') }}</h3>
 
       <div>
-        <label class="text-xs text-gray-400 block mb-1">订阅名称</label>
-        <input v-model="feedName" class="input" placeholder="如：家庭待办日历" />
+        <label class="text-xs text-gray-400 block mb-1">{{ t('ics.feedName') }}</label>
+        <input v-model="feedName" class="input" :placeholder="t('ics.feedNamePlaceholder')" />
       </div>
       <div>
-        <label class="text-xs text-gray-400 block mb-1">描述（可选）</label>
-        <input v-model="feedDesc" class="input" placeholder="简要描述此订阅" />
+        <label class="text-xs text-gray-400 block mb-1">{{ t('ics.description') }}</label>
+        <input v-model="feedDesc" class="input" :placeholder="t('ics.descPlaceholder')" />
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="text-xs text-gray-400 block mb-1">显示未来 N 天</label>
+          <label class="text-xs text-gray-400 block mb-1">{{ t('ics.filterDays') }}</label>
           <input v-model.number="feedDays" type="number" class="input" min="1" max="365" />
         </div>
         <div>
-          <label class="text-xs text-gray-400 block mb-1">筛选小组（可选）</label>
+          <label class="text-xs text-gray-400 block mb-1">{{ t('ics.filterGroup') }}</label>
           <select v-model="feedGroupID" class="input">
-            <option value="">全部</option>
+            <option value="">{{ t('ics.all') }}</option>
             <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
           </select>
         </div>
@@ -217,7 +220,7 @@ function getUsageHint(feed: IcsFeed): string {
 
       <!-- Auth Type -->
       <div>
-        <label class="text-xs text-gray-400 block mb-2">认证方式</label>
+        <label class="text-xs text-gray-400 block mb-2">{{ t('ics.authType') }}</label>
         <div class="flex gap-3">
           <label class="flex items-center gap-1 text-sm cursor-pointer">
             <input type="radio" v-model="feedAuthType" value="api_key" class="accent-primary" />
@@ -225,39 +228,39 @@ function getUsageHint(feed: IcsFeed): string {
           </label>
           <label class="flex items-center gap-1 text-sm cursor-pointer">
             <input type="radio" v-model="feedAuthType" value="basic" class="accent-primary" />
-            <span class="dark:text-gray-300">Basic Auth（用户名+密码）</span>
+            <span class="dark:text-gray-300">{{ t('ics.basicAuth') }}</span>
           </label>
         </div>
       </div>
 
       <!-- API Key selection -->
       <div v-if="feedAuthType === 'api_key'">
-        <label class="text-xs text-gray-400 block mb-1">选择 API Key</label>
+        <label class="text-xs text-gray-400 block mb-1">{{ t('ics.selectKey') }}</label>
         <select v-model="feedApiKeyID" class="input">
-          <option value="">-- 选择 --</option>
+          <option value="">{{ t('ics.select') }}</option>
           <option v-for="k in apiKeys" :key="k.id" :value="k.id">{{ k.name }} ({{ k.key_prefix }})</option>
         </select>
         <p class="text-xs text-gray-400 mt-1">
-          尚无？<router-link to="/api-keys" class="text-primary underline">新建 API Key</router-link>
+          {{ t('ics.noKeyHint') }}<router-link to="/api-keys" class="text-primary underline">{{ t('ics.createKey') }}</router-link>
         </p>
         <p class="text-xs text-gray-500 mt-2">
-          💡 创建后，订阅 URL 格式为：<br/>
+          💡 {{ t('ics.keyUrlHint') }}<br/>
           <code class="text-primary">{{ baseUrl }}/api/ics/xxx.ics?key=你的API_KEY</code>
         </p>
       </div>
 
       <!-- Basic Auth -->
       <div v-if="feedAuthType === 'basic'" class="space-y-2">
-        <p class="text-xs text-gray-500">用户名使用您的登录账号，只需设置密码</p>
+        <p class="text-xs text-gray-500">{{ t('ics.basicHint') }}</p>
         <div>
-          <label class="text-xs text-gray-400 block mb-1">密码</label>
-          <input v-model="feedAppPass" type="password" class="input" placeholder="设置 ICS 订阅密码" />
+          <label class="text-xs text-gray-400 block mb-1">{{ t('ics.password') }}</label>
+          <input v-model="feedAppPass" type="password" class="input" :placeholder="t('ics.passwordPlaceholder')" />
         </div>
       </div>
 
       <div class="flex gap-2">
-        <button class="btn-primary text-sm" @click="saveFeed">{{ editingFeed ? '保存' : '创建' }}</button>
-        <button class="text-sm px-3 py-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="showForm = false">取消</button>
+        <button class="btn-primary" @click="saveFeed">{{ editingFeed ? t('ics.save') : t('ics.create') }}</button>
+        <button class="btn-secondary" @click="showForm = false">{{ t('ics.cancel') }}</button>
       </div>
     </div>
 
@@ -268,12 +271,12 @@ function getUsageHint(feed: IcsFeed): string {
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
               <span class="font-medium dark:text-gray-200">{{ feed.name }}</span>
-              <span v-if="!feed.enabled" class="text-xs text-gray-400">(已禁用)</span>
+              <span v-if="!feed.enabled" class="text-xs text-gray-400">{{ t('ics.disabled') }}</span>
             </div>
             <p v-if="feed.description" class="text-xs text-gray-400 mt-0.5">{{ feed.description }}</p>
             <div class="flex flex-wrap items-center gap-2 mt-1.5">
               <span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                {{ feed.filter_days }} 天
+                {{ feed.filter_days }} {{ t('ics.days') }}
               </span>
               <span class="text-xs text-gray-400">
                 {{ getAuthLabel(feed) }}
@@ -283,14 +286,14 @@ function getUsageHint(feed: IcsFeed): string {
             <div class="mt-2 space-y-1">
               <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1.5">
                 <code class="text-xs text-primary break-all flex-1">{{ getIcsUrl(feed) }}</code>
-                <button class="text-xs px-2 py-0.5 rounded bg-primary text-white hover:opacity-80 flex-shrink-0" @click="copyLink(getIcsUrl(feed))">复制</button>
+                <button class="text-xs px-2 py-0.5 rounded bg-primary text-white hover:opacity-80 flex-shrink-0" @click="copyLink(getIcsUrl(feed))">{{ t('ics.copy') }}</button>
               </div>
               <p class="text-xs text-gray-500">{{ getUsageHint(feed) }}</p>
             </div>
           </div>
           <div class="flex gap-1 flex-shrink-0">
-            <button class="text-xs px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400" @click="openEdit(feed)">编辑</button>
-            <button class="text-xs px-2 py-1 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/30" @click="deleteFeed(feed.id)">删除</button>
+            <button class="btn-ghost text-xs" @click="openEdit(feed)">{{ t('ics.edit') }}</button>
+            <button class="btn-ghost text-xs text-danger hover:bg-red-50 dark:hover:bg-red-900/30" @click="deleteFeed(feed.id)">{{ t('ics.delete') }}</button>
           </div>
         </div>
       </div>
@@ -301,15 +304,15 @@ function getUsageHint(feed: IcsFeed): string {
     <div v-if="showEmbed" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @mousedown.self="showEmbed = false">
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-bold text-lg dark:text-gray-200">🖥️ 大屏日历嵌入</h3>
-          <button class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="showEmbed = false">✕</button>
+          <h3 class="font-bold text-lg dark:text-gray-200">🖥️ {{ t('ics.embedTitle') }}</h3>
+          <button class="btn-icon" @click="showEmbed = false">✕</button>
         </div>
-        <p class="text-xs text-gray-400 mb-4">生成嵌入代码，粘贴到任意网页中展示家庭日历大屏。</p>
+        <p class="text-xs text-gray-400 mb-4">{{ t('ics.embedDesc') }}</p>
 
         <div class="space-y-3">
           <div>
-            <label class="text-xs text-gray-400 block mb-1">API Key</label>
-            <input v-model="embedApiKey" class="input text-sm" placeholder="na_xxxxxxxx" />
+            <label class="text-xs text-gray-400 block mb-1">{{ t('ics.apiKeyLabel') }}</label>
+            <input v-model="embedApiKey" class="input" :placeholder="t('ics.apiKeyPlaceholder')" />
           </div>
           <div>
             <label class="text-xs text-gray-400 block mb-1">筛选小组（可选）</label>
@@ -319,28 +322,28 @@ function getUsageHint(feed: IcsFeed): string {
             </select>
           </div>
           <div>
-            <label class="text-xs text-gray-400 block mb-1">自动刷新</label>
-            <select v-model="embedRefresh" class="input text-sm">
-              <option :value="0">关闭</option>
-              <option :value="30">30秒</option>
-              <option :value="60">1分钟</option>
-              <option :value="120">2分钟</option>
-              <option :value="300">5分钟</option>
+            <label class="text-xs text-gray-400 block mb-1">{{ t('ics.autoRefresh') }}</label>
+            <select v-model="embedRefresh" class="input">
+              <option :value="0">{{ t('ics.off') }}</option>
+              <option :value="30">{{ t('ics.seconds30') }}</option>
+              <option :value="60">{{ t('ics.minute1') }}</option>
+              <option :value="120">{{ t('ics.minute2') }}</option>
+              <option :value="300">{{ t('ics.minute5') }}</option>
             </select>
           </div>
 
           <div>
-            <label class="text-xs text-gray-400 block mb-1">嵌入代码</label>
+            <label class="text-xs text-gray-400 block mb-1">{{ t('ics.embedCode') }}</label>
             <div class="flex gap-2">
               <code class="flex-1 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-lg text-xs font-mono break-all select-all dark:text-gray-200">{{ embedCode }}</code>
               <button class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity whitespace-nowrap" @click="copyEmbed">
-                {{ embedCopied ? '已复制' : '复制' }}
+                {{ embedCopied ? t('ics.copied') : t('ics.copy') }}
               </button>
             </div>
           </div>
 
           <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-            <p class="text-xs text-gray-400 mb-1">预览地址</p>
+            <p class="text-xs text-gray-400 mb-1">{{ t('ics.previewUrl') }}</p>
             <a :href="embedUrl" target="_blank" class="text-xs text-primary hover:underline break-all">{{ embedUrl }}</a>
           </div>
         </div>
