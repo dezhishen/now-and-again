@@ -8,6 +8,9 @@ frontend/dist/
 frontend/.vite/
 backend/internal/webui/dist/
 
+# ─── Secrets ───────────────────────────────────────────────────────
+.jwt_secret
+
 # ─── Database ────────────────────────────────────────────────────
 *.db
 *.db-journal

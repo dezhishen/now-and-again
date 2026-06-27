@@ -175,7 +175,7 @@ go run . task create --family-id <id> --title "取快递" --type chore_general
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `PORT` | `8080` | 后端 HTTP 监听端口 |
-| `JWT_SECRET` | `now-and-again-dev-secret-change-me` | JWT 签名密钥，**生产环境务必修改** |
+| `JWT_SECRET` | (自动生成) | JWT 签名密钥。未设置时自动生成并持久化到 `$DATA_DIR/.jwt_secret` |
 | `ADMIN_DEFAULT_PASSWORD` | (随机生成) | 首次运行时默认管理员密码，仅未初始化时生效 |
 | `DB_DRIVER` | `sqlite` | 数据库驱动：`sqlite` 或 `postgres` |
 | `DB_DSN` | — | PostgreSQL 连接串（仅 `DB_DRIVER=postgres` 时需要） |

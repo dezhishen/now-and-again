@@ -1,6 +1,9 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -35,9 +38,14 @@ func Load() (*Config, error) {
 		}
 	}
 
+	jwtSecret, err := resolveJWTSecret(abs)
+	if err != nil {
+		return nil, fmt.Errorf("resolve jwt secret: %w", err)
+	}
+
 	cfg := &Config{
 		Port:      envOrDefault("PORT", "8080"),
-		JWTSecret: envOrDefault("JWT_SECRET", "now-and-again-dev-secret-change-me"),
+		JWTSecret: jwtSecret,
 		Database: DatabaseConfig{
 			Driver: envOrDefault("DB_DRIVER", "sqlite"),
 			DSN:    dbDSN,
@@ -45,6 +53,33 @@ func Load() (*Config, error) {
 		UploadDir: uploadDir,
 	}
 	return cfg, nil
+}
+
+// resolveJWTSecret returns the JWT signing key.
+// Priority: 1) JWT_SECRET env var  2) .jwt_secret file in dataDir  3) auto-generate and persist.
+func resolveJWTSecret(dataDir string) (string, error) {
+	if s := os.Getenv("JWT_SECRET"); s != "" {
+		return s, nil
+	}
+
+	secretFile := filepath.Join(dataDir, ".jwt_secret")
+	if data, err := os.ReadFile(secretFile); err == nil && len(data) > 0 {
+		return string(data), nil
+	}
+
+	// Auto-generate a random 64-byte secret
+	bytes := make([]byte, 64)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("generate random secret: %w", err)
+	}
+	secret := hex.EncodeToString(bytes)
+
+	if err := os.WriteFile(secretFile, []byte(secret), 0600); err != nil {
+		return "", fmt.Errorf("write jwt secret file: %w", err)
+	}
+
+	fmt.Printf("🔐 JWT secret auto-generated and saved to %s\n", secretFile)
+	return secret, nil
 }
 
 func envOrDefault(key, fallback string) string {

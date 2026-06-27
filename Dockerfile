@@ -36,9 +36,6 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
 COPY --from=builder /app/server .
 
-ENV DATABASE_DRIVER=sqlite
-ENV DATABASE_DSN=/data/now-and-again.db
-ENV JWT_SECRET=change-me-in-production
 ENV DATA_DIR=/data
 ENV GIN_MODE=release
 
