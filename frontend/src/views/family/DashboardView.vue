@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useToast } from '@/composables/useToast'
+import { useLoading } from '@/composables/useLoading'
 import { getTodoActions, getTodoInfo, getTodoBadgeKey } from '@/composables/useTaskKinds'
 import { initTaskKinds } from '@/components/tasks/init'
 import type { Family, Todo } from '@/types'
@@ -17,12 +18,11 @@ const toast = useToast()
 const route = useRoute()
 const familyId = route.params.familyId as string
 
-// Reload data when this tab becomes active
+// Reload on tab activation — loading spinner shown automatically
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
-watch(refreshKey, (newVal) => { if (newVal === 'dashboard') { loadTodos(); loadLocations() } })
 
 const activeTab = ref<'todos' | 'overview'>('todos')
-const loading = ref(true)
+const { loading, withLoading } = useLoading()
 const family = ref<Family | null>(null)
 const memberCount = ref(0)
 const groupCount = ref(0)
@@ -63,7 +63,7 @@ async function submitRemark() {
   remarkSubmitting.value = true
   try {
     await api.put('/todos/' + todo.id, { status: 'done', remark: remarkText.value })
-    await loadTodos()
+    await withLoading(loadTodos)
     toast.success(t('dashboard.completed'))
     showRemark.value = false
   } catch (e: any) { toast.error(e.message) }
@@ -77,7 +77,7 @@ async function completeTodoDirect(todo: Todo, status: string) {
   processingTodos.value = new Set([...processingTodos.value, todo.id])
   try {
     await api.put('/todos/' + todo.id, { status })
-    await loadTodos()
+    await withLoading(loadTodos)
     toast.success(status === 'done' ? t('dashboard.completed') : t('dashboard.skipped'))
   } catch (e: any) { toast.error(e.message) }
   finally {
@@ -88,9 +88,19 @@ async function completeTodoDirect(todo: Todo, status: string) {
 }
 
 async function loadTodos() {
-  try {
-    todos.value = await api.get<Todo[]>('/families/' + familyId + '/todos?status=pending')
-  } catch { todos.value = [] }
+  todos.value = await api.get<Todo[]>('/families/' + familyId + '/todos?status=pending')
+}
+
+async function loadAll() {
+  await withLoading(async () => {
+    await Promise.all([
+      loadTodos(),
+      loadLocations(),
+      (async () => { try { family.value = await api.get<Family>('/families/' + familyId) } catch { /* */ } })(),
+      (async () => { try { memberCount.value = (await api.get<any[]>('/families/' + familyId + '/members')).length } catch { /* */ } })(),
+      (async () => { try { groupCount.value = (await api.get<any[]>('/families/' + familyId + '/groups')).length } catch { /* */ } })(),
+    ])
+  })
 }
 
 function fmtRange(start: string, end: string): string {
@@ -104,28 +114,15 @@ function fmtRange(start: string, end: string): string {
 function getLocName(id: string) { return locations.value.find(l => l.id === id)?.name || '' }
 
 async function loadLocations() {
-  try {
-    locations.value = await api.get<any[]>('/families/' + familyId + '/locations')
-  } catch { locations.value = [] }
+  locations.value = await api.get<any[]>('/families/' + familyId + '/locations')
 }
 
-onMounted(async () => {
-  loading.value = true
-  await Promise.all([
-    loadTodos(),
-    loadLocations(),
-    (async () => {
-      try { family.value = await api.get<Family>('/families/' + familyId) } catch { /* */ }
-    })(),
-    (async () => {
-      try { memberCount.value = (await api.get<any[]>('/families/' + familyId + '/members')).length } catch { /* */ }
-    })(),
-    (async () => {
-      try { groupCount.value = (await api.get<any[]>('/families/' + familyId + '/groups')).length } catch { /* */ }
-    })(),
-  ])
-  loading.value = false
+// Reload on tab activation — loading spinner shown automatically
+watch(refreshKey, (newVal) => {
+  if (newVal === 'dashboard') withLoading(async () => { await loadTodos(); await loadLocations() })
 })
+
+onMounted(() => { loadAll() })
 </script>
 
 <template>
