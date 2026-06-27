@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import type { Todo, CheckItem } from '@/types'
 import InspectionInspect from './InspectionInspect.vue'
+
+const { t } = useI18n()
 
 const props = defineProps<{ todo: Todo }>()
 const emit = defineEmits<{ completed: [] }>()
@@ -42,7 +45,7 @@ async function submit() {
 </script>
 
 <template>
-  <button class="flex-1 text-xs py-1.5 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors font-medium" @click="openInspect">🔍 巡检</button>
+  <button class="flex-1 text-xs py-1.5 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors font-medium" @click="openInspect">🔍 {{ t('todo.inspect') }}</button>
 
   <Teleport to="body">
     <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @mousedown.self="showModal = false">
@@ -61,9 +64,9 @@ async function submit() {
         />
         <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">
           <button class="btn-primary text-sm flex-1" :disabled="submiting" @click="submit">
-            {{ submiting ? '提交中...' : '提交巡检' }}
+            {{ submiting ? t('todo.submitting') : t('todo.submitInspect') }}
           </button>
-          <button class="text-sm px-4 py-2 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="showModal = false">取消</button>
+          <button class="text-sm px-4 py-2 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="showModal = false">{{ t('todo.cancel') }}</button>
         </div>
       </div>
     </div>

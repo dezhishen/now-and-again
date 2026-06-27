@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import type { Task } from '@/types'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps<{
   task: Task
@@ -22,7 +25,7 @@ defineEmits<{
   <div class="card hover:shadow-md transition-shadow relative overflow-hidden">
     <!-- Kind ribbon -->
     <div class="absolute -top-0.5 -right-0.5 w-14 h-14 overflow-hidden z-10">
-      <div class="absolute top-2.5 -right-[18px] w-16 bg-blue-400 text-white text-[10px] font-medium text-center leading-4 rotate-45 shadow-sm">任务</div>
+      <div class="absolute top-2.5 -right-[18px] w-16 bg-blue-400 text-white text-[10px] font-medium text-center leading-4 rotate-45 shadow-sm">{{ t('taskCard.simpleKind') }}</div>
     </div>
     <div class="flex items-start justify-between mb-2">
       <div class="min-w-0 flex-1">
@@ -44,11 +47,11 @@ defineEmits<{
       </div>
     </div>
     <div class="flex gap-1 border-t dark:border-gray-700 pt-2 mt-2">
-      <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="$emit('edit', task)">编辑</button>
-      <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="$emit('logs', task.id)">日志</button>
-      <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="$emit('trigger', task.id)">生成</button>
-      <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="$emit('toggle', task)">{{ task.enabled ? '禁用' : '启用' }}</button>
-      <button class="text-xs px-2 py-0.5 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/30 flex-1" @click="$emit('delete', task.id)">删除</button>
+      <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="$emit('edit', task)">{{ t('taskCard.edit') }}</button>
+      <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="$emit('logs', task.id)">{{ t('taskCard.logs') }}</button>
+      <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="$emit('trigger', task.id)">{{ t('taskCard.trigger') }}</button>
+      <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="$emit('toggle', task)">{{ task.enabled ? t('taskCard.disable') : t('taskCard.enable') }}</button>
+      <button class="text-xs px-2 py-0.5 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/30 flex-1" @click="$emit('delete', task.id)">{{ t('taskCard.delete') }}</button>
     </div>
   </div>
 </template>
