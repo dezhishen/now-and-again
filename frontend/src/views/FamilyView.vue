@@ -111,7 +111,7 @@ onMounted(async () => {
 
   // Open tab based on current route
   const routeName = (route.name as string) || ''
-  const tabId = routeName.replace('family-', '') || 'dashboard'
+  const tabId = routeName.startsWith('family-') ? routeName.replace('family-', '') : 'dashboard'
   openTab(tabId)
 })
 
