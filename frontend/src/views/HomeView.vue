@@ -7,7 +7,7 @@ import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { Family } from '@/types'
 
-const { t: _t } = useI18n()
+const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
 const families = ref<Family[]>([])
@@ -72,25 +72,25 @@ async function joinFamily() {
   <div class="max-w-3xl mx-auto py-4 md:py-8 px-4">
     <div class="mb-8">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-lg md:text-xl font-bold dark:text-gray-200">我的家庭</h2>
-        <button v-if="!hasCreatedFamily" class="btn-primary text-sm" @click="showCreate = !showCreate">{{ showCreate ? '取消' : '+ 创建家庭' }}</button>
+        <h2 class="text-lg md:text-xl font-bold dark:text-gray-200">{{ t('home.heading') }}</h2>
+        <button v-if="!hasCreatedFamily" class="btn-primary" @click="showCreate = !showCreate">{{ showCreate ? t('home.cancel') : '+ ' + t('home.createFamily') }}</button>
       </div>
 
       <LoadingSpinner v-if="loading" />
       <div v-if="!loading">
       <div v-if="showCreate" class="card mb-4 flex flex-col sm:flex-row gap-2">
-        <input v-model="familyName" class="input flex-1" placeholder="家庭名称" @keyup.enter="createFamily" />
-        <button class="btn-primary" @click="createFamily">创建</button>
+        <input v-model="familyName" class="input flex-1" :placeholder="t('home.familyName')" @keyup.enter="createFamily" />
+        <button class="btn-primary" @click="createFamily">{{ t('home.create') }}</button>
       </div>
 
       <div class="card mb-4 flex flex-col sm:flex-row gap-2">
-        <input v-model="inviteCode" class="input flex-1" placeholder="输入邀请码加入" @keyup.enter="joinFamily" />
-        <button class="btn-primary" @click="joinFamily">加入</button>
+        <input v-model="inviteCode" class="input flex-1" :placeholder="t('home.joinByCode')" @keyup.enter="joinFamily" />
+        <button class="btn-primary" @click="joinFamily">{{ t('home.join') }}</button>
       </div>
 
       <p v-if="error" class="text-danger text-sm mb-2">{{ error }}</p>
 
-      <div v-if="families.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-8">还没有家庭</div>
+      <div v-if="families.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-8">{{ t('home.noFamily') }}</div>
 
       <!-- Family cards grid -->
       <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
@@ -106,7 +106,7 @@ async function joinFamily() {
           <button
             class="absolute top-2 right-2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/80 dark:bg-gray-900/80 hover:bg-yellow-100 transition-colors"
             @click.stop="toggleFav(f.id)"
-            :title="favId === f.id ? '取消收藏' : '收藏'"
+            :title="favId === f.id ? t('home.unfavorite') : t('home.favorite')"
           >
             <span v-if="favId === f.id" class="text-yellow-500 text-lg">★</span>
             <span v-else class="text-gray-300 dark:text-gray-600 text-lg group-hover:text-yellow-400 transition-colors">☆</span>
@@ -123,7 +123,7 @@ async function joinFamily() {
           <!-- Info -->
           <div class="flex items-center justify-between">
             <span class="font-medium dark:text-gray-200">{{ f.name }}</span>
-            <span class="text-xs text-gray-400">邀请码: {{ f.invite_code }}</span>
+            <span class="text-xs text-gray-400">{{ t('home.inviteCodePrefix') }}{{ f.invite_code }}</span>
           </div>
         </div>
       </div>

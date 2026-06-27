@@ -116,7 +116,7 @@ onMounted(async () => {
 })
 
 async function leaveFamily() {
-  if (!confirm('确定要离开这个家庭吗？')) return
+  if (!confirm(t('family.leaveConfirm'))) return
   try {
     await api.post('/families/' + route.params.familyId + '/leave')
     window.location.href = '/'
@@ -146,7 +146,7 @@ async function leaveFamily() {
           @click="openTab(nav.id)"
         >{{ nav.icon }} {{ t(nav.labelKey) }}</button>
         <hr class="my-2 border-gray-200 dark:border-gray-700" />
-        <button class="px-3 py-2 rounded-lg text-left text-gray-400 hover:text-danger hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm" @click="leaveFamily">🚪 离开家庭</button>
+        <button class="px-3 py-2 rounded-lg text-left text-gray-400 hover:text-danger hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm" @click="leaveFamily">🚪 {{ t('family.leaveFamily') }}</button>
       </nav>
     </aside>
 
