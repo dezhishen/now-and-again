@@ -38,7 +38,9 @@ router.beforeEach(async (to, _from, next) => {
   if (auth.needsSetup && to.name !== 'setup') return next('/setup')
   if (!auth.needsSetup && to.name === 'setup') return next('/login')
 
-  // Only refresh session if we don't already have a valid token locally
+  // Token is persisted to sessionStorage by ApiClient constructor.
+  // hasValidToken() checks both memory and sessionStorage — no network call.
+  // Only call /auth/refresh when token is truly missing or expired.
   if (!auth.sessionChecked && !api.hasValidToken()) {
     await auth.initSession()
   } else {

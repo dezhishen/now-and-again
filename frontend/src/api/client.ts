@@ -1,6 +1,17 @@
 import type { APIResponse, User } from '@/types'
 
 const BASE_URL = '/api'
+const TOKEN_KEY = 'na_access_token'
+const SESSION_EXPIRED_CODE = 401
+
+// ─── Token persistence (sessionStorage: survives refresh, cleared on tab close) ─
+
+function loadToken(): string | null {
+  try { return sessionStorage.getItem(TOKEN_KEY) } catch { return null }
+}
+function saveToken(token: string | null) {
+  try { if (token) sessionStorage.setItem(TOKEN_KEY, token); else sessionStorage.removeItem(TOKEN_KEY) } catch { /* */ }
+}
 
 // ─── JWT helpers ─────────────────────────────────────────────────
 
@@ -30,20 +41,37 @@ class ApiClient {
   private refreshPromise: Promise<boolean> | null = null
   private onSessionExpired: (() => void) | null = null
 
-  setAccessToken(token: string | null) { this.accessToken = token }
+  constructor() {
+    // Restore token from sessionStorage on page refresh
+    const saved = loadToken()
+    if (saved && !isTokenExpired(saved)) {
+      this.accessToken = saved
+    }
+  }
+
+  private setToken(token: string | null) {
+    this.accessToken = token
+    saveToken(token)
+  }
+
+  setAccessToken(token: string | null) { this.setToken(token) }
   getAccessToken() { return this.accessToken }
 
-  /** True if we have a non-expired access token locally. */
+  /** True if we have a non-expired access token (memory or sessionStorage). */
   hasValidToken(): boolean {
     return !!this.accessToken && !isTokenExpired(this.accessToken)
   }
 
-  /** Register callback: called when refresh token is also expired. */
+  /** Register callback: called only when refresh returns 401 (session truly expired). */
   onExpired(fn: () => void) { this.onSessionExpired = fn }
 
-  /** Try to restore session from refresh token cookie. Returns user if successful. */
+  /**
+   * Try to restore session from refresh token cookie.
+   * Only call this when we don't have a valid token (not on every page load).
+   * Returns user if successful, null if refresh also failed.
+   */
   async initSession(): Promise<User | null> {
-    // Skip if we already have a valid token
+    // Already have a valid token — nothing to do
     if (this.hasValidToken()) return null
 
     try {
@@ -54,7 +82,7 @@ class ApiClient {
       if (!res.ok) return null
       const json: APIResponse<{ access_token: string; user: User }> = await res.json()
       if (json.success && json.data?.access_token) {
-        this.accessToken = json.data.access_token
+        this.setToken(json.data.access_token)
         return json.data.user
       }
       return null
@@ -62,24 +90,33 @@ class ApiClient {
   }
 
   /** Refresh access token using the httpOnly cookie. Returns true if succeeded. */
-  async refreshAccessToken(): Promise<boolean> {
+  private async refreshAccessToken(): Promise<boolean> {
+    // Dedupe concurrent refresh calls
     if (this.refreshPromise) return this.refreshPromise
+
     this.refreshPromise = (async () => {
       try {
         const res = await fetch(`${BASE_URL}/auth/refresh`, {
           method: 'POST', credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
         })
-        if (!res.ok) { this.accessToken = null; return false }
+        if (!res.ok) {
+          this.setToken(null)
+          return false
+        }
         const json: APIResponse<{ access_token: string }> = await res.json()
         if (json.success && json.data?.access_token) {
-          this.accessToken = json.data.access_token
+          this.setToken(json.data.access_token)
           return true
         }
         return false
-      } catch { this.accessToken = null; return false
-      } finally { this.refreshPromise = null }
+      } catch {
+        return false
+      } finally {
+        this.refreshPromise = null
+      }
     })()
+
     return this.refreshPromise
   }
 
@@ -103,13 +140,15 @@ class ApiClient {
 
     let res = await doFetch()
 
-    // On 401, try refresh and retry once
-    if (res.status === 401 && this.accessToken && path !== '/auth/refresh') {
+    // Only refresh on 401 (session expired) — not on other error codes
+    if (res.status === SESSION_EXPIRED_CODE && this.accessToken && path !== '/auth/refresh') {
       const refreshed = await this.refreshAccessToken()
       if (refreshed) {
+        // Retry the original request with new token
         res = await doFetch()
       } else {
-        this.accessToken = null
+        // Refresh also failed → truly expired
+        this.setToken(null)
         this.onSessionExpired?.()
         throw new Error('Session expired')
       }
