@@ -9,7 +9,7 @@ COPY cli/ cli/
 
 RUN cd cli && CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/na .
 
-FROM alpine:3.20
+FROM alpine:3.21
 
 RUN apk add --no-cache ca-certificates tzdata \
     && addgroup -S appgroup && adduser -S appuser -G appgroup
