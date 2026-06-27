@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 import { api } from '@/api/client'
 
 import DashboardView from './family/DashboardView.vue'
@@ -16,6 +17,7 @@ import IcsView from './family/IcsView.vue'
 import SettingsView from './family/SettingsView.vue'
 
 const { t } = useI18n()
+const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
@@ -120,7 +122,7 @@ async function leaveFamily() {
   try {
     await api.post('/families/' + route.params.familyId + '/leave')
     window.location.href = '/'
-  } catch (e: any) { alert(e.message) }
+  } catch (e: any) { toast.error(e.message) }
 }
 </script>
 
