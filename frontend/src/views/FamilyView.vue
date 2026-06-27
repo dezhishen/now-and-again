@@ -85,6 +85,7 @@ function openTab(id: string) {
 }
 
 function closeTab(id: string) {
+  if (id === 'dashboard') return  // 首页不允许关闭
   const idx = tabs.value.findIndex(t => t.id === id)
   if (idx === -1) return
   tabs.value.splice(idx, 1)
@@ -159,7 +160,7 @@ async function leaveFamily() {
           @click="activeTabId = tab.id"
         >
           <span class="truncate">{{ tab.icon }} {{ tab.label }}</span>
-          <span class="ml-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition-opacity flex-shrink-0" @click.stop="closeTab(tab.id)">✕</span>
+          <span class="ml-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition-opacity flex-shrink-0" v-if="tab.id !== 'dashboard'" @click.stop="closeTab(tab.id)">✕</span>
         </button>
       </div>
 
