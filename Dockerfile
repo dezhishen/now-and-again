@@ -25,7 +25,7 @@ COPY --from=frontend-builder /frontend/dist /app/backend/internal/webui/dist
 RUN cd backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/server ./cmd/server
 
 # ─── Runtime ──────────────────────────────────────────────────────
-FROM registry.alpinelinux.org/img/alpine:3.24:3.24
+FROM registry.alpinelinux.org/img/alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata
 # Create non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
