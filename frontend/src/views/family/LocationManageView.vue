@@ -16,7 +16,9 @@ const route = useRoute()
 const familyId = route.params.familyId as string
 
 const refreshKey = inject<Ref<number>>('refreshKey', ref(0))
-watch(refreshKey, () => { loadLocations(); loadPlans() })
+watch(refreshKey, (newVal, oldVal) => {
+  if (oldVal !== undefined && newVal !== oldVal) { loadLocations(); loadPlans() }
+})
 
 const locations = ref<Location[]>([])
 const floorPlans = ref<FloorPlan[]>([])

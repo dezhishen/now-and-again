@@ -19,7 +19,9 @@ const familyId = route.params.familyId as string
 
 // Reload data when this tab becomes active (switching tabs)
 const refreshKey = inject<Ref<number>>('refreshKey', ref(0))
-watch(refreshKey, () => { loadTodos(); loadLocations() })
+watch(refreshKey, (newVal, oldVal) => {
+  if (oldVal !== undefined && newVal !== oldVal) { loadTodos(); loadLocations() }
+})
 
 const activeTab = ref<'todos' | 'overview'>('todos')
 const loading = ref(true)

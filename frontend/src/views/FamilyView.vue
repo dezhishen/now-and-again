@@ -47,6 +47,7 @@ const activeTabId = ref('')
 const refreshKey = ref(0)
 provide('refreshKey', refreshKey)
 watch(activeTabId, (newVal, oldVal) => {
+  // Only fire if we're actually changing to a different tab
   if (oldVal && newVal !== oldVal) refreshKey.value++
 })
 
@@ -101,13 +102,15 @@ onMounted(async () => {
     isFamilyAdmin.value = me?.role === 'owner' || me?.role === 'admin'
   } catch { /* */ }
 
-  // Always ensure dashboard is the first tab
-  openTab('dashboard')
+  // Always ensure dashboard is the first tab (only if not already open)
+  if (!tabs.value.find(t => t.id === 'dashboard')) {
+    openTab('dashboard')
+  }
 
-  // Open tab based on current route (skip if already dashboard)
+  // Open tab based on current route
   const routeName = (route.name as string) || ''
   const tabId = routeName.startsWith('family-') ? routeName.replace('family-', '') : 'dashboard'
-  if (tabId !== 'dashboard') {
+  if (tabId !== 'dashboard' && !tabs.value.find(t => t.id === tabId)) {
     openTab(tabId)
   }
 })
