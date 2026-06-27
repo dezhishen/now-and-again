@@ -90,7 +90,6 @@ const ROLE_LABELS: Record<string, string> = {
 
 <template>
   <div>
-    <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">{{ t('members.heading') }}</h2>
 
     <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
 

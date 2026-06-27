@@ -263,7 +263,6 @@ function scheduleSummary(task: TaskTemplate): string {
 
 <template>
   <div>
-    <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">📋 任务管理</h2>
 
     <LoadingSpinner v-if="loading" />
 

@@ -250,7 +250,6 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
 <template>
   <div>
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl md:text-2xl font-bold dark:text-gray-200">{{ t('floorPlan.heading') }}</h2>
       <div class="relative" @click.stop>
         <button class="btn-primary text-sm" :class="{ 'opacity-50': uploading }" @click="showUploadMenu = !showUploadMenu">
           {{ uploading ? '...' : '+ ' + t('floorPlan.upload') }} ▾

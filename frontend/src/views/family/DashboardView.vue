@@ -220,7 +220,6 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">{{ t('dashboard.heading') }}</h2>
 
     <LoadingSpinner v-if="loading" />
 

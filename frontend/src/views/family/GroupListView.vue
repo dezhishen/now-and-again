@@ -139,7 +139,6 @@ async function removeMember(userId: string) {
 <template>
   <div>
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl md:text-2xl font-bold dark:text-gray-200">{{ t('groups.heading') }}</h2>
       <button class="btn-primary text-sm" @click="showCreate = !showCreate">
         {{ showCreate ? t('groups.cancel') : '+ ' + t('groups.create') }}
       </button>

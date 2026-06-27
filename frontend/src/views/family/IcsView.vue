@@ -170,7 +170,6 @@ function getUsageHint(feed: IcsFeed): string {
 
 <template>
   <div>
-    <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">📅 日历订阅 (ICS)</h2>
 
     <LoadingSpinner v-if="loading" />
     <template v-else>

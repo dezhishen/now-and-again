@@ -71,7 +71,6 @@ async function copyInviteCode() {
 
 <template>
   <div class="max-w-xl">
-    <h2 class="text-xl md:text-2xl font-bold mb-6 dark:text-gray-200">{{ t('settingsPage.heading') }}</h2>
 
     <p v-if="error" class="text-danger text-sm mb-4">{{ error }}</p>
     <LoadingSpinner v-if="loading" />
