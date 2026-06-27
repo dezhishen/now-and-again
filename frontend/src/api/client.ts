@@ -4,65 +4,97 @@ const BASE_URL = '/api'
 const TOKEN_KEY = 'na_access_token'
 const SESSION_EXPIRED_CODE = 401
 
-// ─── Token persistence (sessionStorage: survives refresh, cleared on tab close) ─
+// ─── Token persistence ────────────────────────────────────────────
+//
+// Stored format: JSON { token: string, expiresAt: number (epoch ms) }
+// This avoids decoding the JWT on every access check — we just compare
+// Date.now() against the stored expiry.
 
-function loadToken(): string | null {
-  try { return sessionStorage.getItem(TOKEN_KEY) } catch { return null }
+interface StoredToken {
+  token: string
+  expiresAt: number // epoch milliseconds
 }
-function saveToken(token: string | null) {
-  try { if (token) sessionStorage.setItem(TOKEN_KEY, token); else sessionStorage.removeItem(TOKEN_KEY) } catch { /* */ }
-}
 
-// ─── JWT helpers ─────────────────────────────────────────────────
-
-function decodeJWT(token: string): { exp?: number } | null {
+function loadStoredToken(): StoredToken | null {
   try {
-    const payload = token.split('.')[1]
-    return JSON.parse(atob(payload))
+    const raw = sessionStorage.getItem(TOKEN_KEY)
+    if (!raw) return null
+    const parsed: StoredToken = JSON.parse(raw)
+    if (!parsed.token || typeof parsed.expiresAt !== 'number') return null
+    return parsed
   } catch { return null }
 }
 
-function isTokenExpired(token: string): boolean {
-  const claims = decodeJWT(token)
-  if (!claims?.exp) return false
-  return Date.now() >= claims.exp * 1000
+function saveStoredToken(t: StoredToken | null) {
+  try {
+    if (t) sessionStorage.setItem(TOKEN_KEY, JSON.stringify(t))
+    else sessionStorage.removeItem(TOKEN_KEY)
+  } catch { /* quota exceeded or private browsing */ }
 }
 
-function isTokenExpiringSoon(token: string, seconds = 60): boolean {
-  const claims = decodeJWT(token)
-  if (!claims?.exp) return false
-  return Date.now() >= (claims.exp - seconds) * 1000
+// ─── JWT helpers (only used when receiving a NEW token) ──────────
+
+/** Extract exp claim from a JWT. Returns epoch seconds, or 0 if unreadable. */
+function getJWTExpiry(token: string): number {
+  try {
+    const payload = token.split('.')[1]
+    const claims = JSON.parse(atob(payload))
+    return claims?.exp || 0
+  } catch { return 0 }
 }
 
 // ─── API Client ──────────────────────────────────────────────────
 
 class ApiClient {
+  /** Raw access token (mirrors storedToken.token for fast access). */
   private accessToken: string | null = null
+  /** Expiry as epoch ms. 0 means unknown/not set. */
+  private accessTokenExpiresAt: number = 0
   private refreshPromise: Promise<boolean> | null = null
   private onSessionExpired: (() => void) | null = null
   /** Prevent concurrent expired-session redirects. */
   private sessionExpiredFired = false
 
   constructor() {
-    // Restore token from sessionStorage on page refresh
-    const saved = loadToken()
-    if (saved && !isTokenExpired(saved)) {
-      this.accessToken = saved
+    // Restore token + expiry from sessionStorage on page refresh
+    const stored = loadStoredToken()
+    if (stored && stored.expiresAt > Date.now()) {
+      this.accessToken = stored.token
+      this.accessTokenExpiresAt = stored.expiresAt
     }
   }
 
-  private setToken(token: string | null) {
+  /** Persist token + expiry to both memory and sessionStorage. */
+  private setToken(token: string | null, expiresAt: number = 0) {
     this.accessToken = token
-    saveToken(token)
+    this.accessTokenExpiresAt = expiresAt
+    if (token && expiresAt > 0) {
+      saveStoredToken({ token, expiresAt })
+    } else {
+      saveStoredToken(null)
+    }
     if (token) this.sessionExpiredFired = false // reset on new token
   }
 
-  setAccessToken(token: string | null) { this.setToken(token) }
+  setAccessToken(token: string | null) {
+    if (token) {
+      const exp = getJWTExpiry(token)
+      this.setToken(token, exp > 0 ? exp * 1000 : 0)
+    } else {
+      this.setToken(null)
+    }
+  }
   getAccessToken() { return this.accessToken }
 
-  /** True if we have a non-expired access token (memory or sessionStorage). */
+  /** True if we hold a non-expired access token (no JWT decode needed). */
   hasValidToken(): boolean {
-    return !!this.accessToken && !isTokenExpired(this.accessToken)
+    return !!this.accessToken && this.accessTokenExpiresAt > Date.now()
+  }
+
+  /** True if the token will expire within `seconds`. */
+  private isTokenExpiringSoon(seconds = 60): boolean {
+    if (!this.accessToken || this.accessTokenExpiresAt <= 0) return false
+    return Date.now() >= this.accessTokenExpiresAt - seconds * 1000
   }
 
   /** Register callback: fired exactly once when session is confirmed expired (refresh returned 401). */
@@ -85,7 +117,7 @@ class ApiClient {
       if (!res.ok) return null
       const json: APIResponse<{ access_token: string; user: User }> = await res.json()
       if (json.success && json.data?.access_token) {
-        this.setToken(json.data.access_token)
+        this.setAccessToken(json.data.access_token)
         return json.data.user
       }
       return null
@@ -125,7 +157,7 @@ class ApiClient {
 
         const json: APIResponse<{ access_token: string }> = await res.json()
         if (json.success && json.data?.access_token) {
-          this.setToken(json.data.access_token)
+          this.setAccessToken(json.data.access_token)
           return true
         }
         return false
@@ -144,7 +176,7 @@ class ApiClient {
     // Proactively refresh if token is about to expire.
     // If refresh fails (network error), keep the old token and let the actual
     // API call decide — it might still be valid, or it will return 401.
-    if (this.accessToken && isTokenExpiringSoon(this.accessToken, 120)) {
+    if (this.accessToken && this.isTokenExpiringSoon(120)) {
       await this.refreshAccessToken()
       // Note: we do NOT check the result here. If refresh cleared the token
       // (401), the next API call will get 401 and the handler below will
