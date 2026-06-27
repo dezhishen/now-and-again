@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import { useToast } from '@/composables/useToast'
+import { useLoading } from '@/composables/useLoading'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { getLocationKinds, getLocationKindIcon } from '@/composables/useLocationKinds'
 import { initLocationKinds } from '@/components/locations/init'
@@ -17,11 +19,11 @@ const route = useRoute()
 const familyId = route.params.familyId as string
 
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
-watch(refreshKey, (newVal) => { if (newVal === 'locations') { loadLocations(); loadPlans() } })
+watch(refreshKey, (newVal) => { if (newVal === 'locations') withLoading(async () => { await loadLocations(); await loadPlans() }) })
 
 const locations = ref<Location[]>([])
 const floorPlans = ref<FloorPlan[]>([])
-const loading = ref(true)
+const { loading, withLoading } = useLoading()
 
 // ─── Edit modal ──────────────────────────────────────────────────
 const editing = ref(false)
@@ -34,11 +36,7 @@ const locationKinds = getLocationKinds()
 
 const PRESET_COLORS = ['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#78716c']
 
-onMounted(async () => {
-  loading.value = true
-  await Promise.all([loadLocations(), loadPlans()])
-  loading.value = false
-})
+onMounted(() => { withLoading(async () => { await loadLocations(); await loadPlans() }) })
 
 async function loadLocations() {
   try {
@@ -122,6 +120,8 @@ function getPlanLabel(planId: string) {
 
 <template>
   <div>
+    <LoadingSpinner v-if="loading" />
+    <template v-else>
     <div class="flex items-center justify-between mb-4">
       <button class="btn-primary" @click="openCreate">+ {{ t('locations.add') }}</button>
     </div>
@@ -197,5 +197,6 @@ function getPlanLabel(planId: string) {
         </div>
       </div>
     </Teleport>
+    </template>
   </div>
 </template>

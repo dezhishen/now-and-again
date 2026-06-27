@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import { useLoading } from '@/composables/useLoading'
 import { useConfirm } from '@/composables/useConfirm'
 import type { FamilyGroup, FamilyGroupMember } from '@/types'
 
@@ -15,10 +16,10 @@ const familyId = route.params.familyId as string
 
 // Reload data when this tab becomes active
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
-watch(refreshKey, (newVal) => { if (newVal === 'groups') loadGroups() })
+watch(refreshKey, (newVal) => { if (newVal === 'groups') withLoading(loadGroups) })
 
 const groups = ref<FamilyGroup[]>([])
-const pageLoading = ref(true)
+const { loading: pageLoading, withLoading } = useLoading()
 const showCreate = ref(false)
 const newName = ref('')
 const newDesc = ref('')
@@ -38,7 +39,7 @@ const manageDetail = ref<GroupDetail | null>(null)
 const manageLoading = ref(false)
 const isFamilyAdmin = ref(false)
 
-onMounted(async () => { pageLoading.value = true; await loadGroups(); pageLoading.value = false })
+onMounted(() => { withLoading(loadGroups) })
 
 async function loadGroups() {
   try { groups.value = await api.get<FamilyGroup[]>('/families/' + familyId + '/groups') } catch { groups.value = [] }

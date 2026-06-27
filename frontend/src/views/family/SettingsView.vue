@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import { useLoading } from '@/composables/useLoading'
 import { useConfirm } from '@/composables/useConfirm'
 import type { Family } from '@/types'
 
@@ -14,10 +15,10 @@ const familyId = route.params.familyId as string
 
 // Reload data when this tab becomes active
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
-watch(refreshKey, (newVal) => { if (newVal === 'settings') loadFamily() })
+watch(refreshKey, (newVal) => { if (newVal === 'settings') withLoading(loadFamily) })
 
 const family = ref<Family | null>(null)
-const loading = ref(true)
+const { loading, withLoading } = useLoading()
 const editName = ref('')
 const saving = ref(false)
 const saved = ref(false)

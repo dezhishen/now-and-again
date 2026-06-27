@@ -6,6 +6,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useToast } from '@/composables/useToast'
+import { useLoading } from '@/composables/useLoading'
 import type { FamilyGroup, ApiKey } from '@/types'
 
 const { t } = useI18n()
@@ -22,12 +23,12 @@ const familyId = route.params.familyId as string
 
 // Reload data when this tab becomes active
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
-watch(refreshKey, (newVal) => { if (newVal === 'ics') { loadFeeds(); loadGroups(); loadApiKeys() } })
+watch(refreshKey, (newVal) => { if (newVal === 'ics') withLoading(async () => { await loadFeeds(); await loadGroups(); await loadApiKeys() }) })
 
 const feeds = ref<IcsFeed[]>([])
 const groups = ref<FamilyGroup[]>([])
 const apiKeys = ref<ApiKey[]>([])
-const loading = ref(true)
+const { loading, withLoading } = useLoading()
 const toast = useToast()
 
 // Form state
@@ -70,10 +71,12 @@ function copyEmbed() {
   })
 }
 
-onMounted(async () => {
-  loading.value = true
-  await Promise.all([loadFeeds(), loadGroups(), loadApiKeys()])
-  loading.value = false
+onMounted(() => {
+  withLoading(async () => {
+    await loadFeeds()
+    await loadGroups()
+    await loadApiKeys()
+  })
 })
 
 async function loadFeeds() {

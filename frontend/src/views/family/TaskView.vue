@@ -6,6 +6,7 @@ import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import TaskCard from '@/components/tasks/TaskCard.vue'
 import { useToast } from '@/composables/useToast'
+import { useLoading } from '@/composables/useLoading'
 import { getCreateLabelKey, getDefaultCheckItems, getTaskKinds, getFormComponent } from '@/composables/useTaskKinds'
 import { useConfirm } from '@/composables/useConfirm'
 import { initTaskKinds } from '@/components/tasks/init'
@@ -18,14 +19,16 @@ const toast = useToast()
 const route = useRoute()
 const familyId = route.params.familyId as string
 
-// Reload data when this tab becomes active
+// Reload on tab activation
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
-watch(refreshKey, (newVal) => { if (newVal === 'tasks') { loadTasks(); loadGroups(); loadLocations() } })
+watch(refreshKey, (newVal) => {
+  if (newVal === 'tasks') withLoading(async () => { await loadTasks(); await loadGroups(); await loadLocations() })
+})
 
 const tasks = ref<Task[]>([])
 const groups = ref<FamilyGroup[]>([])
 const locations = ref<{ id: string; name: string; color: string; floor_plan_id?: string }[]>([])
-const loading = ref(true)
+const { loading, withLoading } = useLoading()
 const showKindMenu = ref(false)
 
 // Log modal
@@ -69,10 +72,12 @@ const SCHEDULE_TYPES = [
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
 
-onMounted(async () => {
-  loading.value = true
-  await Promise.all([loadTasks(), loadGroups(), loadLocations()])
-  loading.value = false
+onMounted(() => {
+  withLoading(async () => {
+    await loadTasks()
+    await loadGroups()
+    await loadLocations()
+  })
 })
 
 // Active tasks: exclude disabled one-shot tasks (already completed).

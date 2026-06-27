@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import { useLoading } from '@/composables/useLoading'
 import { useConfirm } from '@/composables/useConfirm'
 import type { FamilyMember, FamilyRole } from '@/types'
 
@@ -15,10 +16,10 @@ const familyId = route.params.familyId as string
 
 // Reload data when this tab becomes active
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
-watch(refreshKey, (newVal) => { if (newVal === 'members') { loadMembers(); loadRequests() } })
+watch(refreshKey, (newVal) => { if (newVal === 'members') withLoading(async () => { await loadMembers(); await loadRequests() }) })
 
 const members = ref<FamilyMember[]>([])
-const pageLoading = ref(true)
+const { loading: pageLoading, withLoading } = useLoading()
 const requests = ref<FamilyMember[]>([])
 const activeTab = ref<'members' | 'requests'>('members')
 const error = ref('')
