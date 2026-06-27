@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { User } from '@/types'
 
+const { t } = useI18n()
 const users = ref<User[]>([])
 const loading = ref(true)
 const activeTab = ref<'users' | 'storage'>('users')
@@ -47,18 +49,18 @@ const STORAGE_OPTIONS = [
 
 <template>
   <div>
-    <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">管理面板</h2>
+    <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">{{ t('admin.heading') }}</h2>
 
     <!-- Tabs -->
     <div class="flex gap-1 mb-4 border-b dark:border-gray-700">
       <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
         :class="activeTab === 'users' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
         @click="activeTab = 'users'"
-      >用户管理</button>
+      >{{ t('admin.users') }}</button>
       <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
         :class="activeTab === 'storage' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
         @click="activeTab = 'storage'"
-      >存储配置</button>
+      >{{ t('admin.storage') }}</button>
     </div>
 
     <!-- Users Tab -->
@@ -66,14 +68,14 @@ const STORAGE_OPTIONS = [
       <table class="w-full text-sm min-w-[500px]">
         <thead>
           <tr class="border-b dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
-            <th class="py-2 px-3">显示名称</th><th class="py-2 px-3">邮箱</th><th class="py-2 px-3">角色</th><th class="py-2 px-3 hidden sm:table-cell">注册时间</th>
+            <th class="py-2 px-3">{{ t('admin.usersDisplayName') }}</th><th class="py-2 px-3">{{ t('admin.usersEmail') }}</th><th class="py-2 px-3">{{ t('admin.usersRoles') }}</th><th class="py-2 px-3 hidden sm:table-cell">{{ t('admin.usersCreated') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="u in users" :key="u.id" class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
             <td class="py-2 px-3 font-medium dark:text-gray-200">{{ u.display_name }}</td>
             <td class="py-2 px-3 dark:text-gray-300">{{ u.email }}</td>
-            <td class="py-2 px-3"><span v-if="u.roles.includes('admin')" class="text-primary font-medium">管理员</span><span v-else class="text-gray-400">成员</span></td>
+            <td class="py-2 px-3"><span v-if="u.roles.includes('admin')" class="text-primary font-medium">{{ t('user.admin') }}</span><span v-else class="text-gray-400">{{ t('user.member') }}</span></td>
             <td class="py-2 px-3 text-gray-400 hidden sm:table-cell">{{ u.created_at?.split('T')[0] }}</td>
           </tr>
         </tbody>
@@ -88,24 +90,24 @@ const STORAGE_OPTIONS = [
     <template v-else>
 
       <div class="card mb-4 max-w-lg">
-        <h3 class="font-medium mb-3 dark:text-gray-200">图片存储配置</h3>
-        <p class="text-xs text-gray-400 mb-4">选择图片文件的存储后端。切换存储类型后，新上传的图片将使用新的存储后端，已有图片不受影响。</p>
+        <h3 class="font-medium mb-3 dark:text-gray-200">{{ t('admin.storageHeading') }}</h3>
+        <p class="text-xs text-gray-400 mb-4">{{ t('admin.storageDesc') }}</p>
 
-        <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">存储类型</label>
+        <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('admin.storageType') }}</label>
         <select v-model="settings['storage.type']" class="input mb-4">
           <option v-for="opt in STORAGE_OPTIONS" :key="opt.value" :value="opt.value" :disabled="opt.disabled">{{ opt.label }}</option>
         </select>
 
         <button class="btn-primary text-sm" @click="saveSettings">
-          {{ saved ? '已保存' : '保存配置' }}
+          {{ saved ? t('admin.storageSaved') : t('admin.storageSave') }}
         </button>
       </div>
 
       <div class="card max-w-lg">
-        <h3 class="font-medium mb-2 dark:text-gray-200">当前状态</h3>
+        <h3 class="font-medium mb-2 dark:text-gray-200">{{ t('admin.currentStatus') }}</h3>
         <div class="text-sm text-gray-500 dark:text-gray-400 space-y-1">
-          <p>存储类型：<code class="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs">{{ settings['storage.type'] || 'local' }}</code></p>
-          <p v-if="settings['storage.type'] === 'local' || !settings['storage.type']" class="text-xs text-green-600 mt-2">✓ 本地存储已激活，图片保存在服务器的 uploads 目录下。</p>
+          <p>{{ t('admin.storageTypeLabel') }}<code class="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs">{{ settings['storage.type'] || 'local' }}</code></p>
+          <p v-if="settings['storage.type'] === 'local' || !settings['storage.type']" class="text-xs text-green-600 mt-2">{{ t('admin.storageLocalActive') }}</p>
         </div>
       </div>
     </template>
