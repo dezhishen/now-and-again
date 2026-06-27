@@ -2,7 +2,7 @@
 # NOT for local use; use Dockerfile for local builds.
 ARG TARGETARCH
 
-FROM ghcr.io/library/alpine:3.24
+FROM registry.alpinelinux.org/img/alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
