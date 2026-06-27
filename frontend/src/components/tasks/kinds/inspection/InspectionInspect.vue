@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { TaskTemplate } from '@/types'
+import type { Task } from '@/types'
 
-const task = defineModel<TaskTemplate | null>('task', { required: true })
+const task = defineModel<Task | null>('task', { required: true })
 const selections = defineModel<Record<string, string>>('selections', { default: () => ({}) })
 
 function selectBranch(itemName: string, branchName: string) {

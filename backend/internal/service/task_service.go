@@ -51,23 +51,23 @@ func (s *TaskService) loadExistingTasks() {
 // These implement shared/contracts.TaskContract so the service plugs into
 // the compile-time-checked contract system used by both server and CLI.
 
-func (s *TaskService) CreateTask(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.TaskTemplate, error) {
+func (s *TaskService) CreateTask(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.Task, error) {
 	return s.Create(ctx, familyID, req)
 }
-func (s *TaskService) UpdateTask(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.TaskTemplate, error) {
+func (s *TaskService) UpdateTask(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.Task, error) {
 	return s.Update(ctx, taskID, req)
 }
 func (s *TaskService) DeleteTask(ctx context.Context, taskID uuid.UUID) error {
 	return s.Delete(ctx, taskID)
 }
-func (s *TaskService) ListTasks(ctx context.Context, familyID uuid.UUID) ([]types.TaskTemplate, error) {
+func (s *TaskService) ListTasks(ctx context.Context, familyID uuid.UUID) ([]types.Task, error) {
 	return s.List(ctx, familyID)
 }
 func (s *TaskService) TriggerTask(ctx context.Context, taskID uuid.UUID) error {
 	return s.Trigger(ctx, taskID)
 }
 
-func (s *TaskService) registerToScheduler(task *repository.TaskTemplateModel) {
+func (s *TaskService) registerToScheduler(task *repository.TaskModel) {
 	if !task.Enabled {
 		s.scheduler.RemoveJob(task.ID)
 		return
@@ -127,7 +127,7 @@ func (s *TaskService) createTodo(taskID, familyID string, force bool) error {
 
 // ─── Task Template ───────────────────────────────────────────────
 
-func (s *TaskService) GetTask(ctx context.Context, taskID uuid.UUID) (*types.TaskTemplate, error) {
+func (s *TaskService) GetTask(ctx context.Context, taskID uuid.UUID) (*types.Task, error) {
 	t, err := s.repo.FindTaskByID(taskID.String())
 	if err != nil {
 		return nil, err
@@ -152,14 +152,14 @@ func (s *TaskService) GetTaskWithExtra(ctx context.Context, taskID uuid.UUID) (m
 	return result, nil
 }
 
-func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.TaskTemplate, error) {
+func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.Task, error) {
 	userID := ctx.Value("user_id").(string)
 	kind := req.Task.Kind
 	if kind == "" {
 		kind = "simple"
 	}
 	dataJSON, _ := json.Marshal(req.Task.ScheduleData)
-	t := &repository.TaskTemplateModel{
+	t := &repository.TaskModel{
 		FamilyID:     familyID.String(),
 		GroupID:      req.Task.GroupID,
 		LocationID:   req.Task.LocationID,
@@ -208,19 +208,19 @@ func (s *TaskService) Trigger(ctx context.Context, taskID uuid.UUID) error {
 	return s.createTodo(task.ID, task.FamilyID, true)
 }
 
-func (s *TaskService) List(ctx context.Context, familyID uuid.UUID) ([]types.TaskTemplate, error) {
+func (s *TaskService) List(ctx context.Context, familyID uuid.UUID) ([]types.Task, error) {
 	tasks, err := s.repo.ListTasksByFamily(familyID.String())
 	if err != nil {
 		return nil, err
 	}
-	result := make([]types.TaskTemplate, len(tasks))
+	result := make([]types.Task, len(tasks))
 	for i, t := range tasks {
 		result[i] = *taskModelToType(&t)
 	}
 	return result, nil
 }
 
-func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.TaskTemplate, error) {
+func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.Task, error) {
 	t, err := s.repo.FindTaskByID(taskID.String())
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
@@ -538,11 +538,11 @@ func marshalJSON(v any) string {
 	return string(b)
 }
 
-func taskModelToType(t *repository.TaskTemplateModel) *types.TaskTemplate {
+func taskModelToType(t *repository.TaskModel) *types.Task {
 	var data any
 	json.Unmarshal([]byte(t.ScheduleData), &data)
 
-	return &types.TaskTemplate{
+	return &types.Task{
 		ID: t.ID, FamilyID: t.FamilyID, GroupID: t.GroupID,
 		ParentTaskID: t.ParentTaskID, IsRoot: t.IsRoot,
 		LocationID: t.LocationID,

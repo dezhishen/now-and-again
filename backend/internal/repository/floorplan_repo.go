@@ -64,6 +64,6 @@ func (r *FloorPlanRepo) DeleteLocation(id string) error {
 
 func (r *FloorPlanRepo) CountTasksByLocationID(locationID string) (int64, error) {
 	var count int64
-	err := r.db.Model(&TaskTemplateModel{}).Where("location_id = ?", locationID).Count(&count).Error
+	err := r.db.Model(&TaskModel{}).Where("location_id = ?", locationID).Count(&count).Error
 	return count, err
 }

@@ -17,7 +17,7 @@ type Handler struct{}
 func (Handler) Kind() string { return "inspection" }
 
 // GetExtra returns check_items + children for the detail view.
-func (Handler) GetExtra(ops *taskkind.Ops, task *repository.TaskTemplateModel) (any, error) {
+func (Handler) GetExtra(ops *taskkind.Ops, task *repository.TaskModel) (any, error) {
 	// Reload with full relations
 	full, err := ops.Repo.FindTaskFull(task.ID)
 	if err != nil {
@@ -25,7 +25,7 @@ func (Handler) GetExtra(ops *taskkind.Ops, task *repository.TaskTemplateModel) (
 	}
 	extra := struct {
 		CheckItems []types.CheckItemDTO `json:"check_items"`
-		Children   []types.TaskTemplate `json:"children"`
+		Children   []types.Task `json:"children"`
 	}{}
 	for _, ci := range full.CheckItems {
 		branches := make([]types.CheckItemBranchDTO, 0, len(ci.Branches))
@@ -50,7 +50,7 @@ func (Handler) GetExtra(ops *taskkind.Ops, task *repository.TaskTemplateModel) (
 	for _, c := range full.Children {
 		var data any
 		json.Unmarshal([]byte(c.ScheduleData), &data)
-		extra.Children = append(extra.Children, types.TaskTemplate{
+		extra.Children = append(extra.Children, types.Task{
 			ID: c.ID, Name: c.Name, Kind: c.Kind,
 			ParentTaskID: c.ParentTaskID, IsRoot: c.IsRoot,
 			ScheduleType: c.ScheduleType, ScheduleData: data,
@@ -157,18 +157,18 @@ func init() {
 }
 
 // OnCreate persists check_items, branches, and child tasks for a new inspection.
-func (Handler) OnCreate(ops *taskkind.Ops, task *repository.TaskTemplateModel, extra any) error {
+func (Handler) OnCreate(ops *taskkind.Ops, task *repository.TaskModel, extra any) error {
 	return persistCheckItems(ops, task, extra)
 }
 
 // OnUpdate clears old sub-tables and recreates from the updated check items.
-func (Handler) OnUpdate(ops *taskkind.Ops, task *repository.TaskTemplateModel, extra any) error {
+func (Handler) OnUpdate(ops *taskkind.Ops, task *repository.TaskModel, extra any) error {
 	ops.Repo.DeleteChildren(task.ID)
 	ops.Repo.DeleteCheckItemsByTask(task.ID)
 	return persistCheckItems(ops, task, extra)
 }
 
-func persistCheckItems(ops *taskkind.Ops, task *repository.TaskTemplateModel, extra any) error {
+func persistCheckItems(ops *taskkind.Ops, task *repository.TaskModel, extra any) error {
 	// Extract check_items from the generic extra map
 	var items []types.CheckItemDTO
 	switch e := extra.(type) {
@@ -214,7 +214,7 @@ func persistCheckItems(ops *taskkind.Ops, task *repository.TaskTemplateModel, ex
 				if todoName == "" {
 					todoName = dto.Name + " - " + b.Name
 				}
-				child := &repository.TaskTemplateModel{
+				child := &repository.TaskModel{
 					FamilyID:     task.FamilyID,
 					IsRoot:       false,
 					ParentTaskID: task.ID,
@@ -247,7 +247,7 @@ func persistCheckItems(ops *taskkind.Ops, task *repository.TaskTemplateModel, ex
 }
 
 // OnDelete cleans up check_items, branches, and child tasks when an inspection is deleted.
-func (Handler) OnDelete(ops *taskkind.Ops, task *repository.TaskTemplateModel) error {
+func (Handler) OnDelete(ops *taskkind.Ops, task *repository.TaskModel) error {
 	if err := ops.Repo.DeleteChildren(task.ID); err != nil {
 		return fmt.Errorf("delete children: %w", err)
 	}

@@ -61,7 +61,7 @@ func Migrate(db *gorm.DB) error {
 		&LocationModel{},
 		&ImageModel{},
 		&SystemSettingModel{},
-		&TaskTemplateModel{},
+		&TaskModel{},
 		&TodoModel{},
 		&TaskLogModel{},
 		&InspectionResultModel{},

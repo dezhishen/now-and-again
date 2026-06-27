@@ -4,7 +4,7 @@ import "time"
 
 // ─── Task Template ───────────────────────────────────────────────
 
-type TaskTemplate struct {
+type Task struct {
 	ID             string     `json:"id"`
 	FamilyID       string     `json:"family_id"`
 	GroupID        string     `json:"group_id,omitempty"`
@@ -72,22 +72,22 @@ type UpdateTaskFields struct {
 // ─── Todo ────────────────────────────────────────────────────────
 
 type Todo struct {
-	ID          string        `json:"id"`
-	TaskID      string        `json:"task_id"`
-	FamilyID    string        `json:"family_id"`
-	LocationID  string        `json:"location_id,omitempty"`
-	AssignedTo  string        `json:"assigned_to,omitempty"`
-	Status      string        `json:"status"`                // pending/done/skipped
-	BranchName  string        `json:"branch_name,omitempty"` // selected branch
-	Remark      string        `json:"remark,omitempty"`      // user note on completion
-	DueStart    time.Time     `json:"due_start"`
-	DueDate     time.Time     `json:"due_date"`
-	CompletedAt *time.Time    `json:"completed_at,omitempty"`
-	CompletedBy string        `json:"completed_by,omitempty"`
-	Task        *TaskTemplate `json:"task,omitempty"`
-	User        *User         `json:"user,omitempty"`
-	CreatedAt   time.Time     `json:"created_at"`
-	UpdatedAt   time.Time     `json:"updated_at"`
+	ID          string     `json:"id"`
+	TaskID      string     `json:"task_id"`
+	FamilyID    string     `json:"family_id"`
+	LocationID  string     `json:"location_id,omitempty"`
+	AssignedTo  string     `json:"assigned_to,omitempty"`
+	Status      string     `json:"status"`                // pending/done/skipped
+	BranchName  string     `json:"branch_name,omitempty"` // selected branch
+	Remark      string     `json:"remark,omitempty"`      // user note on completion
+	DueStart    time.Time  `json:"due_start"`
+	DueDate     time.Time  `json:"due_date"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	CompletedBy string     `json:"completed_by,omitempty"`
+	Task        *Task      `json:"task,omitempty"`
+	User        *User      `json:"user,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type CompleteTodoRequest struct {

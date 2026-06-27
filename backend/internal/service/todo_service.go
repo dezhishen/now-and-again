@@ -110,7 +110,7 @@ func (s *TodoService) disableCompletedOnceTask(todo *repository.TodoModel) {
 }
 
 func todoModelToType(t *repository.TodoModel) *types.Todo {
-	var task *types.TaskTemplate
+	var task *types.Task
 	if t.Task.ID != "" {
 		task = taskModelToType(&t.Task)
 	}

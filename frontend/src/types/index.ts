@@ -108,7 +108,7 @@ export interface Location {
 
 // ─── Task ────────────────────────────────────────────────────────
 
-export interface TaskTemplate {
+export interface Task {
   id: string
   family_id: string
   group_id?: string
@@ -160,7 +160,7 @@ export interface Todo {
   due_date: string
   completed_at?: string
   completed_by?: string
-  task?: TaskTemplate
+  task?: Task
   user?: User
   created_at: string
   updated_at: string

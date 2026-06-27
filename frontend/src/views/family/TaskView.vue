@@ -8,7 +8,7 @@ import TaskCard from '@/components/tasks/TaskCard.vue'
 import { useToast } from '@/composables/useToast'
 import { getCreateLabel, getDefaultCheckItems, getTaskKinds, getFormComponent } from '@/composables/useTaskKinds'
 import { initTaskKinds } from '@/components/tasks/init'
-import type { TaskTemplate, FamilyGroup, CheckItem } from '@/types'
+import type { Task, FamilyGroup, CheckItem } from '@/types'
 
 // Initialize plugin task kinds
 initTaskKinds()
@@ -22,7 +22,7 @@ const familyId = route.params.familyId as string
 const refreshKey = inject<Ref<number>>('refreshKey', ref(0))
 watch(refreshKey, () => { loadTasks(); loadGroups(); loadLocations() })
 
-const tasks = ref<TaskTemplate[]>([])
+const tasks = ref<Task[]>([])
 const groups = ref<FamilyGroup[]>([])
 const locations = ref<{ id: string; name: string; color: string; floor_plan_id?: string }[]>([])
 const loading = ref(true)
@@ -53,7 +53,7 @@ const taskGroupID = ref('')
 const taskLocationID = ref('')
 const taskKind = ref('simple')
 const checkItems = ref<CheckItem[]>([])
-const editingTask = ref<TaskTemplate | null>(null)
+const editingTask = ref<Task | null>(null)
 
 const SCHEDULE_TYPES = [
   { value: 'once', label: '一次性' },
@@ -90,7 +90,7 @@ async function loadGroups() {
 }
 
 async function loadTasks() {
-  try { tasks.value = await api.get<TaskTemplate[]>('/families/' + familyId + '/tasks') } catch { tasks.value = [] }
+  try { tasks.value = await api.get<Task[]>('/families/' + familyId + '/tasks') } catch { tasks.value = [] }
 }
 
 function buildScheduleData(): any {
@@ -113,7 +113,7 @@ function openCreate(kind?: string) {
   showTaskForm.value = true
 }
 
-async function openEdit(task: TaskTemplate) {
+async function openEdit(task: Task) {
   editingTask.value = task
   taskName.value = task.name
   taskSchedule.value = task.schedule_type
@@ -167,7 +167,7 @@ async function saveTask() {
   } catch (e: any) { toast.error(e.message) }
 }
 
-async function toggleTask(task: TaskTemplate) {
+async function toggleTask(task: Task) {
   try {
     await api.put('/tasks/' + task.id, { task: { enabled: !task.enabled } })
     task.enabled = !task.enabled
@@ -250,7 +250,7 @@ function toggleDay(d: number) {
   else taskDays.value.push(d)
 }
 
-function scheduleSummary(task: TaskTemplate): string {
+function scheduleSummary(task: Task): string {
   const d = task.schedule_data || {}
   switch (task.schedule_type) {
     case 'once': return `一次性 ${d.date || ''} ${d.time || ''}`

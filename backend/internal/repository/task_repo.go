@@ -18,54 +18,54 @@ func (r *TaskRepo) Tx(fn func(tx *TaskRepo) error) error {
 
 // ─── Task Template ───────────────────────────────────────────────
 
-func (r *TaskRepo) CreateTask(t *TaskTemplateModel) error {
+func (r *TaskRepo) CreateTask(t *TaskModel) error {
 	return r.db.Create(t).Error
 }
 
-func (r *TaskRepo) FindTaskByID(id string) (*TaskTemplateModel, error) {
-	var t TaskTemplateModel
+func (r *TaskRepo) FindTaskByID(id string) (*TaskModel, error) {
+	var t TaskModel
 	err := r.db.Preload("Group").Where("id = ?", id).First(&t).Error
 	return &t, err
 }
 
-func (r *TaskRepo) ListTasksByFamily(familyID string) ([]TaskTemplateModel, error) {
-	var tasks []TaskTemplateModel
+func (r *TaskRepo) ListTasksByFamily(familyID string) ([]TaskModel, error) {
+	var tasks []TaskModel
 	err := r.db.Preload("Group").Where("family_id = ? AND is_root = ?", familyID, true).Order("created_at ASC").Find(&tasks).Error
 	return tasks, err
 }
 
 // FindTaskFull loads a task with all sub-tables for detail view / plugin actions.
-func (r *TaskRepo) FindTaskFull(id string) (*TaskTemplateModel, error) {
-	var t TaskTemplateModel
+func (r *TaskRepo) FindTaskFull(id string) (*TaskModel, error) {
+	var t TaskModel
 	err := r.db.Preload("Group").Preload("CheckItems.Branches.BranchTask").Preload("Children").Where("id = ?", id).First(&t).Error
 	return &t, err
 }
 
-func (r *TaskRepo) ListEnabledTasks() ([]TaskTemplateModel, error) {
-	var tasks []TaskTemplateModel
+func (r *TaskRepo) ListEnabledTasks() ([]TaskModel, error) {
+	var tasks []TaskModel
 	err := r.db.Where("enabled = ?", true).Find(&tasks).Error
 	return tasks, err
 }
 
-func (r *TaskRepo) UpdateTask(t *TaskTemplateModel) error {
+func (r *TaskRepo) UpdateTask(t *TaskModel) error {
 	return r.db.Save(t).Error
 }
 
 // DisableTask sets enabled=false on a single task without touching other columns.
 func (r *TaskRepo) DisableTask(id string) error {
-	return r.db.Model(&TaskTemplateModel{}).Where("id = ?", id).Update("enabled", false).Error
+	return r.db.Model(&TaskModel{}).Where("id = ?", id).Update("enabled", false).Error
 }
 
 func (r *TaskRepo) DeleteTask(id string) error {
-	return r.db.Where("id = ?", id).Delete(&TaskTemplateModel{}).Error
+	return r.db.Where("id = ?", id).Delete(&TaskModel{}).Error
 }
 
 func (r *TaskRepo) UpdateLastTodoAt(taskID string, t time.Time) error {
-	return r.db.Model(&TaskTemplateModel{}).Where("id = ?", taskID).Update("last_todo_at", t).Error
+	return r.db.Model(&TaskModel{}).Where("id = ?", taskID).Update("last_todo_at", t).Error
 }
 
 func (r *TaskRepo) UpdateDisplaySummary(taskID, summary string) error {
-	return r.db.Model(&TaskTemplateModel{}).Where("id = ?", taskID).Update("display_summary", summary).Error
+	return r.db.Model(&TaskModel{}).Where("id = ?", taskID).Update("display_summary", summary).Error
 }
 
 // ─── Todo ────────────────────────────────────────────────────────
@@ -217,14 +217,14 @@ func (r *TaskRepo) DeleteCheckItemsByTask(taskID string) error {
 
 // DeleteChildren removes child tasks (is_root=false) for a given parent.
 func (r *TaskRepo) DeleteChildren(parentTaskID string) error {
-	return r.db.Where("parent_task_id = ? AND is_root = ?", parentTaskID, false).Delete(&TaskTemplateModel{}).Error
+	return r.db.Where("parent_task_id = ? AND is_root = ?", parentTaskID, false).Delete(&TaskModel{}).Error
 }
 
 // FindBranchTask looks up the branch task for a given inspection selection.
-func (r *TaskRepo) FindBranchTask(taskID, itemName, branchName string) (*TaskTemplateModel, error) {
-	var t TaskTemplateModel
+func (r *TaskRepo) FindBranchTask(taskID, itemName, branchName string) (*TaskModel, error) {
+	var t TaskModel
 	err := r.db.
-		Table("task_templates").
+		Table("tasks").
 		Joins("JOIN check_item_branches ON check_item_branches.branch_task_id = task_templates.id").
 		Joins("JOIN check_items ON check_items.id = check_item_branches.check_item_id").
 		Where("check_items.task_id = ? AND check_items.name = ? AND check_item_branches.name = ?", taskID, itemName, branchName).

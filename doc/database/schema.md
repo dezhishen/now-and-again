@@ -20,7 +20,7 @@
 | `floor_plans` | 户型图 | family_id, label, image_id, is_cover, width, height |
 | `locations` | 地点（一级实体） | family_id, floor_plan_id(可选), kind, name, color |
 | `system_settings` | 系统配置 | key (PK), value |
-| `task_templates` | 任务模板 | family_id, name, schedule_type, schedule_data, enabled, kind, display_summary, group_id, location_id, parent_task_id, is_root |
+| `tasks` | 任务模板 | family_id, name, schedule_type, schedule_data, enabled, kind, display_summary, group_id, location_id, parent_task_id, is_root |
 | `todos` | 待办事项 | task_id, family_id, location_id, status, branch_name, remark, due_start, due_date |
 | `task_logs` | 操作日志 | task_id, todo_id, status, message, log_type, operator_id |
 | `check_items` | 巡检检查项 | task_id, name, sort_order |
@@ -39,7 +39,7 @@
 | `family_group_members` | UNIQUE(group_id, user_id) |
 | `refresh_token_models` | UNIQUE(token_hash) |
 | `api_key_models` | UNIQUE(key_hash), UNIQUE(key_prefix) |
-| `task_templates` | (is_root, family_id), family_id, group_id, location_id, parent_task_id |
+| `tasks` | (is_root, family_id), family_id, group_id, location_id, parent_task_id |
 | `locations` | family_id, floor_plan_id |
 
 ## 角色与权限

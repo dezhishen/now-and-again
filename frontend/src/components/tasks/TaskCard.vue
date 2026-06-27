@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import type { TaskTemplate } from '@/types'
+import type { Task } from '@/types'
 import { getTaskCard } from '@/composables/useTaskKinds'
 
 defineProps<{
-  task: TaskTemplate
+  task: Task
   locName: (id: string) => string
   locColor: (id: string) => string
   groupName: (id: string) => string
-  summary: (t: TaskTemplate) => string
+  summary: (t: Task) => string
 }>()
 
 defineEmits<{
-  edit: [task: TaskTemplate]
+  edit: [task: Task]
   logs: [id: string]
   trigger: [id: string]
-  toggle: [task: TaskTemplate]
+  toggle: [task: Task]
   delete: [id: string]
 }>()
 </script>

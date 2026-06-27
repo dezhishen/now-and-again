@@ -184,7 +184,7 @@ func (LocationModel) TableName() string { return "locations" }
 
 // ─── Task ────────────────────────────────────────────────────────
 
-type TaskTemplateModel struct {
+type TaskModel struct {
 	BaseModel
 	FamilyID       string           `gorm:"index:idx_root_family,priority:2;index;type:char(36);not null"`
 	GroupID        string           `gorm:"index;type:char(36)"`
@@ -202,11 +202,11 @@ type TaskTemplateModel struct {
 	CreatedBy      string `gorm:"type:char(36);not null"`
 	// Relations
 	CheckItems  []CheckItemModel    `gorm:"foreignKey:TaskID"`
-	Children    []TaskTemplateModel `gorm:"foreignKey:ParentTaskID"`
+	Children    []TaskModel `gorm:"foreignKey:ParentTaskID"`
 	CheckItems_ string              `gorm:"-"` // ignore old field in DB, kept for migration
 }
 
-func (TaskTemplateModel) TableName() string { return "task_templates" }
+func (TaskModel) TableName() string { return "tasks" }
 
 type TodoModel struct {
 	BaseModel
@@ -221,7 +221,7 @@ type TodoModel struct {
 	DueDate     time.Time `gorm:"not null"`
 	CompletedAt *time.Time
 	CompletedBy string            `gorm:"type:char(36)"`
-	Task        TaskTemplateModel `gorm:"foreignKey:TaskID"`
+	Task        TaskModel `gorm:"foreignKey:TaskID"`
 	User        UserModel         `gorm:"foreignKey:AssignedTo"`
 }
 
@@ -276,7 +276,7 @@ type CheckItemBranchModel struct {
 	CreateTodo   bool               `gorm:"not null;default:false"`       // should create follow-up?
 	BranchTaskID string             `gorm:"index;type:char(36)"`          // linked task template (null if create_todo=false)
 	SortOrder    int                `gorm:"not null;default:0"`
-	BranchTask   *TaskTemplateModel `gorm:"foreignKey:BranchTaskID"`
+	BranchTask   *TaskModel `gorm:"foreignKey:BranchTaskID"`
 }
 
 func (CheckItemBranchModel) TableName() string { return "check_item_branches" }

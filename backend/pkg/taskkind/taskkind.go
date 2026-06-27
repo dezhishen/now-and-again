@@ -21,9 +21,9 @@ type Handler interface {
 	Kind() string
 
 	// Lifecycle — called by taskService for every task
-	OnCreate(ops *Ops, task *repository.TaskTemplateModel, extra any) error
-	OnUpdate(ops *Ops, task *repository.TaskTemplateModel, extra any) error
-	OnDelete(ops *Ops, task *repository.TaskTemplateModel) error
+	OnCreate(ops *Ops, task *repository.TaskModel, extra any) error
+	OnUpdate(ops *Ops, task *repository.TaskModel, extra any) error
+	OnDelete(ops *Ops, task *repository.TaskModel) error
 
 	// OnComplete is called when a todo of this kind is completed.
 	// extra carries the kind-specific payload from CompleteTodoRequest.
@@ -31,7 +31,7 @@ type Handler interface {
 
 	// GetExtra returns kind-specific data for the task detail page.
 	// e.g. for inspection: check_items + children
-	GetExtra(ops *Ops, task *repository.TaskTemplateModel) (any, error)
+	GetExtra(ops *Ops, task *repository.TaskModel) (any, error)
 }
 
 // Selection represents one checked item in an inspection.

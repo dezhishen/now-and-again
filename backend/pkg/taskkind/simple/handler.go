@@ -14,19 +14,19 @@ func (Handler) OnComplete(ops *taskkind.Ops, todo *repository.TodoModel, extra a
 	return nil
 }
 
-func (Handler) OnCreate(ops *taskkind.Ops, task *repository.TaskTemplateModel, extra any) error {
+func (Handler) OnCreate(ops *taskkind.Ops, task *repository.TaskModel, extra any) error {
 	return nil
 }
 
-func (Handler) OnUpdate(ops *taskkind.Ops, task *repository.TaskTemplateModel, extra any) error {
+func (Handler) OnUpdate(ops *taskkind.Ops, task *repository.TaskModel, extra any) error {
 	return nil
 }
 
-func (Handler) GetExtra(ops *taskkind.Ops, task *repository.TaskTemplateModel) (any, error) {
+func (Handler) GetExtra(ops *taskkind.Ops, task *repository.TaskModel) (any, error) {
 	return nil, nil
 }
 
-func (Handler) OnDelete(ops *taskkind.Ops, task *repository.TaskTemplateModel) error {
+func (Handler) OnDelete(ops *taskkind.Ops, task *repository.TaskModel) error {
 	return nil
 }
 

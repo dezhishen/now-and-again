@@ -19,24 +19,24 @@ func NewTaskClient(http *HTTPClient) *TaskClient {
 	return &TaskClient{http: http}
 }
 
-func (c *TaskClient) Create(familyID string, req *types.CreateTaskRequest) (*types.TaskTemplate, error) {
-	var t types.TaskTemplate
+func (c *TaskClient) Create(familyID string, req *types.CreateTaskRequest) (*types.Task, error) {
+	var t types.Task
 	if err := c.http.do("POST", "/api/families/"+familyID+"/tasks", req, &t); err != nil {
 		return nil, err
 	}
 	return &t, nil
 }
 
-func (c *TaskClient) List(familyID string) ([]types.TaskTemplate, error) {
-	var tasks []types.TaskTemplate
+func (c *TaskClient) List(familyID string) ([]types.Task, error) {
+	var tasks []types.Task
 	if err := c.http.do("GET", "/api/families/"+familyID+"/tasks", nil, &tasks); err != nil {
 		return nil, err
 	}
 	return tasks, nil
 }
 
-func (c *TaskClient) Update(taskID string, req *types.UpdateTaskRequest) (*types.TaskTemplate, error) {
-	var t types.TaskTemplate
+func (c *TaskClient) Update(taskID string, req *types.UpdateTaskRequest) (*types.Task, error) {
+	var t types.Task
 	if err := c.http.do("PUT", "/api/tasks/"+taskID, req, &t); err != nil {
 		return nil, err
 	}
@@ -69,16 +69,16 @@ func (c *TaskClient) CompleteTodoSimple(todoID, status string) (*types.Todo, err
 
 // ─── TaskContract delegates ──────────────────────────────────────
 
-func (c *TaskClient) CreateTask(_ context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.TaskTemplate, error) {
+func (c *TaskClient) CreateTask(_ context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.Task, error) {
 	return c.Create(familyID.String(), req)
 }
-func (c *TaskClient) UpdateTask(_ context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.TaskTemplate, error) {
+func (c *TaskClient) UpdateTask(_ context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.Task, error) {
 	return c.Update(taskID.String(), req)
 }
 func (c *TaskClient) DeleteTask(_ context.Context, taskID uuid.UUID) error {
 	return c.Delete(taskID.String())
 }
-func (c *TaskClient) ListTasks(_ context.Context, familyID uuid.UUID) ([]types.TaskTemplate, error) {
+func (c *TaskClient) ListTasks(_ context.Context, familyID uuid.UUID) ([]types.Task, error) {
 	return c.List(familyID.String())
 }
 func (c *TaskClient) TriggerTask(_ context.Context, taskID uuid.UUID) error {
