@@ -18,16 +18,20 @@ type DatabaseConfig struct {
 }
 
 func Load() (*Config, error) {
-	dataDir := os.Getenv("DATA_DIR")
-	dbDSN := envOrDefault("DB_DSN", "now-and-again.db")
-	uploadDir := envOrDefault("UPLOAD_DIR", "./uploads")
+	dataDir := envOrDefault("DATA_DIR", "data")
+	abs, err := filepath.Abs(dataDir)
+	if err != nil {
+		abs = dataDir
+	}
+	os.MkdirAll(abs, 0755)
 
-	if dataDir != "" {
-		abs, err := filepath.Abs(dataDir)
-		if err == nil {
-			os.MkdirAll(abs, 0755)
-			dbDSN = filepath.Join(abs, "now-and-again.db")
-			uploadDir = filepath.Join(abs, "uploads")
+	dbDSN := filepath.Join(abs, "now-and-again.db")
+	uploadDir := filepath.Join(abs, "uploads")
+
+	// For non-sqlite drivers (e.g. postgres), allow explicit DSN
+	if envOrDefault("DB_DRIVER", "sqlite") != "sqlite" {
+		if dsn := os.Getenv("DB_DSN"); dsn != "" {
+			dbDSN = dsn
 		}
 	}
 

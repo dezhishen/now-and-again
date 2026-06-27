@@ -178,10 +178,11 @@ go run . task create --family-id <id> --title "取快递" --type chore_general
 | `JWT_SECRET` | `now-and-again-dev-secret-change-me` | JWT 签名密钥，**生产环境务必修改** |
 | `ADMIN_DEFAULT_PASSWORD` | (随机生成) | 首次运行时默认管理员密码，仅未初始化时生效 |
 | `DB_DRIVER` | `sqlite` | 数据库驱动：`sqlite` 或 `postgres` |
-| `DB_DSN` | `now-and-again.db` | 数据库连接串。SQLite 为文件路径，PostgreSQL 为完整 DSN |
-| `DATA_DIR` | — | 数据根目录。设置后自动将 DB 和上传文件放在该目录下 |
-| `UPLOAD_DIR` | `./uploads` | 上传文件存储目录（`DATA_DIR` 未设置时生效） |
+| `DB_DSN` | — | PostgreSQL 连接串（仅 `DB_DRIVER=postgres` 时需要） |
+| `DATA_DIR` | `./data` | 数据根目录，数据库、上传文件、日志均存放于此 |
 | `GIN_MODE` | `debug` | Gin 运行模式：`debug`（开发）/ `release`（生产）/ `test` |
+
+> 💡 所有路径类配置统一由 `DATA_DIR` 控制，不存在独立的 `DB_DSN`（SQLite 路径）或 `UPLOAD_DIR` 变量。
 
 #### 快速配置
 
