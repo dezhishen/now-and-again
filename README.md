@@ -183,7 +183,6 @@ go run . task create --family-id <id> --title "取快递" --type chore_general
 | `DATA_DIR` | `./data` | 数据根目录，数据库、上传文件、日志均存放于此 |
 | `GIN_MODE` | `debug` | Gin 运行模式：`debug`（开发）/ `release`（生产）/ `test` |
 
-> 💡 所有路径类配置统一由 `DATA_DIR` 控制，不存在独立的 `DB_DSN`（SQLite 路径）或 `UPLOAD_DIR` 变量。
 
 #### 快速配置
 
@@ -210,20 +209,6 @@ export DB_DSN="host=localhost user=postgres password=xxx dbname=now_and_again po
 ---
 
 ## 🔧 开发工作流
-
-### Contract-First 开发
-
-```
-  1. backend/pkg/types  ← 先定义数据契约（DTO）
-         │
-  2. backend            ← 实现 API + 业务逻辑
-         │
-  3. CLI                ← 对接 API，验证契约
-         │
-  4. frontend           ← UI 展示与交互
-```
-
-> ⚠️ **修改 `backend/pkg/types` 时**，必须同步更新 `backend/handler`、`cli/cmd`、`frontend/src/types`。
 
 ### 新增任务类型（开闭原则）
 
