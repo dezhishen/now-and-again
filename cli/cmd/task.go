@@ -12,15 +12,30 @@ import (
 var taskCmd = &cobra.Command{
 	Use:   "task",
 	Short: "Manage tasks and todos",
+	Long:  `Create, list, enable/disable, and delete tasks. View and complete todos.`,
 }
 
 // ─── task create ─────────────────────────────────────────────────
 
 var taskCreateCmd = &cobra.Command{
 	Use:   "create",
-	Short: "Create a task template",
-	Example: `  na task create --family-id xxx --name "倒垃圾" --schedule daily --data '{"time":"09:00"}'
-  na task create --family-id xxx --name "周报" --schedule weekly --data '{"days":[1,5],"time":"10:00"}'`,
+	Short: "Create a new task",
+	Long: `Create a task that generates todos on a schedule.
+
+Schedule types:
+  once      One-time task (needs date+time in --data)
+  daily     Every day at specified time
+  weekly    Every week on specified days (1=Mon, 7=Sun)
+  monthly   Every month on specified days (1-31)
+  interval  Every N days`,
+	Example: `  # Daily task at 9:00
+  na task create --family-id xxx --name "倒垃圾" --schedule daily --data '{"time":"09:00"}'
+
+  # One-time task for tomorrow
+  na task create --family-id xxx --name "取快递" --schedule once --data '{"date":"2026-06-28","time":"18:00"}'
+
+  # Weekly task on Mon/Wed/Fri
+  na task create --family-id xxx --name "周报" --schedule weekly --data '{"days":[1,3,5],"time":"10:00"}'`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		familyID, _ := cmd.Flags().GetString("family-id")
 		name, _ := cmd.Flags().GetString("name")
@@ -54,8 +69,9 @@ var taskCreateCmd = &cobra.Command{
 // ─── task list ───────────────────────────────────────────────────
 
 var taskListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List tasks for a family",
+	Use:     "list",
+	Short:   "List tasks in a family",
+	Example: "  na task list --family-id abc123",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		familyID, _ := cmd.Flags().GetString("family-id")
 		if familyID == "" {
@@ -83,8 +99,9 @@ var taskListCmd = &cobra.Command{
 // ─── task todo ───────────────────────────────────────────────────
 
 var taskTodoCmd = &cobra.Command{
-	Use:   "todo",
-	Short: "List pending todos for a family",
+	Use:     "todo",
+	Short:   "List pending todos in a family",
+	Example: "  na task todo --family-id abc123",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		familyID, _ := cmd.Flags().GetString("family-id")
 		if familyID == "" {
@@ -133,8 +150,9 @@ var taskDoneCmd = &cobra.Command{
 // ─── task enable/disable ─────────────────────────────────────────
 
 var taskToggleCmd = &cobra.Command{
-	Use:   "toggle",
-	Short: "Enable or disable a task",
+	Use:     "toggle",
+	Short:   "Enable or disable a task",
+	Example: "  na task toggle --id abc123 --enable false",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		taskID, _ := cmd.Flags().GetString("id")
 		enableStr, _ := cmd.Flags().GetString("enable")

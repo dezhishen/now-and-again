@@ -13,11 +13,13 @@ import (
 var familyCmd = &cobra.Command{
 	Use:   "family",
 	Short: "Manage families",
+	Long:  `Create, join, and list your families.`,
 }
 
 var familyCreateCmd = &cobra.Command{
-	Use:   "create",
-	Short: "Create a new family",
+	Use:     "create",
+	Short:   "Create a new family",
+	Example: "  na family create --name \"我的家\"",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name, _ := cmd.Flags().GetString("name")
 		if name == "" {

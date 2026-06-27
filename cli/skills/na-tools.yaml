@@ -1,0 +1,184 @@
+# Now & Again — CLI Skill Definitions
+# For use with OpenClaw / Hermes / other AI agent frameworks
+# Usage: na <command> [flags]
+
+name: now-and-again
+description: "Manage family chores: tasks, todos, and family membership via the Now & Again CLI."
+
+tools:
+  - name: family_list
+    description: "List all families the current user belongs to."
+    command: "na family list"
+    parameters: []
+
+  - name: family_create
+    description: "Create a new family."
+    command: "na family create --name '{name}'"
+    parameters:
+      - name: name
+        type: string
+        required: true
+        description: "Family name"
+
+  - name: family_join
+    description: "Join a family by invite code."
+    command: "na family join --code '{code}'"
+    parameters:
+      - name: code
+        type: string
+        required: true
+        description: "Invite code"
+
+  - name: task_list
+    description: "List all tasks in a family."
+    command: "na task list --family-id '{family_id}'"
+    parameters:
+      - name: family_id
+        type: string
+        required: true
+        description: "Family ID (UUID)"
+
+  - name: task_create_once
+    description: "Create a one-time task."
+    command: "na task create --family-id '{family_id}' --name '{name}' --schedule once --data '{{\"date\":\"{date}\",\"time\":\"{time}\"}}'"
+    parameters:
+      - name: family_id
+        type: string
+        required: true
+      - name: name
+        type: string
+        required: true
+        description: "Task name"
+      - name: date
+        type: string
+        required: true
+        description: "Due date (YYYY-MM-DD)"
+      - name: time
+        type: string
+        required: true
+        description: "Time (HH:MM)"
+
+  - name: task_create_daily
+    description: "Create a daily recurring task."
+    command: "na task create --family-id '{family_id}' --name '{name}' --schedule daily --data '{{\"time\":\"{time}\"}}'"
+    parameters:
+      - name: family_id
+        type: string
+        required: true
+      - name: name
+        type: string
+        required: true
+        description: "Task name"
+      - name: time
+        type: string
+        required: true
+        description: "Time (HH:MM)"
+
+  - name: task_create_weekly
+    description: "Create a weekly recurring task on specific days."
+    command: "na task create --family-id '{family_id}' --name '{name}' --schedule weekly --data '{{\"days\":[{days}],\"time\":\"{time}\"}}'"
+    parameters:
+      - name: family_id
+        type: string
+        required: true
+      - name: name
+        type: string
+        required: true
+        description: "Task name"
+      - name: days
+        type: string
+        required: true
+        description: "Comma-separated day numbers (1=Mon, 7=Sun), e.g. '1,3,5'"
+      - name: time
+        type: string
+        required: true
+        description: "Time (HH:MM)"
+
+  - name: task_create_monthly
+    description: "Create a monthly recurring task on specific dates."
+    command: "na task create --family-id '{family_id}' --name '{name}' --schedule monthly --data '{{\"days\":[{days}],\"time\":\"{time}\"}}'"
+    parameters:
+      - name: family_id
+        type: string
+        required: true
+      - name: name
+        type: string
+        required: true
+        description: "Task name"
+      - name: days
+        type: string
+        required: true
+        description: "Comma-separated day numbers (1-31), e.g. '1,15'"
+      - name: time
+        type: string
+        required: true
+        description: "Time (HH:MM)"
+
+  - name: task_create_interval
+    description: "Create a task that repeats every N days."
+    command: "na task create --family-id '{family_id}' --name '{name}' --schedule interval --data '{{\"days\":{days},\"time\":\"{time}\"}}'"
+    parameters:
+      - name: family_id
+        type: string
+        required: true
+      - name: name
+        type: string
+        required: true
+        description: "Task name"
+      - name: days
+        type: integer
+        required: true
+        description: "Interval in days"
+      - name: time
+        type: string
+        required: true
+        description: "Time (HH:MM)"
+
+  - name: task_todo_list
+    description: "List pending todos in a family."
+    command: "na task todo --family-id '{family_id}'"
+    parameters:
+      - name: family_id
+        type: string
+        required: true
+        description: "Family ID (UUID)"
+
+  - name: task_done
+    description: "Mark a todo as done or skipped."
+    command: "na task done --id '{todo_id}' --status {status}"
+    parameters:
+      - name: todo_id
+        type: string
+        required: true
+        description: "Todo ID (UUID)"
+      - name: status
+        type: string
+        required: true
+        enum: ["done", "skipped"]
+        description: "Status: done or skipped"
+
+  - name: task_toggle
+    description: "Enable or disable a task."
+    command: "na task toggle --id '{task_id}' --enable {enable}"
+    parameters:
+      - name: task_id
+        type: string
+        required: true
+        description: "Task ID (UUID)"
+      - name: enable
+        type: boolean
+        required: true
+        description: "true to enable, false to disable"
+
+  - name: task_delete
+    description: "Delete a task."
+    command: "na task delete --id '{task_id}'"
+    parameters:
+      - name: task_id
+        type: string
+        required: true
+        description: "Task ID (UUID)"
+
+environment:
+  NA_SERVER: "http://localhost:8080"
+  NA_TOKEN: "<your-api-token>"
