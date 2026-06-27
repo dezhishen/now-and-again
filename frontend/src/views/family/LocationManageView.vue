@@ -122,7 +122,6 @@ function getPlanLabel(planId: string) {
 <template>
   <div>
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold dark:text-gray-200">{{ t('nav.locations') }}</h2>
       <button class="btn-primary" @click="openCreate">+ {{ t('locations.add') }}</button>
     </div>
 
