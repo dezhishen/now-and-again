@@ -168,13 +168,12 @@ func (r *TaskRepo) ListUserLogs(taskID string, limit, offset int) ([]TaskLogMode
 }
 
 // ListLogsByFamily returns all task logs for a family within a date range,
-// joined through task_templates.
+// using GORM model-driven JOIN through TaskLogModel.Task relation.
 func (r *TaskRepo) ListLogsByFamily(familyID string, since, until string) ([]TaskLogModel, error) {
 	var logs []TaskLogModel
 	err := r.db.
-		Table("task_logs").
-		Joins("JOIN task_templates ON task_templates.id = task_logs.task_id").
-		Where("task_templates.family_id = ?", familyID).
+		Joins("Task").
+		Where("Task.family_id = ?", familyID).
 		Where("task_logs.created_at >= ? AND task_logs.created_at < ?", since, until).
 		Order("task_logs.created_at ASC").
 		Find(&logs).Error
@@ -185,9 +184,8 @@ func (r *TaskRepo) ListLogsByFamily(familyID string, since, until string) ([]Tas
 func (r *TaskRepo) ListLogsByFamilyAndTask(familyID, taskID, since, until string) ([]TaskLogModel, error) {
 	var logs []TaskLogModel
 	err := r.db.
-		Table("task_logs").
-		Joins("JOIN task_templates ON task_templates.id = task_logs.task_id").
-		Where("task_templates.family_id = ? AND task_logs.task_id = ?", familyID, taskID).
+		Joins("Task").
+		Where("Task.family_id = ? AND task_logs.task_id = ?", familyID, taskID).
 		Where("task_logs.created_at >= ? AND task_logs.created_at < ?", since, until).
 		Order("task_logs.created_at ASC").
 		Find(&logs).Error

@@ -242,12 +242,13 @@ func (TodoModel) TableName() string { return "todos" }
 
 type TaskLogModel struct {
 	BaseModel
-	TaskID     string `gorm:"index;type:char(36);not null"`
-	TodoID     string `gorm:"index;type:char(36)"` // linked todo (for completion/skip logs)
-	Status     string `gorm:"size:32;not null"`    // registered/triggered/created/completed/manual etc
-	Message    string `gorm:"type:text"`
-	LogType    string `gorm:"size:16;not null;default:system"` // system / user
-	OperatorID string `gorm:"index;type:char(36)"`             // user who triggered (empty for system)
+	TaskID     string    `gorm:"index;type:char(36);not null"`
+	TodoID     string    `gorm:"index;type:char(36)"`
+	Status     string    `gorm:"size:32;not null"`
+	Message    string    `gorm:"type:text"`
+	LogType    string    `gorm:"size:16;not null;default:system"`
+	OperatorID string    `gorm:"index;type:char(36)"`
+	Task       TaskModel `gorm:"foreignKey:TaskID"` // for model-driven JOINs
 }
 
 func (TaskLogModel) TableName() string { return "task_logs" }
