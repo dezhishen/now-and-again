@@ -226,7 +226,7 @@ func (r *TaskRepo) FindBranchTask(taskID, itemName, branchName string) (*TaskMod
 	var t TaskModel
 	err := r.db.
 		Table("tasks").
-		Joins("JOIN check_item_branches ON check_item_branches.branch_task_id = task_templates.id").
+		Joins("JOIN check_item_branches ON check_item_branches.branch_task_id = tasks.id").
 		Joins("JOIN check_items ON check_items.id = check_item_branches.check_item_id").
 		Where("check_items.task_id = ? AND check_items.name = ? AND check_item_branches.name = ?", taskID, itemName, branchName).
 		First(&t).Error
