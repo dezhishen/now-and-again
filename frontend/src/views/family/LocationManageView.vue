@@ -15,10 +15,8 @@ const toast = useToast()
 const route = useRoute()
 const familyId = route.params.familyId as string
 
-const refreshKey = inject<Ref<number>>('refreshKey', ref(0))
-watch(refreshKey, (newVal, oldVal) => {
-  if (oldVal !== undefined && newVal !== oldVal) { loadLocations(); loadPlans() }
-})
+const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
+watch(refreshKey, (newVal) => { if (newVal === 'locations') { loadLocations(); loadPlans() } })
 
 const locations = ref<Location[]>([])
 const floorPlans = ref<FloorPlan[]>([])

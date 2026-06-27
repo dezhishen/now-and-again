@@ -12,12 +12,9 @@ const route = useRoute()
 const auth = useAuthStore()
 const familyId = route.params.familyId as string
 
-// Reload data when this tab becomes active (switching tabs)
-const refreshKey = inject<Ref<number>>('refreshKey', ref(0))
-watch(refreshKey, (newVal, oldVal) => {
-  // Only reload on tab activation, not on initial mount or same-tab re-activation
-  if (oldVal !== undefined && newVal !== oldVal) loadGroups()
-})
+// Reload data when this tab becomes active
+const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
+watch(refreshKey, (newVal) => { if (newVal === 'groups') loadGroups() })
 
 const groups = ref<FamilyGroup[]>([])
 const pageLoading = ref(true)

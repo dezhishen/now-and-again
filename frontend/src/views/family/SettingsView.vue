@@ -11,11 +11,9 @@ const route = useRoute()
 const router = useRouter()
 const familyId = route.params.familyId as string
 
-// Reload data when this tab becomes active (switching tabs)
-const refreshKey = inject<Ref<number>>('refreshKey', ref(0))
-watch(refreshKey, (newVal, oldVal) => {
-  if (oldVal !== undefined && newVal !== oldVal) loadFamily()
-})
+// Reload data when this tab becomes active
+const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
+watch(refreshKey, (newVal) => { if (newVal === 'settings') loadFamily() })
 
 const family = ref<Family | null>(null)
 const loading = ref(true)

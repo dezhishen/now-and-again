@@ -12,11 +12,9 @@ const route = useRoute()
 const auth = useAuthStore()
 const familyId = route.params.familyId as string
 
-// Reload data when this tab becomes active (switching tabs)
-const refreshKey = inject<Ref<number>>('refreshKey', ref(0))
-watch(refreshKey, (newVal, oldVal) => {
-  if (oldVal !== undefined && newVal !== oldVal) { loadMembers(); loadRequests() }
-})
+// Reload data when this tab becomes active
+const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
+watch(refreshKey, (newVal) => { if (newVal === 'members') { loadMembers(); loadRequests() } })
 
 const members = ref<FamilyMember[]>([])
 const pageLoading = ref(true)

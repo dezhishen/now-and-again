@@ -17,11 +17,9 @@ const toast = useToast()
 const route = useRoute()
 const familyId = route.params.familyId as string
 
-// Reload data when this tab becomes active (switching tabs)
-const refreshKey = inject<Ref<number>>('refreshKey', ref(0))
-watch(refreshKey, (newVal, oldVal) => {
-  if (oldVal !== undefined && newVal !== oldVal) { loadTasks(); loadGroups(); loadLocations() }
-})
+// Reload data when this tab becomes active
+const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
+watch(refreshKey, (newVal) => { if (newVal === 'tasks') { loadTasks(); loadGroups(); loadLocations() } })
 
 const tasks = ref<Task[]>([])
 const groups = ref<FamilyGroup[]>([])

@@ -42,13 +42,12 @@ const NAV_ITEMS: { id: string; icon: string; labelKey: string; component: any; a
 const tabs = ref<Tab[]>([])
 const activeTabId = ref('')
 
-// Provide a refresh key that increments when switching tabs, so child
-// components can watch it to reload data when their tab becomes active.
-const refreshKey = ref(0)
+// Provide the active tab ID so child components only reload when
+// THEIR tab becomes active — not when any other tab switches.
+const refreshKey = ref('')
 provide('refreshKey', refreshKey)
-watch(activeTabId, (newVal, oldVal) => {
-  // Only fire if we're actually changing to a different tab
-  if (oldVal && newVal !== oldVal) refreshKey.value++
+watch(activeTabId, (newVal) => {
+  if (newVal) refreshKey.value = newVal
 })
 
 function findNav(id: string) {
