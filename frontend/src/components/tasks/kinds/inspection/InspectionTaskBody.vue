@@ -19,12 +19,15 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="card hover:shadow-md transition-shadow">
+  <div class="card hover:shadow-md transition-shadow relative overflow-hidden">
+    <!-- Kind ribbon -->
+    <div class="absolute -top-0.5 -right-0.5 w-14 h-14 overflow-hidden z-10">
+      <div class="absolute top-2.5 -right-[18px] w-16 bg-purple-500 text-white text-[10px] font-medium text-center leading-4 rotate-45 shadow-sm">巡检</div>
+    </div>
     <div class="flex items-start justify-between mb-2">
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
           <span class="font-medium dark:text-gray-200 truncate">{{ task.name }}</span>
-          <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex-shrink-0">巡检</span>
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full" :class="task.enabled ? 'bg-green-500' : 'bg-gray-300'" />
         </div>
         <div class="flex items-center justify-between gap-2 mt-1 h-5">

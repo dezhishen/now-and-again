@@ -19,7 +19,11 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="card hover:shadow-md transition-shadow">
+  <div class="card hover:shadow-md transition-shadow relative overflow-hidden">
+    <!-- Kind ribbon -->
+    <div class="absolute -top-0.5 -right-0.5 w-14 h-14 overflow-hidden z-10">
+      <div class="absolute top-2.5 -right-[18px] w-16 bg-blue-400 text-white text-[10px] font-medium text-center leading-4 rotate-45 shadow-sm">任务</div>
+    </div>
     <div class="flex items-start justify-between mb-2">
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
