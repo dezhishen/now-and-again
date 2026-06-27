@@ -64,6 +64,8 @@ export default {
     remove: 'Remove',
     removeConfirm: 'Remove this member?',
   },
+  lang: { switch: 'Switch Language', zhCN: '中文', en: 'English' },
+  user: { admin: 'Admin', member: 'Member', profile: 'Profile', adminPanel: 'Admin Panel', logout: 'Logout' },
   dashboard: {
     heading: 'Home',
     overview: 'Overview',
@@ -77,6 +79,13 @@ export default {
     inviteCodeHint: 'Share this code with family members to let them join',
     copied: 'Copied',
     copy: 'Copy',
+    remarkTitle: 'Completion Note',
+    remarkPlaceholder: 'Add a note (optional)...',
+    remarkConfirm: 'Confirm Done',
+    cancel: 'Cancel',
+    ctrlEnter: 'Ctrl+Enter to submit',
+    completed: 'Completed',
+    skipped: 'Skipped',
   },
   members: {
     heading: 'Members',

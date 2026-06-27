@@ -64,6 +64,8 @@ export default {
     remove: '移除',
     removeConfirm: '确定要移除此成员吗？',
   },
+  lang: { switch: '切换语言', zhCN: '中文', en: 'English' },
+  user: { admin: '管理员', member: '成员', profile: '个人中心', adminPanel: '管理面板', logout: '退出登录' },
   dashboard: {
     heading: '首页',
     overview: '概览',
@@ -77,6 +79,13 @@ export default {
     inviteCodeHint: '将此邀请码分享给家庭成员，即可加入家庭',
     copied: '已复制',
     copy: '复制',
+    remarkTitle: '完成备注',
+    remarkPlaceholder: '添加备注（可选）...',
+    remarkConfirm: '确认完成',
+    cancel: '取消',
+    ctrlEnter: 'Ctrl+Enter 快速提交',
+    completed: '已完成',
+    skipped: '已跳过',
   },
   members: {
     heading: '成员管理',

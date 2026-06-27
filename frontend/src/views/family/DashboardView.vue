@@ -66,7 +66,7 @@ async function submitRemark() {
   try {
     await api.put('/todos/' + todo.id, { status: 'done', remark: remarkText.value })
     await loadTodos()
-    toast.success('已完成')
+    toast.success(t('dashboard.completed'))
     showRemark.value = false
   } catch (e: any) { toast.error(e.message) }
   finally { remarkSubmitting.value = false }
@@ -80,7 +80,7 @@ async function completeTodoDirect(todo: Todo, status: string) {
   try {
     await api.put('/todos/' + todo.id, { status })
     await loadTodos()
-    toast.success(status === 'done' ? '已完成' : '已跳过')
+    toast.success(status === 'done' ? t('dashboard.completed') : t('dashboard.skipped'))
   } catch (e: any) { toast.error(e.message) }
   finally {
     const next = new Set(processingTodos.value)
@@ -225,7 +225,7 @@ onMounted(async () => {
       <div v-if="showRemark" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @mousedown.self="showRemark = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-md">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
-            <h3 class="font-bold dark:text-gray-200">📝 完成备注</h3>
+            <h3 class="font-bold dark:text-gray-200">📝 {{ t('dashboard.remarkTitle') }}</h3>
             <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showRemark = false">✕</button>
           </div>
           <div class="p-4 space-y-3">
@@ -233,14 +233,14 @@ onMounted(async () => {
             <textarea
               v-model="remarkText"
               class="input w-full h-20 resize-none text-sm"
-              placeholder="添加备注（可选）..."
+              :placeholder="t('dashboard.remarkPlaceholder')"
               @keydown.ctrl.enter="submitRemark"
             ></textarea>
             <div class="flex gap-2">
-              <button class="btn-primary text-sm flex-1" :disabled="remarkSubmitting" @click="submitRemark">{{ remarkSubmitting ? '...' : '确认完成' }}</button>
-              <button class="text-sm px-4 py-2 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="showRemark = false">取消</button>
+              <button class="btn-primary text-sm flex-1" :disabled="remarkSubmitting" @click="submitRemark">{{ remarkSubmitting ? '...' : t('dashboard.remarkConfirm') }}</button>
+              <button class="btn-secondary" @click="showRemark = false">{{ t('dashboard.cancel') }}</button>
             </div>
-            <p class="text-[10px] text-gray-400">Ctrl+Enter 快速提交</p>
+            <p class="text-[10px] text-gray-400">{{ t('dashboard.ctrlEnter') }}</p>
           </div>
         </div>
       </div>

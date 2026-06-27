@@ -27,8 +27,8 @@ function logout() {
 }
 
 const LANGS = [
-  { code: 'zh-CN', label: '中文', flag: '🇨🇳' },
-  { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'zh-CN', key: 'lang.zhCN', flag: '🇨🇳' },
+  { code: 'en', key: 'lang.en', flag: '🇺🇸' },
 ]
 
 // Close menus on outside click
@@ -49,14 +49,14 @@ window.addEventListener('click', onWindowClick)
       <div class="flex items-center gap-1">
         <!-- Language -->
         <div class="relative" @click.stop>
-          <button class="w-8 h-8 rounded-lg flex items-center justify-center text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="showLangMenu = !showLangMenu" title="切换语言">
+          <button class="w-8 h-8 rounded-lg flex items-center justify-center text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="showLangMenu = !showLangMenu" :title="t('lang.switch')">
             {{ localeCode === 'zh-CN' ? '🇨🇳' : '🇺🇸' }}
           </button>
           <div v-if="showLangMenu" class="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 py-1 min-w-[120px]">
             <button v-for="l in LANGS" :key="l.code" class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               :class="localeCode === l.code ? 'text-primary font-medium' : 'dark:text-gray-300'"
               @click="switchLang(l.code)"
-            >{{ l.flag }} {{ l.label }}</button>
+            >{{ l.flag }} {{ t(l.key) }}</button>
           </div>
         </div>
 
@@ -78,14 +78,14 @@ window.addEventListener('click', onWindowClick)
               <p class="text-sm font-medium dark:text-gray-200 truncate">{{ auth.user?.display_name }}</p>
               <p class="text-xs text-gray-400 truncate">{{ auth.user?.email }}</p>
               <p class="text-xs text-gray-400 mt-0.5">
-                <span v-if="auth.isAdmin" class="text-primary">管理员</span>
-                <span v-else>成员</span>
+                <span v-if="auth.isAdmin" class="text-primary">{{ t('user.admin') }}</span>
+                <span v-else>{{ t('user.member') }}</span>
               </p>
             </div>
-            <button class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors dark:text-gray-300" @click="router.push('/profile'); showUserMenu = false">👤 个人中心</button>
+            <button class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors dark:text-gray-300" @click="router.push('/profile'); showUserMenu = false">👤 {{ t('user.profile') }}</button>
             <button class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors dark:text-gray-300" @click="router.push('/api-keys'); showUserMenu = false">🔑 API Keys</button>
-            <button v-if="auth.isAdmin" class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors dark:text-gray-300" @click="router.push('/admin'); showUserMenu = false">⚙️ 管理面板</button>
-            <button class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="logout">🚪 退出登录</button>
+            <button v-if="auth.isAdmin" class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors dark:text-gray-300" @click="router.push('/admin'); showUserMenu = false">⚙️ {{ t('user.adminPanel') }}</button>
+            <button class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="logout">🚪 {{ t('user.logout') }}</button>
           </div>
         </div>
       </div>
