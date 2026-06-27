@@ -75,11 +75,12 @@ func (UserRoleModel) TableName() string { return "user_roles" }
 
 type FamilyModel struct {
 	BaseModel
-	Name               string `gorm:"size:128;not null"`
-	InviteCode         string `gorm:"uniqueIndex;size:32;not null"`
-	CreatedBy          string `gorm:"type:char(36);not null"`
-	Timezone           string `gorm:"size:64;not null;default:Asia/Shanghai"` // IANA timezone, used for schedule resolution
-	FloorPlanImagePath string `gorm:"->"`                                     // populated by subquery in ListFamiliesByUserID
+	Name               string              `gorm:"size:128;not null"`
+	InviteCode         string              `gorm:"uniqueIndex;size:32;not null"`
+	CreatedBy          string              `gorm:"type:char(36);not null"`
+	Timezone           string              `gorm:"size:64;not null;default:Asia/Shanghai"`
+	FloorPlanImagePath string              `gorm:"->"`
+	Members            []FamilyMemberModel `gorm:"foreignKey:FamilyID"`
 }
 
 func (FamilyModel) TableName() string { return "families" }
@@ -273,9 +274,10 @@ func (InspectionResultModel) TableName() string { return "inspection_results" }
 
 type CheckItemModel struct {
 	BaseModel
-	TaskID    string                 `gorm:"index;type:char(36);not null"` // inspection task ID
-	Name      string                 `gorm:"size:128;not null"`            // item name
+	TaskID    string                 `gorm:"index;type:char(36);not null"`
+	Name      string                 `gorm:"size:128;not null"`
 	SortOrder int                    `gorm:"not null;default:0"`
+	Task      TaskModel              `gorm:"foreignKey:TaskID"`
 	Branches  []CheckItemBranchModel `gorm:"foreignKey:CheckItemID"`
 }
 
@@ -283,12 +285,13 @@ func (CheckItemModel) TableName() string { return "check_items" }
 
 type CheckItemBranchModel struct {
 	BaseModel
-	CheckItemID  string     `gorm:"index;type:char(36);not null"` // parent check item
-	Name         string     `gorm:"size:128;not null"`            // branch name (e.g. "正常", "缺失")
-	CreateTodo   bool       `gorm:"not null;default:false"`       // should create follow-up?
-	BranchTaskID string     `gorm:"index;type:char(36)"`          // linked task template (null if create_todo=false)
-	SortOrder    int        `gorm:"not null;default:0"`
-	BranchTask   *TaskModel `gorm:"foreignKey:BranchTaskID"`
+	CheckItemID  string          `gorm:"index;type:char(36);not null"`
+	Name         string          `gorm:"size:128;not null"`
+	CreateTodo   bool            `gorm:"not null;default:false"`
+	BranchTaskID string          `gorm:"index;type:char(36)"`
+	SortOrder    int             `gorm:"not null;default:0"`
+	CheckItem    CheckItemModel  `gorm:"foreignKey:CheckItemID"`
+	BranchTask   *TaskModel      `gorm:"foreignKey:BranchTaskID"`
 }
 
 func (CheckItemBranchModel) TableName() string { return "check_item_branches" }

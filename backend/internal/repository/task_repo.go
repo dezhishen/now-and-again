@@ -219,14 +219,17 @@ func (r *TaskRepo) DeleteChildren(parentTaskID string) error {
 	return r.db.Where("parent_task_id = ? AND is_root = ?", parentTaskID, false).Delete(&TaskModel{}).Error
 }
 
-// FindBranchTask looks up the branch task for a given inspection selection.
+// FindBranchTask looks up the branch task for a given inspection selection,
+// using GORM model-driven JOINs through CheckItemBranchModel → CheckItem → Task.
 func (r *TaskRepo) FindBranchTask(taskID, itemName, branchName string) (*TaskModel, error) {
-	var t TaskModel
+	var cb CheckItemBranchModel
 	err := r.db.
-		Table("tasks").
-		Joins("JOIN check_item_branches ON check_item_branches.branch_task_id = tasks.id").
-		Joins("JOIN check_items ON check_items.id = check_item_branches.check_item_id").
-		Where("check_items.task_id = ? AND check_items.name = ? AND check_item_branches.name = ?", taskID, itemName, branchName).
-		First(&t).Error
-	return &t, err
+		Joins("CheckItem").
+		Joins("BranchTask").
+		Where("CheckItem.task_id = ? AND CheckItem.name = ? AND check_item_branches.name = ?", taskID, itemName, branchName).
+		First(&cb).Error
+	if err != nil {
+		return nil, err
+	}
+	return cb.BranchTask, nil
 }
