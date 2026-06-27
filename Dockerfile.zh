@@ -1,6 +1,6 @@
 # ─── Frontend Build ────────────────────────────────────────────────
 # 使用 DaoCloud 镜像加速（大陆地区）
-FROM docker.m.daocloud.io/library/node:20-alpine AS frontend-builder
+FROM ghcr.io/library/node:20-alpine AS frontend-builder
 
 WORKDIR /frontend
 RUN corepack enable && corepack prepare pnpm@9 --activate
@@ -12,7 +12,7 @@ COPY frontend/ .
 RUN pnpm build
 
 # ─── Backend Build ────────────────────────────────────────────────
-FROM docker.m.daocloud.io/library/golang:1.25-alpine AS builder
+FROM ghcr.io/library/golang:1.25-alpine AS builder
 
 WORKDIR /app
 RUN go env -w GOPROXY='https://goproxy.cn,direct' && go env -w GO111MODULE='auto'
@@ -27,7 +27,7 @@ COPY --from=frontend-builder /frontend/dist /app/backend/internal/webui/dist
 RUN cd backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/server ./cmd/server
 
 # ─── Runtime ──────────────────────────────────────────────────────
-FROM docker.m.daocloud.io/library/alpine:3.24
+FROM ghcr.io/library/alpine:3.24
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 RUN apk add --no-cache ca-certificates tzdata
 # Create non-root user
