@@ -78,21 +78,26 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 	status := req.Status
 	branchName := req.BranchName
 
-	if err := s.repo.CompleteTodo(todoID.String(), userID, status, req.Remark); err != nil {
+	updated, err := s.repo.CompleteTodo(todoID.String(), userID, status, req.Remark)
+	if err != nil {
 		return nil, err
 	}
 
-	msg := fmt.Sprintf("完成待办: %s", todo.Task.Name)
-	if req.Remark != "" {
-		msg += fmt.Sprintf(" | 备注: %s", req.Remark)
-	}
-	s.repo.CreateUserLog(todo.TaskID, todoID.String(), userID, status, msg)
+	// Only create log and trigger plugins if the todo was actually pending.
+	// Duplicate completions are silently ignored (idempotent).
+	if updated {
+		msg := fmt.Sprintf("完成待办: %s", todo.Task.Name)
+		if req.Remark != "" {
+			msg += fmt.Sprintf(" | 备注: %s", req.Remark)
+		}
+		s.repo.CreateUserLog(todo.TaskID, todoID.String(), userID, status, msg)
 
-	if h := taskkind.Get(todo.Task.Kind); h != nil {
-		h.OnComplete(s.Ops, todo, req.Selections, branchName, userID)
-	}
+		if h := taskkind.Get(todo.Task.Kind); h != nil {
+			h.OnComplete(s.Ops, todo, req.Selections, branchName, userID)
+		}
 
-	s.disableCompletedOnceTask(todo)
+		s.disableCompletedOnceTask(todo)
+	}
 
 	t, err := s.repo.FindTodoByID(todoID.String())
 	if err != nil {

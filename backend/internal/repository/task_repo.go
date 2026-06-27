@@ -108,24 +108,34 @@ func (r *TaskRepo) ListTodosByUser(userID string, status string) ([]TodoModel, e
 	return todos, err
 }
 
-func (r *TaskRepo) CompleteTodo(id, userID, status, remark string) error {
+// CompleteTodo marks a todo as done/skipped. Only updates if currently 'pending'.
+// Returns true if a row was actually updated (idempotent — duplicate calls are safe).
+func (r *TaskRepo) CompleteTodo(id, userID, status, remark string) (bool, error) {
 	now := timeutil.Now()
-	return r.db.Model(&TodoModel{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"status":       status,
-		"remark":       remark,
-		"completed_at": now,
-		"completed_by": userID,
-	}).Error
+	result := r.db.Model(&TodoModel{}).
+		Where("id = ? AND status = ?", id, "pending").
+		Updates(map[string]interface{}{
+			"status":       status,
+			"remark":       remark,
+			"completed_at": now,
+			"completed_by": userID,
+		})
+	return result.RowsAffected > 0, result.Error
 }
 
-func (r *TaskRepo) CompleteInspection(id, userID, inspectionResult string) error {
+// CompleteInspection marks an inspection todo as done. Only updates if currently 'pending'.
+// Returns true if a row was actually updated.
+func (r *TaskRepo) CompleteInspection(id, userID, inspectionResult string) (bool, error) {
 	now := timeutil.Now()
-	return r.db.Model(&TodoModel{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"status":            "done",
-		"inspection_result": inspectionResult,
-		"completed_at":      now,
-		"completed_by":      userID,
-	}).Error
+	result := r.db.Model(&TodoModel{}).
+		Where("id = ? AND status = ?", id, "pending").
+		Updates(map[string]interface{}{
+			"status":            "done",
+			"inspection_result": inspectionResult,
+			"completed_at":      now,
+			"completed_by":      userID,
+		})
+	return result.RowsAffected > 0, result.Error
 }
 
 func (r *TaskRepo) DeleteTodo(id string) error {
