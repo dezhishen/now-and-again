@@ -38,8 +38,8 @@ func (r *FamilyRepo) ListFamiliesByUserID(userID string) ([]FamilyModel, error) 
 	var families []FamilyModel
 	err := r.db.
 		Select("families.*, (SELECT floor_plans.image_id FROM floor_plans WHERE floor_plans.family_id = families.id AND floor_plans.is_cover = true LIMIT 1) AS floor_plan_image_path").
-		Joins("Members").
-		Where("Members.user_id = ? AND Members.status = ?", userID, "active").
+		Joins("JOIN family_members ON family_members.family_id = families.id").
+		Where("family_members.user_id = ? AND family_members.status = ?", userID, "active").
 		Find(&families).Error
 	return families, err
 }
