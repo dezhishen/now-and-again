@@ -154,6 +154,10 @@ docker-build: ## 构建 Docker 镜像
 	docker build -t now-and-again .
 	docker build -t now-and-again-cli -f cli/Dockerfile .
 
+docker-build-zh: ## 构建 Docker 镜像
+	docker build -t now-and-again . -f Dockerfile.zh
+	docker build -t now-and-again-cli -f cli/Dockerfile.zh .
+
 docker-up: ## 启动 docker-compose
 	docker compose up -d
 
