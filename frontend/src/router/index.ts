@@ -33,13 +33,18 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore()
 
-  // Token is persisted to sessionStorage by ApiClient constructor.
-  // hasValidToken() checks both memory and sessionStorage — no network call.
+  // Token is persisted to localStorage by ApiClient constructor.
+  // hasValidToken() checks both memory and localStorage — no network call.
   // Only call /auth/refresh when token is truly missing or expired.
   if (!auth.sessionChecked && !api.hasValidToken()) {
     await auth.initSession()
   } else {
     auth.sessionChecked = true
+  }
+
+  // Token is valid but user object was lost (page refresh) — restore it lazily
+  if (auth.isLoggedIn && !auth.user) {
+    auth.fetchUser()
   }
 
   if (to.meta.requiresAuth && !auth.isLoggedIn) {

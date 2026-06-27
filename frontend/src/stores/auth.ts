@@ -11,7 +11,8 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
   const sessionChecked = ref(false)
 
-  const isLoggedIn = computed(() => !!user.value && api.hasValidToken())
+  /** Logged in = have a valid token. User info is fetched lazily, not required for auth. */
+  const isLoggedIn = computed(() => api.hasValidToken())
   const isAdmin = computed(() => user.value?.roles?.includes('admin') ?? false)
 
   api.onExpired(() => {
@@ -25,6 +26,14 @@ export const useAuthStore = defineStore('auth', () => {
     sessionChecked.value = true
     const u = await api.initSession()
     if (u) user.value = u
+  }
+
+  /** Restore user object from /api/users/me when token is valid but user was lost (page refresh). */
+  async function fetchUser() {
+    if (user.value) return
+    try {
+      user.value = await api.get<User>('/users/me')
+    } catch { /* non-critical — will retry on next navigation */ }
   }
 
   async function register(req: { username: string; email: string; password: string; display_name: string }) {
@@ -57,6 +66,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user, families, activeFamilyId, error, sessionChecked, isLoggedIn, isAdmin,
-    initSession, register, login, logout,
+    initSession, fetchUser, register, login, logout,
   }
 })
