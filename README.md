@@ -12,6 +12,11 @@
 [![pnpm](https://img.shields.io/badge/pnpm-9.x-F69220?logo=pnpm)](https://pnpm.io/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker)](https://www.docker.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite)](https://sqlite.org/)
+<br>
+[![GitHub Stars](https://img.shields.io/github/stars/dezhishen/now-and-again?style=social)](https://github.com/dezhishen/now-and-again)
+[![GitHub last commit](https://img.shields.io/github/last-commit/dezhishen/now-and-again)](https://github.com/dezhishen/now-and-again)
+[![Docker Build](https://img.shields.io/github/actions/workflow/status/dezhishen/now-and-again/docker.yml?label=docker)](https://github.com/dezhishen/now-and-again/actions)
+[![GitHub Issues](https://img.shields.io/github/issues/dezhishen/now-and-again)](https://github.com/dezhishen/now-and-again/issues)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://makeapullrequest.com)
 
 ---
