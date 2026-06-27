@@ -54,6 +54,8 @@ class ApiClient {
   private onSessionExpired: (() => void) | null = null
   /** Prevent concurrent expired-session redirects. */
   private sessionExpiredFired = false
+  /** Timer handle for scheduled background refresh. */
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor() {
     // Restore token + expiry from sessionStorage on page refresh
@@ -61,6 +63,7 @@ class ApiClient {
     if (stored && stored.expiresAt > Date.now()) {
       this.accessToken = stored.token
       this.accessTokenExpiresAt = stored.expiresAt
+      this.scheduleRefresh()
     }
   }
 
@@ -70,10 +73,41 @@ class ApiClient {
     this.accessTokenExpiresAt = expiresAt
     if (token && expiresAt > 0) {
       saveStoredToken({ token, expiresAt })
+      this.scheduleRefresh()
     } else {
       saveStoredToken(null)
+      this.clearRefreshTimer()
     }
-    if (token) this.sessionExpiredFired = false // reset on new token
+    if (token) this.sessionExpiredFired = false
+  }
+
+  /**
+   * Schedule a background refresh shortly before the token expires.
+   * This keeps the session alive even when the user is idle (no API calls).
+   * Refresh fires at 80% of token lifetime (e.g. 12 min into a 15 min token).
+   */
+  private scheduleRefresh() {
+    this.clearRefreshTimer()
+    if (!this.accessTokenExpiresAt) return
+
+    const now = Date.now()
+    const remaining = this.accessTokenExpiresAt - now
+    if (remaining <= 0) return
+
+    // Fire at 80% of remaining lifetime, but at least 10s from now
+    const delay = Math.max(Math.floor(remaining * 0.8), 10_000)
+
+    this.refreshTimer = setTimeout(() => {
+      // Silently refresh — if it fails, the next API call will handle 401
+      this.refreshAccessToken().catch(() => {})
+    }, delay)
+  }
+
+  private clearRefreshTimer() {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer)
+      this.refreshTimer = null
+    }
   }
 
   setAccessToken(token: string | null) {
