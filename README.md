@@ -17,7 +17,7 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/dezhishen/now-and-again)](https://github.com/dezhishen/now-and-again)
 [![Docker Build](https://img.shields.io/github/actions/workflow/status/dezhishen/now-and-again/docker.yml?label=docker)](https://github.com/dezhishen/now-and-again/actions)
 [![GitHub Issues](https://img.shields.io/github/issues/dezhishen/now-and-again)](https://github.com/dezhishen/now-and-again/issues)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://makeapullrequest.com)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dezhishen/now-and-again/pulls)
 
 ---
 
