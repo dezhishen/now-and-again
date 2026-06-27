@@ -19,6 +19,8 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 )
 
 var (
@@ -105,7 +107,7 @@ func (w *dailyWriter) Write(p []byte) (n int, err error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	today := time.Now().Format("2006-01-02")
+	today := timeutil.Now().Format("2006-01-02")
 	if today != w.today {
 		w.rotate()
 	}
@@ -121,7 +123,7 @@ func (w *dailyWriter) rotate() {
 		go compressFile(oldPath)
 	}
 
-	w.today = time.Now().Format("2006-01-02")
+	w.today = timeutil.Now().Format("2006-01-02")
 	path := filepath.Join(w.dir, w.today+".log")
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
@@ -136,7 +138,7 @@ func compressLoop(dir string) {
 	for {
 		time.Sleep(5 * time.Minute)
 		entries, _ := os.ReadDir(dir)
-		today := time.Now().Format("2006-01-02")
+		today := timeutil.Now().Format("2006-01-02")
 		for _, e := range entries {
 			name := e.Name()
 			// Skip today's file, .gz files, and non-log files

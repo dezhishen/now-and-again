@@ -8,6 +8,7 @@ import (
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
 	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 )
 
@@ -25,7 +26,7 @@ func (Handler) GetExtra(ops *taskkind.Ops, task *repository.TaskModel) (any, err
 	}
 	extra := struct {
 		CheckItems []types.CheckItemDTO `json:"check_items"`
-		Children   []types.Task `json:"children"`
+		Children   []types.Task         `json:"children"`
 	}{}
 	for _, ci := range full.CheckItems {
 		branches := make([]types.CheckItemBranchDTO, 0, len(ci.Branches))
@@ -121,8 +122,8 @@ func doInspect(ops *taskkind.Ops, todo *repository.TodoModel, selections []taskk
 			TaskID:   branchTask.ID,
 			FamilyID: todo.FamilyID,
 			Status:   "pending",
-			DueStart: time.Now(),
-			DueDate:  time.Now().Add(24 * time.Hour),
+			DueStart: timeutil.Now(),
+			DueDate:  timeutil.Now().Add(24 * time.Hour),
 		}
 		if err := ops.Repo.CreateTodo(followTodo); err != nil {
 			return fmt.Errorf("create follow-up todo: %w", err)

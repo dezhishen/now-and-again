@@ -13,6 +13,7 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 RUN apk add --no-cache ca-certificates tzdata
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+ENV TZ=Asia/Shanghai
 
 COPY --from=builder /app/na /usr/local/bin/na
 

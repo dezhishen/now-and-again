@@ -3,6 +3,7 @@ package repository
 import (
 	"time"
 
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -19,6 +20,14 @@ func (b *BaseModel) BeforeCreate(_ *gorm.DB) error {
 	if b.ID == "" {
 		b.ID = uuid.New().String()
 	}
+	now := timeutil.Now()
+	b.CreatedAt = now
+	b.UpdatedAt = now
+	return nil
+}
+
+func (b *BaseModel) BeforeUpdate(_ *gorm.DB) error {
+	b.UpdatedAt = timeutil.Now()
 	return nil
 }
 
@@ -42,6 +51,7 @@ type UserModel struct {
 	Email       string `gorm:"uniqueIndex;size:255"`
 	Phone       string `gorm:"size:20"`
 	AvatarURL   string `gorm:"type:text"`
+	Timezone    string `gorm:"size:64;not null;default:Asia/Shanghai"` // IANA timezone
 
 	Accounts []AccountModel  `gorm:"foreignKey:UserID"`
 	Roles    []UserRoleModel `gorm:"foreignKey:UserID"`
@@ -68,7 +78,8 @@ type FamilyModel struct {
 	Name               string `gorm:"size:128;not null"`
 	InviteCode         string `gorm:"uniqueIndex;size:32;not null"`
 	CreatedBy          string `gorm:"type:char(36);not null"`
-	FloorPlanImagePath string `gorm:"->"` // populated by subquery in ListFamiliesByUserID
+	Timezone           string `gorm:"size:64;not null;default:Asia/Shanghai"` // IANA timezone, used for schedule resolution
+	FloorPlanImagePath string `gorm:"->"`                                     // populated by subquery in ListFamiliesByUserID
 }
 
 func (FamilyModel) TableName() string { return "families" }
@@ -201,9 +212,9 @@ type TaskModel struct {
 	LastTodoAt     *time.Time
 	CreatedBy      string `gorm:"type:char(36);not null"`
 	// Relations
-	CheckItems  []CheckItemModel    `gorm:"foreignKey:TaskID"`
-	Children    []TaskModel `gorm:"foreignKey:ParentTaskID"`
-	CheckItems_ string              `gorm:"-"` // ignore old field in DB, kept for migration
+	CheckItems  []CheckItemModel `gorm:"foreignKey:TaskID"`
+	Children    []TaskModel      `gorm:"foreignKey:ParentTaskID"`
+	CheckItems_ string           `gorm:"-"` // ignore old field in DB, kept for migration
 }
 
 func (TaskModel) TableName() string { return "tasks" }
@@ -220,9 +231,9 @@ type TodoModel struct {
 	DueStart    time.Time `gorm:"not null"`
 	DueDate     time.Time `gorm:"not null"`
 	CompletedAt *time.Time
-	CompletedBy string            `gorm:"type:char(36)"`
+	CompletedBy string    `gorm:"type:char(36)"`
 	Task        TaskModel `gorm:"foreignKey:TaskID"`
-	User        UserModel         `gorm:"foreignKey:AssignedTo"`
+	User        UserModel `gorm:"foreignKey:AssignedTo"`
 }
 
 func (TodoModel) TableName() string { return "todos" }
@@ -271,11 +282,11 @@ func (CheckItemModel) TableName() string { return "check_items" }
 
 type CheckItemBranchModel struct {
 	BaseModel
-	CheckItemID  string             `gorm:"index;type:char(36);not null"` // parent check item
-	Name         string             `gorm:"size:128;not null"`            // branch name (e.g. "正常", "缺失")
-	CreateTodo   bool               `gorm:"not null;default:false"`       // should create follow-up?
-	BranchTaskID string             `gorm:"index;type:char(36)"`          // linked task template (null if create_todo=false)
-	SortOrder    int                `gorm:"not null;default:0"`
+	CheckItemID  string     `gorm:"index;type:char(36);not null"` // parent check item
+	Name         string     `gorm:"size:128;not null"`            // branch name (e.g. "正常", "缺失")
+	CreateTodo   bool       `gorm:"not null;default:false"`       // should create follow-up?
+	BranchTaskID string     `gorm:"index;type:char(36)"`          // linked task template (null if create_todo=false)
+	SortOrder    int        `gorm:"not null;default:0"`
 	BranchTask   *TaskModel `gorm:"foreignKey:BranchTaskID"`
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
 	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 
 	// Blank imports trigger init() registration of task kind handlers.
 	_ "github.com/dezhishen/now-and-again/backend/pkg/taskkind/inspection"
@@ -98,7 +99,7 @@ func (s *TaskService) onTaskTriggered(taskID, familyID string) error {
 }
 
 func (s *TaskService) createTodo(taskID, familyID string, force bool) error {
-	now := time.Now()
+	now := timeutil.Now()
 	if !force {
 		has, _ := s.repo.HasPendingTodoForTaskToday(taskID, now)
 		if has {
@@ -200,7 +201,7 @@ func (s *TaskService) Trigger(ctx context.Context, taskID uuid.UUID) error {
 	}
 
 	// Avoid duplicate: don't create another todo if one is already pending today.
-	if has, _ := s.repo.HasPendingTodoForTaskToday(taskID.String(), time.Now()); has {
+	if has, _ := s.repo.HasPendingTodoForTaskToday(taskID.String(), timeutil.Now()); has {
 		return fmt.Errorf("今天已有待办，无需重复生成")
 	}
 
@@ -313,7 +314,7 @@ func (s *TaskService) GetCalendar(ctx context.Context, familyID string, year, mo
 		return nil, err
 	}
 
-	loc := time.Local
+	loc := time.UTC
 	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, loc)
 	lastDay := firstDay.AddDate(0, 1, -1)
 
@@ -392,7 +393,7 @@ func (s *TaskService) GetCalendar(ctx context.Context, familyID string, year, mo
 
 // expandSchedule returns the days of the month (1-31) that a task occurs on.
 func expandSchedule(scheduleType, scheduleData string, createdAt time.Time, year, month int) []int {
-	loc := time.Local
+	loc := time.UTC
 	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, loc)
 	lastDay := firstDay.AddDate(0, 1, -1)
 
@@ -477,7 +478,7 @@ func expandSchedule(scheduleType, scheduleData string, createdAt time.Time, year
 		if data.Date == "" {
 			return nil
 		}
-		parsed, err := time.ParseInLocation("2006-01-02", data.Date, loc)
+		parsed, err := time.ParseInLocation("2006-01-02", data.Date, time.UTC)
 		if err != nil {
 			return nil
 		}

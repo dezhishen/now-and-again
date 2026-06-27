@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 	"github.com/google/uuid"
 )
 
@@ -47,11 +48,11 @@ func (r *ApiKeyRepo) ValidateApiKey(raw string) (userID string, scopes []string,
 		return "", nil, fmt.Errorf("invalid api key")
 	}
 
-	if ak.ExpiresAt != nil && ak.ExpiresAt.Before(time.Now()) {
+	if ak.ExpiresAt != nil && ak.ExpiresAt.Before(timeutil.Now()) {
 		return "", nil, fmt.Errorf("api key expired")
 	}
 
-	now := time.Now()
+	now := timeutil.Now()
 	r.db.Model(&ak).Update("last_used_at", now)
 
 	return ak.UserID, UnmarshalScopes(ak.Scopes), nil

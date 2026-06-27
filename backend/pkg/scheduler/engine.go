@@ -9,6 +9,7 @@ import (
 	"github.com/go-co-op/gocron/v2"
 
 	"github.com/dezhishen/now-and-again/backend/internal/logger"
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 )
 
 // Callback is invoked when a scheduled task triggers.
@@ -78,7 +79,7 @@ func (s *Scheduler) RegisterJob(b *JobBuilder) error {
 
 	// Build gocron task with callback
 	taskFn := gocron.NewTask(func() {
-		now := time.Now()
+		now := timeutil.Now()
 		s.log("triggered", b.TaskID, "")
 		if err := b.Callback(b.TaskID, now); err != nil {
 			s.log("error", b.TaskID, err.Error())

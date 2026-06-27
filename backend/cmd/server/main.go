@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
 
 	"github.com/dezhishen/now-and-again/backend/internal/config"
 	"github.com/dezhishen/now-and-again/backend/internal/handler"
@@ -17,6 +16,7 @@ import (
 	"github.com/dezhishen/now-and-again/backend/internal/service"
 	"github.com/dezhishen/now-and-again/backend/internal/webui"
 	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -178,7 +178,7 @@ func seedAdmin(db *gorm.DB) {
 
 func randomPassword(length int) string {
 	const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(rand.NewSource(timeutil.Now().UnixNano()))
 	b := make([]byte, length)
 	for i := range b {
 		b[i] = chars[rng.Intn(len(chars))]

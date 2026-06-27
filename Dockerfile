@@ -35,6 +35,7 @@ COPY --from=builder /app/server .
 
 ENV DATA_DIR=/data
 ENV GIN_MODE=release
+ENV TZ=Asia/Shanghai
 
 RUN mkdir -p /data/uploads /data/logs \
     && chown -R appuser:appgroup /app /data

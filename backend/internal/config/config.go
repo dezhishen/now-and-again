@@ -9,10 +9,11 @@ import (
 )
 
 type Config struct {
-	Port      string
-	JWTSecret string
-	Database  DatabaseConfig
-	UploadDir string
+	Port            string
+	JWTSecret       string
+	Database        DatabaseConfig
+	UploadDir       string
+	DefaultTimezone string // IANA timezone, e.g. "Asia/Shanghai". Used as fallback.
 }
 
 type DatabaseConfig struct {
@@ -50,7 +51,8 @@ func Load() (*Config, error) {
 			Driver: envOrDefault("DB_DRIVER", "sqlite"),
 			DSN:    dbDSN,
 		},
-		UploadDir: uploadDir,
+		UploadDir:       uploadDir,
+		DefaultTimezone: envOrDefault("DEFAULT_TIMEZONE", "Asia/Shanghai"),
 	}
 	return cfg, nil
 }

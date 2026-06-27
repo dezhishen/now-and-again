@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 	"github.com/google/uuid"
 )
 
@@ -21,8 +22,8 @@ func (r *UserRepo) CreateRefreshToken(userID string, ttl time.Duration) (raw str
 		ID:        uuid.New().String(),
 		UserID:    userID,
 		TokenHash: hashToken(raw),
-		ExpiresAt: time.Now().Add(ttl),
-		CreatedAt: time.Now(),
+		ExpiresAt: timeutil.Now().Add(ttl),
+		CreatedAt: timeutil.Now(),
 	}
 	if err := r.db.Create(rt).Error; err != nil {
 		return "", err
@@ -33,7 +34,7 @@ func (r *UserRepo) CreateRefreshToken(userID string, ttl time.Duration) (raw str
 func (r *UserRepo) ValidateRefreshToken(raw string) (userID string, err error) {
 	var rt RefreshTokenModel
 	err = r.db.Where("token_hash = ? AND revoked = ? AND expires_at > ?",
-		hashToken(raw), false, time.Now()).First(&rt).Error
+		hashToken(raw), false, timeutil.Now()).First(&rt).Error
 	if err != nil {
 		return "", err
 	}

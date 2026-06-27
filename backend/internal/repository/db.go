@@ -3,10 +3,10 @@ package repository
 import (
 	"fmt"
 	"math/rand"
-	"time"
 
 	"github.com/dezhishen/now-and-again/backend/internal/config"
 	"github.com/dezhishen/now-and-again/backend/internal/logger"
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/driver/postgres"
@@ -101,7 +101,7 @@ func Seed(db *gorm.DB) error {
 // GenInviteCode generates an 8-char alphanumeric invite code.
 func GenInviteCode() string {
 	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(rand.NewSource(timeutil.Now().UnixNano()))
 	b := make([]byte, 8)
 	for i := range b {
 		b[i] = chars[rng.Intn(len(chars))]

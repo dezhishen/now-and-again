@@ -3,6 +3,7 @@ package repository
 import (
 	"time"
 
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 	"gorm.io/gorm"
 )
 
@@ -108,7 +109,7 @@ func (r *TaskRepo) ListTodosByUser(userID string, status string) ([]TodoModel, e
 }
 
 func (r *TaskRepo) CompleteTodo(id, userID, status, remark string) error {
-	now := time.Now()
+	now := timeutil.Now()
 	return r.db.Model(&TodoModel{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":       status,
 		"remark":       remark,
@@ -118,7 +119,7 @@ func (r *TaskRepo) CompleteTodo(id, userID, status, remark string) error {
 }
 
 func (r *TaskRepo) CompleteInspection(id, userID, inspectionResult string) error {
-	now := time.Now()
+	now := timeutil.Now()
 	return r.db.Model(&TodoModel{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":            "done",
 		"inspection_result": inspectionResult,

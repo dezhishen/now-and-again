@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 )
 
@@ -35,7 +35,7 @@ func (s *FamilyService) Create(ctx context.Context, req *types.CreateFamilyReque
 		UserID:   userID,
 		Role:     string(types.FamilyRoleOwner),
 		Status:   "active",
-		JoinedAt: time.Now(),
+		JoinedAt: timeutil.Now(),
 	}
 	if err := s.repo.AddMember(m); err != nil {
 		return nil, fmt.Errorf("add creator: %w", err)
@@ -61,7 +61,7 @@ func (s *FamilyService) Join(ctx context.Context, req *types.JoinFamilyRequest) 
 		case "rejected":
 			// Allow re-apply: update existing record back to pending
 			existing.Status = "pending"
-			existing.JoinedAt = time.Now()
+			existing.JoinedAt = timeutil.Now()
 			if err := s.repo.UpdateMember(existing); err != nil {
 				return nil, fmt.Errorf("re-apply join: %w", err)
 			}
@@ -71,7 +71,7 @@ func (s *FamilyService) Join(ctx context.Context, req *types.JoinFamilyRequest) 
 
 	m := &repository.FamilyMemberModel{
 		FamilyID: f.ID, UserID: userID, Role: string(types.FamilyRoleMember),
-		Status: "pending", JoinedAt: time.Now(),
+		Status: "pending", JoinedAt: timeutil.Now(),
 	}
 	if err := s.repo.AddMember(m); err != nil {
 		return nil, fmt.Errorf("join family: %w", err)
@@ -227,7 +227,7 @@ func (s *FamilyService) ReviewJoinRequest(ctx context.Context, familyID uuid.UUI
 	}
 	m.Status = string(req.Action)
 	if req.Action == types.MemberStatusActive {
-		m.JoinedAt = time.Now()
+		m.JoinedAt = timeutil.Now()
 	}
 	return s.repo.UpdateMember(m)
 }
@@ -252,7 +252,7 @@ func (s *FamilyService) CreateGroup(ctx context.Context, familyID uuid.UUID, req
 	if err := s.repo.CreateGroup(g); err != nil {
 		return nil, err
 	}
-	gm := &repository.FamilyGroupMemberModel{GroupID: g.ID, UserID: userID, Role: "owner", Status: "active", JoinedAt: time.Now()}
+	gm := &repository.FamilyGroupMemberModel{GroupID: g.ID, UserID: userID, Role: "owner", Status: "active", JoinedAt: timeutil.Now()}
 	if err := s.repo.AddGroupMember(gm); err != nil {
 		return nil, err
 	}
@@ -285,14 +285,14 @@ func (s *FamilyService) JoinGroup(ctx context.Context, groupID uuid.UUID) (*type
 		case "rejected":
 			// Allow re-apply: update existing record back to pending
 			existing.Status = "pending"
-			existing.JoinedAt = time.Now()
+			existing.JoinedAt = timeutil.Now()
 			if err := s.repo.UpdateGroupMember(existing); err != nil {
 				return nil, fmt.Errorf("re-apply join: %w", err)
 			}
 			return toGroupMember(existing), nil
 		}
 	}
-	m := &repository.FamilyGroupMemberModel{GroupID: groupID.String(), UserID: userID, Role: "member", Status: "pending", JoinedAt: time.Now()}
+	m := &repository.FamilyGroupMemberModel{GroupID: groupID.String(), UserID: userID, Role: "member", Status: "pending", JoinedAt: timeutil.Now()}
 	if err := s.repo.AddGroupMember(m); err != nil {
 		return nil, err
 	}
@@ -363,7 +363,7 @@ func (s *FamilyService) ReviewGroupJoinRequest(ctx context.Context, groupID uuid
 	}
 	m.Status = string(req.Action)
 	if req.Action == types.MemberStatusActive {
-		m.JoinedAt = time.Now()
+		m.JoinedAt = timeutil.Now()
 	}
 	return s.repo.UpdateGroupMember(m)
 }

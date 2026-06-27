@@ -10,6 +10,7 @@ FROM registry.alpinelinux.org/img/alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+ENV TZ=Asia/Shanghai
 
 COPY --from=builder /app/na /usr/local/bin/na
 

@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 )
 
@@ -40,8 +41,8 @@ func userModelToUser(m *repository.UserModel) *types.User {
 func (s *UserService) generateTokens(ctx context.Context, userID string) (*types.TokenPair, error) {
 	claims := jwt.MapClaims{
 		"sub": userID,
-		"iat": time.Now().Unix(),
-		"exp": time.Now().Add(accessTokenTTL).Unix(),
+		"iat": timeutil.Now().Unix(),
+		"exp": timeutil.Now().Add(accessTokenTTL).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	accessToken, err := token.SignedString([]byte(s.jwtSecret))

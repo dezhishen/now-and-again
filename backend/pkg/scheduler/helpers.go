@@ -3,6 +3,8 @@ package scheduler
 import (
 	"fmt"
 	"time"
+
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 )
 
 // str safely gets a string from a map.
@@ -34,10 +36,22 @@ func parseTime(t string) (h, m int) {
 	return
 }
 
-// durationTo computes the duration until next HH:MM.
+// durationTo computes the duration until next HH:MM (in UTC).
+// Callers needing timezone-aware scheduling should use DurationToInLocation.
 func durationTo(h, m int) time.Duration {
-	now := time.Now()
-	target := time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, now.Location())
+	now := timeutil.Now()
+	target := time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, time.UTC)
+	if target.Before(now) {
+		target = target.Add(24 * time.Hour)
+	}
+	return target.Sub(now)
+}
+
+// DurationToInLocation computes the duration until next HH:MM in the given timezone.
+func DurationToInLocation(h, m int, tz string) time.Duration {
+	loc := timeutil.LoadLocation(tz)
+	now := timeutil.Now()
+	target := time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, loc)
 	if target.Before(now) {
 		target = target.Add(24 * time.Hour)
 	}

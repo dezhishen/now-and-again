@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
+	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -215,22 +216,22 @@ func parseScheduleTime(scheduleType, scheduleData string) time.Time {
 	}
 	json.Unmarshal([]byte(scheduleData), &data)
 
-	now := time.Now()
+	now := timeutil.Now()
 	t := data.Time
 	if t == "" {
 		t = "09:00"
 	}
 
 	if scheduleType == "once" && data.Date != "" {
-		parsed, err := time.ParseInLocation("2006-01-02 15:04", data.Date+" "+t, time.Local)
+		parsed, err := time.ParseInLocation("2006-01-02 15:04", data.Date+" "+t, time.UTC)
 		if err == nil {
-			return parsed
+			return parsed.UTC()
 		}
 	}
 
 	h, m := 9, 0
 	fmt.Sscanf(t, "%d:%d", &h, &m)
-	next := time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, time.Local)
+	next := time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, time.UTC)
 	if next.Before(now) {
 		next = next.Add(24 * time.Hour)
 	}
