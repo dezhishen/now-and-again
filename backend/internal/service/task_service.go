@@ -100,30 +100,36 @@ func (s *TaskService) onTaskTriggered(taskID, familyID string) error {
 
 func (s *TaskService) createTodo(taskID, familyID string, force bool) error {
 	now := timeutil.Now()
-	if !force {
-		has, _ := s.repo.HasPendingTodoForTaskToday(taskID, now)
-		if has {
-			return nil
-		}
-	}
+
 	task, err := s.repo.FindTaskByID(taskID)
 	if err != nil {
 		return err
 	}
 	window := scheduleWindow(task.ScheduleType, task.ScheduleData)
-	todo := &repository.TodoModel{
-		TaskID:     taskID,
-		FamilyID:   familyID,
-		LocationID: task.LocationID,
-		DueStart:   now,
-		DueDate:    now.Add(window),
-		Status:     "pending",
-	}
-	if err := s.repo.CreateTodo(todo); err != nil {
-		return err
-	}
-	s.repo.UpdateLastTodoAt(taskID, now)
-	return nil
+
+	// Atomic check-and-create inside a transaction: prevents duplicate todos
+	// when two requests (or scheduler + manual trigger) race.
+	return s.repo.Tx(func(tx *repository.TaskRepo) error {
+		if !force {
+			has, _ := tx.HasPendingTodoForTaskToday(taskID, now)
+			if has {
+				return nil // already created — idempotent
+			}
+		}
+
+		todo := &repository.TodoModel{
+			TaskID:     taskID,
+			FamilyID:   familyID,
+			LocationID: task.LocationID,
+			DueStart:   now,
+			DueDate:    now.Add(window),
+			Status:     "pending",
+		}
+		if err := tx.CreateTodo(todo); err != nil {
+			return err
+		}
+		return tx.UpdateLastTodoAt(taskID, now)
+	})
 }
 
 // ─── Task Template ───────────────────────────────────────────────
