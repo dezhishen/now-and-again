@@ -6,9 +6,12 @@ const SESSION_EXPIRED_CODE = 401
 
 // ─── Token persistence ────────────────────────────────────────────
 //
-// Stored format: JSON { token: string, expiresAt: number (epoch ms) }
-// This avoids decoding the JWT on every access check — we just compare
-// Date.now() against the stored expiry.
+// Stored in localStorage so the access token survives tab close and
+// browser restart. The refresh token is an httpOnly cookie (secure),
+// and the access token is short-lived (15 min), so the XSS exposure
+// window is limited.
+//
+// Format: JSON { token: string, expiresAt: number (epoch ms) }
 
 interface StoredToken {
   token: string
@@ -17,7 +20,7 @@ interface StoredToken {
 
 function loadStoredToken(): StoredToken | null {
   try {
-    const raw = sessionStorage.getItem(TOKEN_KEY)
+    const raw = localStorage.getItem(TOKEN_KEY)
     if (!raw) return null
     const parsed: StoredToken = JSON.parse(raw)
     if (!parsed.token || typeof parsed.expiresAt !== 'number') return null
@@ -27,8 +30,8 @@ function loadStoredToken(): StoredToken | null {
 
 function saveStoredToken(t: StoredToken | null) {
   try {
-    if (t) sessionStorage.setItem(TOKEN_KEY, JSON.stringify(t))
-    else sessionStorage.removeItem(TOKEN_KEY)
+    if (t) localStorage.setItem(TOKEN_KEY, JSON.stringify(t))
+    else localStorage.removeItem(TOKEN_KEY)
   } catch { /* quota exceeded or private browsing */ }
 }
 
