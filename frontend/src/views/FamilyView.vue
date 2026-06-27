@@ -9,6 +9,7 @@ import DashboardView from './family/DashboardView.vue'
 import GroupListView from './family/GroupListView.vue'
 import MemberListView from './family/MemberListView.vue'
 import FloorPlanView from './family/FloorPlanView.vue'
+import LocationManageView from './family/LocationManageView.vue'
 import TaskView from './family/TaskView.vue'
 import IcsView from './family/IcsView.vue'
 import SettingsView from './family/SettingsView.vue'
@@ -31,6 +32,7 @@ const NAV_ITEMS: { id: string; icon: string; labelKey: string; component: any; a
   { id: 'dashboard', icon: '🏠', labelKey: 'nav.dashboard', component: markRaw(DashboardView) },
   { id: 'tasks', icon: '✅', labelKey: 'nav.tasks', component: markRaw(TaskView) },
   { id: 'groups', icon: '👥', labelKey: 'nav.groups', component: markRaw(GroupListView) },
+  { id: 'locations', icon: '📍', labelKey: 'nav.locations', component: markRaw(LocationManageView) },
   { id: 'members', icon: '👤', labelKey: 'nav.members', component: markRaw(MemberListView) },
   { id: 'floor-plan', icon: '🏠', labelKey: 'nav.floorPlan', component: markRaw(FloorPlanView) },
   { id: 'ics', icon: '📅', labelKey: 'nav.ics', component: markRaw(IcsView) },

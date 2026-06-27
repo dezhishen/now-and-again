@@ -12,7 +12,7 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
   const sessionChecked = ref(false)
 
-  const isLoggedIn = computed(() => !!user.value && !!api.getAccessToken())
+  const isLoggedIn = computed(() => !!user.value && api.hasValidToken())
   const needsSetup = computed(() => initialized.value === false)
   const isAdmin = computed(() => user.value?.roles?.includes('admin') ?? false)
 

@@ -3,7 +3,6 @@ package taskkind
 import (
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
-	"github.com/gin-gonic/gin"
 )
 
 // ─── Operations ──────────────────────────────────────────────────
@@ -17,27 +16,22 @@ type Ops struct {
 
 // ─── Handler Interface ───────────────────────────────────────────
 
-// Handler defines task-kind-specific behavior.
+// Handler defines task-kind-specific behavior. All methods are mandatory.
 type Handler interface {
 	Kind() string
-	OnComplete(ops *Ops, todo *repository.TodoModel, branchName, userID string) error
-}
 
-// Inspector is an optional interface for handlers that support multi-item inspection.
-type Inspector interface {
-	Handler
-	OnInspect(ops *Ops, todo *repository.TodoModel, selections []Selection, userID string) error
-}
+	// Lifecycle — called by taskService for every task
+	OnCreate(ops *Ops, task *repository.TaskTemplateModel, extra any) error
+	OnUpdate(ops *Ops, task *repository.TaskTemplateModel, extra any) error
+	OnDelete(ops *Ops, task *repository.TaskTemplateModel) error
 
-// RouteRegistrar is an optional interface for task kinds that expose additional
-// API endpoints beyond the generic task CRUD. Routes are registered under
-// a kind-specific path prefix, e.g. /api/tasks/:task_id/{kind}/...
-//
-// The router parameter is a *gin.RouterGroup scoped to the task kind, so
-// handlers can call router.POST("/submit", ...) without repeating the prefix.
-type RouteRegistrar interface {
-	Handler
-	RegisterRoutes(router *gin.RouterGroup, ops *Ops)
+	// OnComplete is called when a todo of this kind is completed.
+	// extra carries the kind-specific payload from CompleteTodoRequest.
+	OnComplete(ops *Ops, todo *repository.TodoModel, extra any, branchName, userID string) error
+
+	// GetExtra returns kind-specific data for the task detail page.
+	// e.g. for inspection: check_items + children
+	GetExtra(ops *Ops, task *repository.TaskTemplateModel) (any, error)
 }
 
 // Selection represents one checked item in an inspection.

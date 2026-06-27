@@ -5,9 +5,8 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import TaskCard from '@/components/tasks/TaskCard.vue'
-import TaskFormCheckItems from '@/components/tasks/TaskFormCheckItems.vue'
 import { useToast } from '@/composables/useToast'
-import { getTaskCard, getCreateLabel, getDefaultCheckItems, getTaskKinds } from '@/composables/useTaskKinds'
+import { getCreateLabel, getDefaultCheckItems, getTaskKinds, getFormComponent } from '@/composables/useTaskKinds'
 import { initTaskKinds } from '@/components/tasks/init'
 import type { TaskTemplate, FamilyGroup, CheckItem } from '@/types'
 
@@ -26,7 +25,7 @@ watch(refreshKey, () => { loadTasks(); loadGroups(); loadLocations() })
 
 const tasks = ref<TaskTemplate[]>([])
 const groups = ref<FamilyGroup[]>([])
-const locations = ref<{ id: string; name: string; color: string; floor_plan_id: string }[]>([])
+const locations = ref<{ id: string; name: string; color: string; floor_plan_id?: string }[]>([])
 const activeTab = ref('all')
 const loading = ref(true)
 
@@ -53,7 +52,7 @@ const taskDate = ref('')
 const taskDays = ref<number[]>([])
 const taskGroupID = ref('')
 const taskLocationID = ref('')
-const taskKind = ref<'simple' | 'inspection'>('simple')
+const taskKind = ref('simple')
 const checkItems = ref<CheckItem[]>([])
 const editingTask = ref<TaskTemplate | null>(null)
 
@@ -78,24 +77,9 @@ onMounted(async () => {
 const activeTasks = computed(() => tasks.value.filter(t => t.enabled || t.schedule_type !== 'once'))
 const displayTasks = computed(() => activeTab.value === 'all' ? activeTasks.value : activeTasks.value.filter(t => t.kind === activeTab.value))
 
-function openCreateInspection() {
-  openCreate()
-  taskKind.value = 'inspection'
-  checkItems.value = getDefaultCheckItems('inspection') || []
-}
-
 async function loadLocations() {
   try {
-    // Get all floor plans, then their locations
-    const plans = await api.get<any[]>('/families/' + familyId + '/floor-plans')
-    const allLocs: any[] = []
-    for (const p of plans) {
-      try {
-        const locs = await api.get<any[]>('/floor-plans/' + p.id + '/locations')
-        allLocs.push(...locs.map((l: any) => ({ ...l, floor_plan_id: p.id })))
-      } catch { /* */ }
-    }
-    locations.value = allLocs
+    locations.value = await api.get<any[]>('/families/' + familyId + '/locations')
   } catch { locations.value = [] }
 }
 
@@ -125,14 +109,30 @@ function openCreate() {
   showTaskForm.value = true
 }
 
-function openEdit(task: TaskTemplate) {
+function openCreateKind(kind: string) {
+  editingTask.value = null
+  taskName.value = ''; taskSchedule.value = 'daily'; taskTime.value = '09:00'
+  taskDate.value = ''; taskDays.value = []; taskGroupID.value = ''; taskLocationID.value = ''
+  taskKind.value = kind
+  checkItems.value = getDefaultCheckItems(kind) ? [...getDefaultCheckItems(kind)!] : []
+  showTaskForm.value = true
+}
+
+async function openEdit(task: TaskTemplate) {
   editingTask.value = task
   taskName.value = task.name
   taskSchedule.value = task.schedule_type
   taskGroupID.value = task.group_id || ''
   taskLocationID.value = task.location_id || ''
-  taskKind.value = (task.kind as 'simple' | 'inspection') || 'simple'
+  taskKind.value = task.kind || 'simple'
   checkItems.value = Array.isArray(task.check_items) ? [...task.check_items] : []
+  // Load extras if check_items not present and kind has extras
+  if (!checkItems.value.length) {
+    try {
+      const res = await api.get<{ extra: { check_items: CheckItem[] } }>('/tasks/' + task.id + '?with_extra=true')
+      if (res.extra?.check_items) checkItems.value = [...res.extra.check_items]
+    } catch { /* */ }
+  }
   showTaskForm.value = true
   const data = task.schedule_data || {}
   taskTime.value = data.time || '09:00'
@@ -150,7 +150,7 @@ async function saveTask() {
   if (taskGroupID.value) body.group_id = taskGroupID.value
   if (taskLocationID.value) body.location_id = taskLocationID.value
   body.kind = taskKind.value
-  if (taskKind.value === 'inspection') body.check_items = checkItems.value
+  body.check_items = checkItems.value
 
   try {
     if (editingTask.value) {
@@ -283,7 +283,7 @@ function scheduleSummary(task: TaskTemplate): string {
 
     <!-- Content -->
     <div>
-      <button class="btn-primary text-sm mb-3" @click="activeTab === 'all' ? openCreate() : openCreateInspection()">
+      <button class="btn-primary text-sm mb-3" @click="activeTab === 'all' ? openCreate() : openCreateKind(activeTab)">
         + {{ activeTab === 'all' ? '创建任务' : getCreateLabel(activeTab) }}
       </button>
 
@@ -301,17 +301,13 @@ function scheduleSummary(task: TaskTemplate): string {
           @trigger="triggerTask"
           @toggle="toggleTask"
           @delete="deleteTask"
-        >
-          <template #body>
-            <component :is="getTaskCard(task.kind)" :task="task" :loc-name="getLocName" :loc-color="getLocColor" :group-name="getGroupName" :summary="scheduleSummary" />
-          </template>
-        </TaskCard>
+        />
       </div>
     </div>
 
     <!-- Log Modal -->
     <Teleport to="body">
-      <div v-if="showLogs" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showLogs = false">
+      <div v-if="showLogs" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @mousedown.self="showLogs = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-2xl max-h-[75vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700 flex-shrink-0">
             <h3 class="font-bold dark:text-gray-200 truncate mr-2">📋 {{ logTaskName }}</h3>
@@ -362,14 +358,14 @@ function scheduleSummary(task: TaskTemplate): string {
 
     <!-- Create/Edit Task Modal -->
     <Teleport to="body">
-      <div v-if="showTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showTaskForm = false">
+      <div v-if="showTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @mousedown.self="showTaskForm = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-xl max-h-[85vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
-            <h3 class="font-bold dark:text-gray-200">{{ editingTask ? '编辑' : taskKind === 'inspection' ? '创建巡检' : '创建任务' }}</h3>
+            <h3 class="font-bold dark:text-gray-200">{{ editingTask ? '编辑' : getCreateLabel(taskKind) }}</h3>
             <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showTaskForm = false">✕</button>
           </div>
           <div class="flex-1 overflow-auto p-4 space-y-3">
-            <input v-model="taskName" class="input" :placeholder="taskKind === 'inspection' ? '巡检名称，如：厨房安全检查' : '任务名称，如：每日倒垃圾'" />
+            <input v-model="taskName" class="input" :placeholder="getCreateLabel(taskKind) + '名称'" />
             <div>
               <label class="text-xs text-gray-400 block mb-1">调度方式</label>
               <select v-model="taskSchedule" class="input">
@@ -422,8 +418,13 @@ function scheduleSummary(task: TaskTemplate): string {
                 <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
               </select>
             </div>
-            <!-- Branch editor -->
-            <TaskFormCheckItems v-if="taskKind === 'inspection'" v-model="checkItems" :groups="groups" />
+            <!-- Kind-specific form fields -->
+            <component
+              :is="getFormComponent(taskKind)"
+              v-if="getFormComponent(taskKind)"
+              v-model="checkItems"
+              :groups="groups"
+            />
           </div>
           <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">
             <button class="btn-primary text-sm flex-1" @click="saveTask">{{ editingTask ? '保存' : '创建' }}</button>

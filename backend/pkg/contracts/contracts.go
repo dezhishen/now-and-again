@@ -71,9 +71,10 @@ type FloorPlanContract interface {
 	SetCover(ctx context.Context, planID uuid.UUID) error
 	Delete(ctx context.Context, planID uuid.UUID) error
 
-	// Locations
-	CreateLocation(ctx context.Context, floorPlanID uuid.UUID, req *types.CreateLocationRequest) (*types.Location, error)
-	ListLocations(ctx context.Context, floorPlanID uuid.UUID) ([]types.Location, error)
+	// Locations (first-class, independent entity)
+	CreateLocation(ctx context.Context, familyID uuid.UUID, req *types.CreateLocationRequest) (*types.Location, error)
+	ListFamilyLocations(ctx context.Context, familyID uuid.UUID) ([]types.Location, error)
+	ListFloorPlanLocations(ctx context.Context, floorPlanID uuid.UUID) ([]types.Location, error)
 	UpdateLocation(ctx context.Context, locationID uuid.UUID, req *types.UpdateLocationRequest) (*types.Location, error)
 	DeleteLocation(ctx context.Context, locationID uuid.UUID) error
 }
@@ -82,22 +83,21 @@ type FloorPlanContract interface {
 
 // TaskContract defines the core task/todo operations that both server and CLI must implement.
 type TaskContract interface {
-	// Task CRUD
 	CreateTask(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.TaskTemplate, error)
 	UpdateTask(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.TaskTemplate, error)
 	DeleteTask(ctx context.Context, taskID uuid.UUID) error
 	ListTasks(ctx context.Context, familyID uuid.UUID) ([]types.TaskTemplate, error)
 	TriggerTask(ctx context.Context, taskID uuid.UUID) error
-
-	// Todos
-	ListTodos(ctx context.Context, familyID uuid.UUID, groupID, status string) ([]types.Todo, error)
-	CompleteTodo(ctx context.Context, todoID uuid.UUID, req *types.CompleteTodoRequest) (*types.Todo, error)
-
-	// Logs
-	ListTaskLogs(ctx context.Context, taskID uuid.UUID, limit int, userOnly bool) ([]types.TaskLog, error)
 }
 
-// ─── Aggregate ────────────────────────────────────────────────────
+type TodoContract interface {
+	ListTodos(ctx context.Context, familyID uuid.UUID, groupID, status string) ([]types.Todo, error)
+	CompleteTodo(ctx context.Context, todoID uuid.UUID, req *types.CompleteTodoRequest) (*types.Todo, error)
+}
+
+type LogContract interface {
+	ListLogs(ctx context.Context, taskID uuid.UUID, limit int, userOnly bool) ([]types.TaskLog, error)
+}
 
 type AllContracts struct {
 	User      UserContract
@@ -105,4 +105,6 @@ type AllContracts struct {
 	ApiKey    ApiKeyContract
 	FloorPlan FloorPlanContract
 	Task      TaskContract
+	Todo      TodoContract
+	Log       LogContract
 }

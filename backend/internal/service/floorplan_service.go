@@ -68,7 +68,7 @@ func (s *FloorPlanService) GetByID(ctx context.Context, planID uuid.UUID) (*type
 		return nil, fmt.Errorf("floor plan not found")
 	}
 
-	locs, _ := s.repo.ListLocations(fp.ID)
+	locs, _ := s.repo.ListLocationsByFloorPlanID(fp.ID)
 	locList := make([]types.Location, len(locs))
 	for i, l := range locs {
 		locList[i] = locationModelToType(&l)
@@ -102,19 +102,20 @@ func (s *FloorPlanService) SetCover(ctx context.Context, planID uuid.UUID) error
 	return s.repo.SetCover(planID.String())
 }
 
-// ─── Rooms ───────────────────────────────────────────────────────
+// ─── Locations (first-class entity) ──────────────────────────────
 
-func (s *FloorPlanService) CreateLocation(ctx context.Context, floorPlanID uuid.UUID, req *types.CreateLocationRequest) (*types.Location, error) {
+func (s *FloorPlanService) CreateLocation(ctx context.Context, familyID uuid.UUID, req *types.CreateLocationRequest) (*types.Location, error) {
 	color := req.Color
 	if color == "" {
 		color = "#3b82f6"
 	}
 	loc := &repository.LocationModel{
-		FloorPlanID: floorPlanID.String(),
-		Name:        req.Name,
-		PointX:      req.Point.X,
-		PointY:      req.Point.Y,
-		Color:       color,
+		FamilyID: familyID.String(),
+		Name:     req.Name,
+		Color:    color,
+	}
+	if req.FloorPlanID != "" {
+		loc.FloorPlanID = &req.FloorPlanID
 	}
 	if err := s.repo.CreateLocation(loc); err != nil {
 		return nil, fmt.Errorf("create location: %w", err)
@@ -123,8 +124,20 @@ func (s *FloorPlanService) CreateLocation(ctx context.Context, floorPlanID uuid.
 	return &result, nil
 }
 
-func (s *FloorPlanService) ListLocations(ctx context.Context, floorPlanID uuid.UUID) ([]types.Location, error) {
-	locs, err := s.repo.ListLocations(floorPlanID.String())
+func (s *FloorPlanService) ListFamilyLocations(ctx context.Context, familyID uuid.UUID) ([]types.Location, error) {
+	locs, err := s.repo.ListLocationsByFamilyID(familyID.String())
+	if err != nil {
+		return nil, err
+	}
+	result := make([]types.Location, len(locs))
+	for i, l := range locs {
+		result[i] = locationModelToType(&l)
+	}
+	return result, nil
+}
+
+func (s *FloorPlanService) ListFloorPlanLocations(ctx context.Context, floorPlanID uuid.UUID) ([]types.Location, error) {
+	locs, err := s.repo.ListLocationsByFloorPlanID(floorPlanID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -143,12 +156,15 @@ func (s *FloorPlanService) UpdateLocation(ctx context.Context, locationID uuid.U
 	if req.Name != "" {
 		l.Name = req.Name
 	}
-	if req.Point != nil {
-		l.PointX = req.Point.X
-		l.PointY = req.Point.Y
-	}
 	if req.Color != "" {
 		l.Color = req.Color
+	}
+	if req.FloorPlanID != nil {
+		if *req.FloorPlanID == "" {
+			l.FloorPlanID = nil
+		} else {
+			l.FloorPlanID = req.FloorPlanID
+		}
 	}
 	if err := s.repo.UpdateLocation(l); err != nil {
 		return nil, fmt.Errorf("update location: %w", err)
@@ -166,9 +182,9 @@ func (s *FloorPlanService) DeleteLocation(ctx context.Context, locationID uuid.U
 func locationModelToType(l *repository.LocationModel) types.Location {
 	return types.Location{
 		ID:          l.ID,
+		FamilyID:    l.FamilyID,
 		FloorPlanID: l.FloorPlanID,
 		Name:        l.Name,
-		Point:       types.Point{X: l.PointX, Y: l.PointY},
 		Color:       l.Color,
 		CreatedAt:   l.CreatedAt,
 		UpdatedAt:   l.UpdatedAt,

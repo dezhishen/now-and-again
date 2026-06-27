@@ -197,7 +197,7 @@ async function removeMember(userId: string) {
 
     <!-- Member Management Modal -->
     <Teleport to="body">
-      <div v-if="manageDetail" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="manageDetail = null">
+      <div v-if="manageDetail" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @mousedown.self="manageDetail = null">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-lg max-h-[80vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <h3 class="font-bold dark:text-gray-200">成员管理</h3>

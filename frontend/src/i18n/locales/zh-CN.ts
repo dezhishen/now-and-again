@@ -46,6 +46,7 @@ export default {
     groups: '小组',
     tasks: '任务',
     members: '成员',
+    locations: '地点',
     floorPlan: '户型图',
     settings: '设置',
     ics: '日历&大屏',
@@ -77,6 +78,7 @@ export default {
   },
   dashboard: {
     heading: '首页',
+    overview: '概览',
     members: '家庭成员',
     groups: '家庭小组',
     inviteCode: '邀请码',

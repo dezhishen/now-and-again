@@ -103,22 +103,22 @@ type CreateFloorPlanRequest struct {
 
 type Location struct {
 	ID          string    `json:"id"`
-	FloorPlanID string    `json:"floor_plan_id"`
+	FamilyID    string    `json:"family_id"`
+	FloorPlanID *string   `json:"floor_plan_id,omitempty"`
 	Name        string    `json:"name"`
-	Point       Point     `json:"point"`
 	Color       string    `json:"color"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type CreateLocationRequest struct {
-	Name  string `json:"name" binding:"required"`
-	Point Point  `json:"point" binding:"required"`
-	Color string `json:"color"`
+	Name        string `json:"name" binding:"required"`
+	FloorPlanID string `json:"floor_plan_id,omitempty"`
+	Color       string `json:"color"`
 }
 
 type UpdateLocationRequest struct {
-	Name  string `json:"name"`
-	Point *Point `json:"point"`
-	Color string `json:"color"`
+	Name        string  `json:"name"`
+	FloorPlanID *string `json:"floor_plan_id,omitempty"`
+	Color       string  `json:"color"`
 }

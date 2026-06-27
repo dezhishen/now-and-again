@@ -298,7 +298,7 @@ function getUsageHint(feed: IcsFeed): string {
     </template>
 
     <!-- Embed Modal -->
-    <div v-if="showEmbed" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showEmbed = false">
+    <div v-if="showEmbed" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @mousedown.self="showEmbed = false">
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-4">
           <h3 class="font-bold text-lg dark:text-gray-200">🖥️ 大屏日历嵌入</h3>

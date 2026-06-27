@@ -82,6 +82,7 @@ window.addEventListener('click', onWindowClick)
                 <span v-else>成员</span>
               </p>
             </div>
+            <button class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors dark:text-gray-300" @click="router.push('/profile'); showUserMenu = false">👤 个人中心</button>
             <button class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors dark:text-gray-300" @click="router.push('/api-keys'); showUserMenu = false">🔑 API Keys</button>
             <button v-if="auth.isAdmin" class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors dark:text-gray-300" @click="router.push('/admin'); showUserMenu = false">⚙️ 管理面板</button>
             <button class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="logout">🚪 退出登录</button>

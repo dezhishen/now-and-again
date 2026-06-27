@@ -7,7 +7,9 @@ import (
 )
 
 type TaskHandlers struct {
-	Svc *service.TaskService
+	TaskSvc *service.TaskService
+	TodoSvc *service.TodoService
+	LogSvc  *service.LogService
 }
 
 func (h *TaskHandlers) Create(c *gin.Context) {
@@ -21,7 +23,7 @@ func (h *TaskHandlers) Create(c *gin.Context) {
 		badRequest(c, err.Error())
 		return
 	}
-	task, err := h.Svc.Create(userCtx(c), familyID, req)
+	task, err := h.TaskSvc.Create(userCtx(c), familyID, req)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -35,12 +37,36 @@ func (h *TaskHandlers) List(c *gin.Context) {
 		badRequest(c, "invalid family_id")
 		return
 	}
-	tasks, err := h.Svc.List(userCtx(c), familyID)
+	tasks, err := h.TaskSvc.List(userCtx(c), familyID)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
 	ok(c, tasks)
+}
+
+func (h *TaskHandlers) Get(c *gin.Context) {
+	taskID, err := paramUUID(c, "task_id")
+	if err != nil {
+		badRequest(c, "invalid task_id")
+		return
+	}
+	withExtra := c.Query("with_extra") == "true"
+	if withExtra {
+		result, err := h.TaskSvc.GetTaskWithExtra(userCtx(c), taskID)
+		if err != nil {
+			serverError(c, err)
+			return
+		}
+		ok(c, result)
+		return
+	}
+	task, err := h.TaskSvc.GetTask(userCtx(c), taskID)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, task)
 }
 
 func (h *TaskHandlers) Update(c *gin.Context) {
@@ -54,7 +80,7 @@ func (h *TaskHandlers) Update(c *gin.Context) {
 		badRequest(c, err.Error())
 		return
 	}
-	task, err := h.Svc.Update(userCtx(c), taskID, req)
+	task, err := h.TaskSvc.Update(userCtx(c), taskID, req)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -68,7 +94,7 @@ func (h *TaskHandlers) Delete(c *gin.Context) {
 		badRequest(c, "invalid task_id")
 		return
 	}
-	if err := h.Svc.Delete(userCtx(c), taskID); err != nil {
+	if err := h.TaskSvc.Delete(userCtx(c), taskID); err != nil {
 		serverError(c, err)
 		return
 	}
@@ -83,12 +109,36 @@ func (h *TaskHandlers) ListTodos(c *gin.Context) {
 	}
 	status := c.Query("status")
 	groupID := c.Query("group_id")
-	todos, err := h.Svc.ListTodos(userCtx(c), familyID, groupID, status)
+	todos, err := h.TodoSvc.ListTodos(userCtx(c), familyID, groupID, status)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
 	ok(c, todos)
+}
+
+func (h *TaskHandlers) GetTodo(c *gin.Context) {
+	todoID, err := paramUUID(c, "todo_id")
+	if err != nil {
+		badRequest(c, "invalid todo_id")
+		return
+	}
+	withExtra := c.Query("with_extra") == "true"
+	if withExtra {
+		result, err := h.TodoSvc.GetTodoWithExtra(userCtx(c), todoID)
+		if err != nil {
+			serverError(c, err)
+			return
+		}
+		ok(c, result)
+		return
+	}
+	todo, err := h.TodoSvc.GetTodo(userCtx(c), todoID)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, todo)
 }
 
 func (h *TaskHandlers) CompleteTodo(c *gin.Context) {
@@ -102,7 +152,7 @@ func (h *TaskHandlers) CompleteTodo(c *gin.Context) {
 		badRequest(c, err.Error())
 		return
 	}
-	todo, err := h.Svc.CompleteTodo(userCtx(c), todoID, req)
+	todo, err := h.TodoSvc.CompleteTodo(userCtx(c), todoID, req)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -119,7 +169,7 @@ func (h *TaskHandlers) ListLogs(c *gin.Context) {
 	limit := queryInt(c, "limit", 50)
 	offset := queryInt(c, "offset", 0)
 	userOnly := c.Query("type") == "user"
-	logs, err := h.Svc.ListLogs(userCtx(c), taskID, limit, offset, userOnly)
+	logs, err := h.LogSvc.ListTaskLogs(userCtx(c), taskID, limit, offset, userOnly)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -133,7 +183,7 @@ func (h *TaskHandlers) Trigger(c *gin.Context) {
 		badRequest(c, "invalid task_id")
 		return
 	}
-	if err := h.Svc.Trigger(userCtx(c), taskID); err != nil {
+	if err := h.TaskSvc.Trigger(userCtx(c), taskID); err != nil {
 		serverError(c, err)
 		return
 	}
@@ -151,7 +201,7 @@ func (h *TaskHandlers) GetCalendar(c *gin.Context) {
 		return
 	}
 
-	days, err := h.Svc.GetCalendar(userCtx(c), familyID, year, month, groupID)
+	days, err := h.TaskSvc.GetCalendar(userCtx(c), familyID, year, month, groupID)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -159,23 +209,3 @@ func (h *TaskHandlers) GetCalendar(c *gin.Context) {
 	ok(c, days)
 }
 
-func (h *TaskHandlers) GetStatistics(c *gin.Context) {
-	familyID := c.Param("family_id")
-	period := c.Query("period")
-	refDate := c.Query("date")
-
-	if period == "" {
-		period = "month"
-	}
-	if period != "week" && period != "month" && period != "year" {
-		badRequest(c, "period must be week, month, or year")
-		return
-	}
-
-	stats, err := h.Svc.GetStatistics(userCtx(c), familyID, service.StatsPeriod(period), refDate)
-	if err != nil {
-		serverError(c, err)
-		return
-	}
-	ok(c, stats)
-}

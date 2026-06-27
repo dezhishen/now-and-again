@@ -36,9 +36,15 @@ func (r *FloorPlanRepo) CreateLocation(loc *LocationModel) error {
 	return r.db.Create(loc).Error
 }
 
-func (r *FloorPlanRepo) ListLocations(floorPlanID string) ([]LocationModel, error) {
+func (r *FloorPlanRepo) ListLocationsByFloorPlanID(floorPlanID string) ([]LocationModel, error) {
 	var locs []LocationModel
 	err := r.db.Where("floor_plan_id = ?", floorPlanID).Order("created_at ASC").Find(&locs).Error
+	return locs, err
+}
+
+func (r *FloorPlanRepo) ListLocationsByFamilyID(familyID string) ([]LocationModel, error) {
+	var locs []LocationModel
+	err := r.db.Where("family_id = ?", familyID).Order("created_at ASC").Find(&locs).Error
 	return locs, err
 }
 

@@ -7,13 +7,23 @@ defineProps<{ groups: FamilyGroup[] }>()
 function addBranch(item: CheckItem) {
   item.branches.push({ name: '', create_todo: false })
 }
+
+function addItem() {
+  checkItems.value.push({
+    name: '',
+    branches: [
+      { name: '正常', create_todo: false },
+      { name: '异常', create_todo: true, todo_name: '修复{name}' },
+    ],
+  })
+}
 </script>
 
 <template>
   <div class="space-y-3 border-l-2 border-purple-400 pl-3">
     <div class="flex items-center justify-between">
       <p class="text-xs text-purple-600 dark:text-purple-400 font-medium">🔍 待检查项</p>
-      <button class="text-xs text-primary hover:underline" @click="checkItems.push({ name: '', branches: [] })">+ 添加检查项</button>
+      <button class="text-xs text-primary hover:underline" @click="addItem">+ 添加检查项</button>
     </div>
     <div v-for="(item, i) in checkItems" :key="i" class="space-y-1 pb-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
       <div class="flex gap-2 items-center">

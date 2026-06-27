@@ -46,6 +46,7 @@ export default {
     groups: 'Groups',
     tasks: 'Tasks',
     members: 'Members',
+    locations: 'Locations',
     floorPlan: 'Floor Plan',
     settings: 'Settings',
     ics: 'Calendar',
@@ -77,6 +78,7 @@ export default {
   },
   dashboard: {
     heading: 'Home',
+    overview: 'Overview',
     members: 'Family Members',
     groups: 'Family Groups',
     inviteCode: 'Invite Code',

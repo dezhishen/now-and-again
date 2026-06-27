@@ -89,12 +89,12 @@ func (h *FloorPlanHandlers) Delete(c *gin.Context) {
 	ok(c, gin.H{"message": "floor plan deleted"})
 }
 
-// ─── Rooms ───────────────────────────────────────────────────────
+// ─── Locations ───────────────────────────────────────────────────
 
 func (h *FloorPlanHandlers) CreateLocation(c *gin.Context) {
-	planID, err := paramUUID(c, "plan_id")
+	familyID, err := paramUUID(c, "family_id")
 	if err != nil {
-		badRequest(c, "invalid plan_id")
+		badRequest(c, "invalid family_id")
 		return
 	}
 	req, err := bindJSON[types.CreateLocationRequest](c)
@@ -102,7 +102,7 @@ func (h *FloorPlanHandlers) CreateLocation(c *gin.Context) {
 		badRequest(c, err.Error())
 		return
 	}
-	loc, err := h.C.CreateLocation(userCtx(c), planID, req)
+	loc, err := h.C.CreateLocation(userCtx(c), familyID, req)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -110,13 +110,27 @@ func (h *FloorPlanHandlers) CreateLocation(c *gin.Context) {
 	created(c, loc)
 }
 
-func (h *FloorPlanHandlers) ListLocations(c *gin.Context) {
+func (h *FloorPlanHandlers) ListFamilyLocations(c *gin.Context) {
+	familyID, err := paramUUID(c, "family_id")
+	if err != nil {
+		badRequest(c, "invalid family_id")
+		return
+	}
+	locs, err := h.C.ListFamilyLocations(userCtx(c), familyID)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, locs)
+}
+
+func (h *FloorPlanHandlers) ListFloorPlanLocations(c *gin.Context) {
 	planID, err := paramUUID(c, "plan_id")
 	if err != nil {
 		badRequest(c, "invalid plan_id")
 		return
 	}
-	locs, err := h.C.ListLocations(userCtx(c), planID)
+	locs, err := h.C.ListFloorPlanLocations(userCtx(c), planID)
 	if err != nil {
 		serverError(c, err)
 		return

@@ -173,10 +173,9 @@ func (FloorPlanModel) TableName() string { return "floor_plans" }
 
 type LocationModel struct {
 	BaseModel
-	FloorPlanID string  `gorm:"index;type:char(36);not null"`
+	FamilyID    string  `gorm:"index;type:char(36);not null"`
+	FloorPlanID *string `gorm:"index;type:char(36)"`
 	Name        string  `gorm:"size:128;not null"`
-	PointX      float64 `gorm:"not null;default:0"`
-	PointY      float64 `gorm:"not null;default:0"`
 	Color       string  `gorm:"size:16;not null;default:'#3b82f6'"`
 }
 
@@ -186,19 +185,24 @@ func (LocationModel) TableName() string { return "locations" }
 
 type TaskTemplateModel struct {
 	BaseModel
-	FamilyID     string           `gorm:"index;type:char(36);not null"`
-	GroupID      string           `gorm:"index;type:char(36)"`
-	Group        FamilyGroupModel `gorm:"foreignKey:GroupID"`
-	LocationID   string           `gorm:"index;type:char(36)"`
-	SourceTaskID string           `gorm:"index;type:char(36)"` // for follow-up tasks: which inspection task created this
-	Name         string           `gorm:"size:128;not null"`
-	ScheduleType string           `gorm:"size:32;not null"`   // once/daily/weekly/monthly/interval
-	ScheduleData string           `gorm:"type:text;not null"` // JSON config
-	Enabled      bool             `gorm:"not null;default:true"`
-	Kind         string           `gorm:"size:16;not null;default:simple"` // simple | inspection (future: chain)
-	CheckItems   string           `gorm:"type:text"`                       // JSON array, only for kind=inspection
-	LastTodoAt   *time.Time
-	CreatedBy    string `gorm:"type:char(36);not null"`
+	FamilyID       string           `gorm:"index:idx_root_family,priority:2;index;type:char(36);not null"`
+	GroupID        string           `gorm:"index;type:char(36)"`
+	Group          FamilyGroupModel `gorm:"foreignKey:GroupID"`
+	LocationID     string           `gorm:"index;type:char(36)"`
+	ParentTaskID   string           `gorm:"index;type:char(36)"`
+	IsRoot         bool             `gorm:"not null;default:false;index:idx_root_family,priority:1"`
+	Name           string           `gorm:"size:128;not null"`
+	ScheduleType   string           `gorm:"size:32;not null"`   // once/daily/weekly/monthly/interval
+	ScheduleData   string           `gorm:"type:text;not null"` // JSON config
+	Enabled        bool             `gorm:"not null;default:true"`
+	Kind           string           `gorm:"size:16;not null;default:simple"` // simple | inspection (future: chain)
+	DisplaySummary string           `gorm:"size:256"`                        // plugin-populated display text for list view
+	LastTodoAt     *time.Time
+	CreatedBy      string `gorm:"type:char(36);not null"`
+	// Relations
+	CheckItems  []CheckItemModel    `gorm:"foreignKey:TaskID"`
+	Children    []TaskTemplateModel `gorm:"foreignKey:ParentTaskID"`
+	CheckItems_ string              `gorm:"-"` // ignore old field in DB, kept for migration
 }
 
 func (TaskTemplateModel) TableName() string { return "task_templates" }
@@ -235,6 +239,46 @@ type TaskLogModel struct {
 }
 
 func (TaskLogModel) TableName() string { return "task_logs" }
+
+// ─── Inspection Result ───────────────────────────────────────────
+
+// InspectionResultModel stores each inspection submission for audit trail.
+type InspectionResultModel struct {
+	BaseModel
+	TaskID     string `gorm:"index;type:char(36);not null"` // which inspection task
+	TodoID     string `gorm:"index;type:char(36);not null"` // which todo was completed
+	FamilyID   string `gorm:"index;type:char(36);not null"`
+	ItemName   string `gorm:"size:128;not null"`            // check item name
+	BranchName string `gorm:"size:128;not null"`            // selected branch
+	Remark     string `gorm:"size:512"`                     // optional remark
+	CreatedBy  string `gorm:"index;type:char(36);not null"` // who submitted
+}
+
+func (InspectionResultModel) TableName() string { return "inspection_results" }
+
+// ─── Check Items (巡检检查项) ─────────────────────────────────────
+
+type CheckItemModel struct {
+	BaseModel
+	TaskID    string                 `gorm:"index;type:char(36);not null"` // inspection task ID
+	Name      string                 `gorm:"size:128;not null"`            // item name
+	SortOrder int                    `gorm:"not null;default:0"`
+	Branches  []CheckItemBranchModel `gorm:"foreignKey:CheckItemID"`
+}
+
+func (CheckItemModel) TableName() string { return "check_items" }
+
+type CheckItemBranchModel struct {
+	BaseModel
+	CheckItemID  string             `gorm:"index;type:char(36);not null"` // parent check item
+	Name         string             `gorm:"size:128;not null"`            // branch name (e.g. "正常", "缺失")
+	CreateTodo   bool               `gorm:"not null;default:false"`       // should create follow-up?
+	BranchTaskID string             `gorm:"index;type:char(36)"`          // linked task template (null if create_todo=false)
+	SortOrder    int                `gorm:"not null;default:0"`
+	BranchTask   *TaskTemplateModel `gorm:"foreignKey:BranchTaskID"`
+}
+
+func (CheckItemBranchModel) TableName() string { return "check_item_branches" }
 
 // ─── ICS Feed ────────────────────────────────────────────────────
 

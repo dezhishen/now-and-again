@@ -97,9 +97,9 @@ export interface FloorPlan {
 
 export interface Location {
   id: string
-  floor_plan_id: string
+  family_id: string
+  floor_plan_id?: string
   name: string
-  point: Point
   color: string
   created_at: string
   updated_at: string
@@ -112,28 +112,38 @@ export interface TaskTemplate {
   family_id: string
   group_id?: string
   location_id?: string
+  parent_task_id?: string
+  is_root: boolean
   name: string
   schedule_type: string
   schedule_data: any
   enabled: boolean
-  kind: 'simple' | 'inspection'  // future: 'chain'
-  check_items?: CheckItem[]      // only for kind=inspection
+  kind: 'simple' | 'inspection'
+  display_summary?: string     // plugin-populated for list view
   last_todo_at?: string
   created_by: string
   created_at: string
   updated_at: string
+  // Kind-specific extras loaded via GET /tasks/:id?with_extra=true
+  check_items?: CheckItem[]
+  children?: TaskTemplate[]
 }
 
 export interface CheckItem {
+  id?: string
   name: string
+  sort_order?: number
   branches: BranchItem[]
 }
 
 export interface BranchItem {
+  id?: string
   name: string
   create_todo: boolean
   todo_name?: string
-  group_id?: string
+  group_id?: string            // kept for form compatibility
+  branch_task_id?: string
+  sort_order?: number
 }
 
 export interface Todo {

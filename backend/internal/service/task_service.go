@@ -66,9 +66,6 @@ func (s *TaskService) ListTasks(ctx context.Context, familyID uuid.UUID) ([]type
 func (s *TaskService) TriggerTask(ctx context.Context, taskID uuid.UUID) error {
 	return s.Trigger(ctx, taskID)
 }
-func (s *TaskService) ListTaskLogs(ctx context.Context, taskID uuid.UUID, limit int, userOnly bool) ([]types.TaskLog, error) {
-	return s.ListLogs(ctx, taskID, limit, 0, userOnly)
-}
 
 func (s *TaskService) registerToScheduler(task *repository.TaskTemplateModel) {
 	if !task.Enabled {
@@ -130,6 +127,31 @@ func (s *TaskService) createTodo(taskID, familyID string, force bool) error {
 
 // ─── Task Template ───────────────────────────────────────────────
 
+func (s *TaskService) GetTask(ctx context.Context, taskID uuid.UUID) (*types.TaskTemplate, error) {
+	t, err := s.repo.FindTaskByID(taskID.String())
+	if err != nil {
+		return nil, err
+	}
+	return taskModelToType(t), nil
+}
+
+func (s *TaskService) GetTaskWithExtra(ctx context.Context, taskID uuid.UUID) (map[string]any, error) {
+	t, err := s.repo.FindTaskFull(taskID.String())
+	if err != nil {
+		return nil, err
+	}
+	result := map[string]any{
+		"task": taskModelToType(t),
+	}
+	if h := taskkind.Get(t.Kind); h != nil {
+		extra, _ := h.GetExtra(s.Ops, t)
+		if extra != nil {
+			result["extra"] = extra
+		}
+	}
+	return result, nil
+}
+
 func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.TaskTemplate, error) {
 	userID := ctx.Value("user_id").(string)
 	kind := req.Kind
@@ -141,19 +163,32 @@ func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types
 		FamilyID:     familyID.String(),
 		GroupID:      req.GroupID,
 		LocationID:   req.LocationID,
+		IsRoot:       true,
 		Name:         req.Name,
 		ScheduleType: req.ScheduleType,
 		ScheduleData: string(dataJSON),
 		Enabled:      true,
 		Kind:         kind,
-		CheckItems:   marshalJSON(req.CheckItems),
 		CreatedBy:    userID,
 	}
-	if err := s.repo.CreateTask(t); err != nil {
+	if err := s.repo.Tx(func(tx *repository.TaskRepo) error {
+		if err := tx.CreateTask(t); err != nil {
+			return err
+		}
+		if h := taskkind.Get(kind); h != nil {
+			txOps := &taskkind.Ops{Repo: tx, Scheduler: s.scheduler}
+			if err := h.OnCreate(txOps, t, req.CheckItems); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
+
 	s.registerToScheduler(t)
 	s.onTaskTriggered(t.ID, t.FamilyID)
+	t, _ = s.repo.FindTaskFull(t.ID)
 	return taskModelToType(t), nil
 }
 
@@ -212,111 +247,43 @@ func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.U
 	if req.Kind != nil {
 		t.Kind = *req.Kind
 	}
-	if req.CheckItems != nil {
-		t.CheckItems = marshalJSON(req.CheckItems)
-	}
-	if err := s.repo.UpdateTask(t); err != nil {
+	if err := s.repo.Tx(func(tx *repository.TaskRepo) error {
+		if err := tx.UpdateTask(t); err != nil {
+			return err
+		}
+		if h := taskkind.Get(t.Kind); h != nil {
+			txOps := &taskkind.Ops{Repo: tx, Scheduler: s.scheduler}
+			if err := h.OnUpdate(txOps, t, req.CheckItems); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
+
 	s.registerToScheduler(t)
+	t, _ = s.repo.FindTaskFull(taskID.String())
 	return taskModelToType(t), nil
 }
 
 func (s *TaskService) Delete(ctx context.Context, taskID uuid.UUID) error {
-	s.scheduler.RemoveJob(taskID.String())
-	return s.repo.DeleteTask(taskID.String())
-}
-
-// ─── Logs ────────────────────────────────────────────────────────
-
-func (s *TaskService) ListLogs(ctx context.Context, taskID uuid.UUID, limit, offset int, userOnly bool) ([]types.TaskLog, error) {
-	if limit <= 0 {
-		limit = 50
-	}
-	var logs []repository.TaskLogModel
-	var err error
-	if userOnly {
-		logs, err = s.repo.ListUserLogs(taskID.String(), limit, offset)
-	} else {
-		logs, err = s.repo.ListLogs(taskID.String(), limit, offset)
-	}
-	if err != nil {
-		return nil, err
-	}
-	result := make([]types.TaskLog, len(logs))
-	for i, l := range logs {
-		result[i] = types.TaskLog{
-			ID: l.ID, TaskID: l.TaskID, TodoID: l.TodoID, Status: l.Status,
-			Message: l.Message, LogType: l.LogType,
-			OperatorID: l.OperatorID, CreatedAt: l.CreatedAt,
-		}
-	}
-	return result, nil
-}
-
-// ─── Todo ────────────────────────────────────────────────────────
-
-func (s *TaskService) ListTodos(ctx context.Context, familyID uuid.UUID, groupID, status string) ([]types.Todo, error) {
-	todos, err := s.repo.ListTodosByFamily(familyID.String(), status)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]types.Todo, 0, len(todos))
-	for _, t := range todos {
-		if groupID != "" && t.Task.GroupID != "" && t.Task.GroupID != groupID {
-			continue
-		}
-		result = append(result, *todoModelToType(&t))
-	}
-	return result, nil
-}
-
-func (s *TaskService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *types.CompleteTodoRequest) (*types.Todo, error) {
-	userID := ctx.Value("user_id").(string)
-	todo, err := s.repo.FindTodoByID(todoID.String())
-	if err != nil {
-		return nil, err
-	}
-
-	// Determine completion status
-	status := req.Status
-	branchName := req.BranchName
-
-	// Always mark the todo done
-	if err := s.repo.CompleteTodo(todoID.String(), userID, status, req.Remark); err != nil {
-		return nil, err
-	}
-
-	// Always log the base completion (kind handlers may add extra logs).
-	msg := fmt.Sprintf("完成待办: %s", todo.Task.Name)
-	if req.Remark != "" {
-		msg += fmt.Sprintf(" | 备注: %s", req.Remark)
-	}
-	s.repo.CreateUserLog(todo.TaskID, todoID.String(), userID, status, msg)
-
-	// Dispatch kind-specific completion logic
-	if h := taskkind.Get(todo.Task.Kind); h != nil {
-		if len(req.Selections) > 0 {
-			if insp, ok := h.(taskkind.Inspector); ok {
-				selections := make([]taskkind.Selection, len(req.Selections))
-				for i, s := range req.Selections {
-					selections[i] = taskkind.Selection{Item: s.Item, Branch: s.Branch}
+	task, _ := s.repo.FindTaskByID(taskID.String())
+	if task != nil {
+		if err := s.repo.Tx(func(tx *repository.TaskRepo) error {
+			if h := taskkind.Get(task.Kind); h != nil {
+				txOps := &taskkind.Ops{Repo: tx, Scheduler: s.scheduler}
+				if err := h.OnDelete(txOps, task); err != nil {
+					return err
 				}
-				insp.OnInspect(s.Ops, todo, selections, userID)
 			}
-		} else {
-			h.OnComplete(s.Ops, todo, branchName, userID)
+			return tx.DeleteTask(task.ID)
+		}); err != nil {
+			return err
 		}
 	}
-
-	// One-shot tasks are done after first completion — disable and stop scheduling.
-	s.disableCompletedOnceTask(todo)
-
-	t, err := s.repo.FindTodoByID(todoID.String())
-	if err != nil {
-		return nil, err
-	}
-	return todoModelToType(t), nil
+	s.scheduler.RemoveJob(taskID.String())
+	return nil
 }
 
 // ─── Calendar ──────────────────────────────────────────────────────
@@ -531,187 +498,6 @@ func parseEventTime(scheduleData string) string {
 	return data.Time
 }
 
-// ─── Statistics ──────────────────────────────────────────────────
-
-type StatsPeriod string
-
-const (
-	StatsWeek  StatsPeriod = "week"
-	StatsMonth StatsPeriod = "month"
-	StatsYear  StatsPeriod = "year"
-)
-
-type StatsResponse struct {
-	Period    StatsPeriod   `json:"period"`
-	StartDate string        `json:"start_date"`
-	EndDate   string        `json:"end_date"`
-	Summary   StatsSummary  `json:"summary"`
-	Daily     []StatsDaily  `json:"daily"`
-	ByTask    []StatsByTask `json:"by_task"`
-}
-
-type StatsSummary struct {
-	TotalCompleted int     `json:"total_completed"`
-	TotalSkipped   int     `json:"total_skipped"`
-	TotalManual    int     `json:"total_manual"`
-	TotalTasks     int     `json:"total_tasks"`
-	CompletionRate float64 `json:"completion_rate"` // 0-1
-}
-
-type StatsDaily struct {
-	Date      string `json:"date"`
-	Completed int    `json:"completed"`
-	Skipped   int    `json:"skipped"`
-	Manual    int    `json:"manual"`
-}
-
-type StatsByTask struct {
-	TaskID    string `json:"task_id"`
-	TaskName  string `json:"task_name"`
-	Completed int    `json:"completed"`
-	Skipped   int    `json:"skipped"`
-	Manual    int    `json:"manual"`
-}
-
-func (s *TaskService) GetStatistics(ctx context.Context, familyID string, period StatsPeriod, refDate string) (*StatsResponse, error) {
-	loc := time.Local
-	now := time.Now()
-
-	// Parse reference date or use now
-	var ref time.Time
-	if refDate != "" {
-		var err error
-		ref, err = time.ParseInLocation("2006-01-02", refDate, loc)
-		if err != nil {
-			ref = now
-		}
-	} else {
-		ref = now
-	}
-
-	// Compute date range
-	var startDate, endDate time.Time
-	switch period {
-	case StatsWeek:
-		// Monday of the week containing ref
-		wd := ref.Weekday()
-		if wd == time.Sunday {
-			wd = 7
-		}
-		startDate = time.Date(ref.Year(), ref.Month(), ref.Day()-int(wd)+1, 0, 0, 0, 0, loc)
-		endDate = startDate.AddDate(0, 0, 7)
-	case StatsMonth:
-		startDate = time.Date(ref.Year(), ref.Month(), 1, 0, 0, 0, 0, loc)
-		endDate = startDate.AddDate(0, 1, 0)
-	case StatsYear:
-		startDate = time.Date(ref.Year(), 1, 1, 0, 0, 0, 0, loc)
-		endDate = startDate.AddDate(1, 0, 0)
-	default:
-		startDate = time.Date(ref.Year(), ref.Month(), 1, 0, 0, 0, 0, loc)
-		endDate = startDate.AddDate(0, 1, 0)
-	}
-
-	since := startDate.Format("2006-01-02")
-	until := endDate.Format("2006-01-02")
-
-	logs, err := s.repo.ListLogsByFamily(familyID, since, until)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get tasks for name lookup
-	tasks, _ := s.repo.ListTasksByFamily(familyID)
-	taskNames := make(map[string]string)
-	for _, t := range tasks {
-		taskNames[t.ID] = t.Name
-	}
-
-	// Aggregate
-	dailyMap := make(map[string]*StatsDaily)
-	byTaskMap := make(map[string]*StatsByTask)
-	var summary StatsSummary
-
-	// Initialize daily buckets
-	cursor := startDate
-	for cursor.Before(endDate) {
-		key := cursor.Format("2006-01-02")
-		dailyMap[key] = &StatsDaily{Date: key}
-		cursor = cursor.AddDate(0, 0, 1)
-	}
-
-	for _, log := range logs {
-		dateKey := log.CreatedAt.Format("2006-01-02")
-
-		// Ensure daily bucket exists
-		if dailyMap[dateKey] == nil {
-			dailyMap[dateKey] = &StatsDaily{Date: dateKey}
-		}
-
-		// Ensure task bucket exists
-		if byTaskMap[log.TaskID] == nil {
-			byTaskMap[log.TaskID] = &StatsByTask{
-				TaskID:   log.TaskID,
-				TaskName: taskNames[log.TaskID],
-			}
-		}
-
-		switch log.Status {
-		case "done", "completed":
-			dailyMap[dateKey].Completed++
-			byTaskMap[log.TaskID].Completed++
-			summary.TotalCompleted++
-		case "skipped":
-			dailyMap[dateKey].Skipped++
-			byTaskMap[log.TaskID].Skipped++
-			summary.TotalSkipped++
-		case "manual":
-			dailyMap[dateKey].Manual++
-			byTaskMap[log.TaskID].Manual++
-			summary.TotalManual++
-		}
-	}
-
-	summary.TotalTasks = summary.TotalCompleted + summary.TotalSkipped
-	if summary.TotalTasks > 0 {
-		summary.CompletionRate = float64(summary.TotalCompleted) / float64(summary.TotalTasks)
-	}
-
-	// Convert maps to sorted slices
-	daily := make([]StatsDaily, 0, len(dailyMap))
-	cursor = startDate
-	for cursor.Before(endDate) {
-		key := cursor.Format("2006-01-02")
-		if d, ok := dailyMap[key]; ok {
-			daily = append(daily, *d)
-		}
-		cursor = cursor.AddDate(0, 0, 1)
-	}
-
-	byTask := make([]StatsByTask, 0, len(byTaskMap))
-	for _, bt := range byTaskMap {
-		byTask = append(byTask, *bt)
-	}
-
-	return &StatsResponse{
-		Period:    period,
-		StartDate: since,
-		EndDate:   until,
-		Summary:   summary,
-		Daily:     daily,
-		ByTask:    byTask,
-	}, nil
-}
-
-// disableCompletedOnceTask handles the one-shot task lifecycle: once a once-type
-// task's todo is completed, the task is disabled and unscheduled.
-func (s *TaskService) disableCompletedOnceTask(todo *repository.TodoModel) {
-	if todo.Task.ScheduleType != "once" {
-		return
-	}
-	s.repo.DisableTask(todo.TaskID)
-	s.scheduler.RemoveJob(todo.TaskID)
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────
 
 func scheduleWindow(scheduleType, scheduleData string) time.Duration {
@@ -752,37 +538,14 @@ func marshalJSON(v any) string {
 func taskModelToType(t *repository.TaskTemplateModel) *types.TaskTemplate {
 	var data any
 	json.Unmarshal([]byte(t.ScheduleData), &data)
-	var checkItems any
-	if t.CheckItems != "" {
-		json.Unmarshal([]byte(t.CheckItems), &checkItems)
-	}
+
 	return &types.TaskTemplate{
 		ID: t.ID, FamilyID: t.FamilyID, GroupID: t.GroupID,
+		ParentTaskID: t.ParentTaskID, IsRoot: t.IsRoot,
 		LocationID: t.LocationID,
 		Name:       t.Name, ScheduleType: t.ScheduleType, ScheduleData: data,
-		Enabled: t.Enabled, Kind: t.Kind, CheckItems: checkItems,
+		Enabled: t.Enabled, Kind: t.Kind, DisplaySummary: t.DisplaySummary,
 		LastTodoAt: t.LastTodoAt,
 		CreatedBy:  t.CreatedBy, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
-	}
-}
-
-func todoModelToType(t *repository.TodoModel) *types.Todo {
-	var task *types.TaskTemplate
-	if t.Task.ID != "" {
-		task = taskModelToType(&t.Task)
-	}
-	var user *types.User
-	if t.User.ID != "" {
-		user = userModelToUser(&t.User)
-	}
-	return &types.Todo{
-		ID: t.ID, TaskID: t.TaskID, FamilyID: t.FamilyID,
-		LocationID: t.LocationID,
-		AssignedTo: t.AssignedTo, Status: t.Status, BranchName: t.BranchName, Remark: t.Remark,
-		DueStart:    t.DueStart,
-		DueDate:     t.DueDate,
-		CompletedAt: t.CompletedAt, CompletedBy: t.CompletedBy,
-		Task: task, User: user,
-		CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}
 }

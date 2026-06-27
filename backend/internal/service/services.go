@@ -52,12 +52,14 @@ func NewFloorPlanService(repo *repository.FloorPlanRepo, userRepo *repository.Us
 
 // ─── All Contracts ────────────────────────────────────────────────
 
-func NewAllContracts(user *UserService, family *FamilyService, apiKey *ApiKeyService, floorPlan *FloorPlanService, task *TaskService) *contracts.AllContracts {
+func NewAllContracts(user *UserService, family *FamilyService, apiKey *ApiKeyService, floorPlan *FloorPlanService, task *TaskService, todo *TodoService, log *LogService) *contracts.AllContracts {
 	return &contracts.AllContracts{
 		User:      user,
 		Family:    family,
 		ApiKey:    apiKey,
 		FloorPlan: floorPlan,
 		Task:      task,
+		Todo:      todo,
+		Log:       log,
 	}
 }

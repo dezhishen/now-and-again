@@ -3,11 +3,10 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
 	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
 )
 
-func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers, taskHandler *TaskHandlers, icsHandler *IcsHandlers, taskOps *taskkind.Ops) {
+func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers, taskHandler *TaskHandlers, icsHandler *IcsHandlers) {
 	h := NewHandlers(c)
 
 	// ── Public ──────────────────────────────────────────────────
@@ -69,15 +68,17 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 	auth.PUT("/api/floor-plans/:plan_id/cover", h.FloorPlan.SetCover)
 	auth.DELETE("/api/floor-plans/:plan_id", h.FloorPlan.Delete)
 
-	// Locations
-	auth.POST("/api/floor-plans/:plan_id/locations", h.FloorPlan.CreateLocation)
-	auth.GET("/api/floor-plans/:plan_id/locations", h.FloorPlan.ListLocations)
+	// Locations (first-class entity)
+	auth.GET("/api/families/:family_id/locations", h.FloorPlan.ListFamilyLocations)
+	auth.POST("/api/families/:family_id/locations", h.FloorPlan.CreateLocation)
+	auth.GET("/api/floor-plans/:plan_id/locations", h.FloorPlan.ListFloorPlanLocations)
 	auth.PUT("/api/locations/:location_id", h.FloorPlan.UpdateLocation)
 	auth.DELETE("/api/locations/:location_id", h.FloorPlan.DeleteLocation)
 
 	// Tasks
 	auth.POST("/api/families/:family_id/tasks", taskHandler.Create)
 	auth.GET("/api/families/:family_id/tasks", taskHandler.List)
+	auth.GET("/api/tasks/:task_id", taskHandler.Get)
 	auth.PUT("/api/tasks/:task_id", taskHandler.Update)
 	auth.DELETE("/api/tasks/:task_id", taskHandler.Delete)
 	auth.GET("/api/tasks/:task_id/logs", taskHandler.ListLogs)
@@ -85,13 +86,11 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 
 	// Todos
 	auth.GET("/api/families/:family_id/todos", taskHandler.ListTodos)
+	auth.GET("/api/todos/:todo_id", taskHandler.GetTodo)
 	auth.PUT("/api/todos/:todo_id", taskHandler.CompleteTodo)
 
 	// Calendar
 	auth.GET("/api/families/:family_id/calendar", taskHandler.GetCalendar)
-
-	// Statistics
-	auth.GET("/api/families/:family_id/statistics", taskHandler.GetStatistics)
 
 	// ICS Feeds (authenticated management)
 	auth.POST("/api/families/:family_id/ics-feeds", icsHandler.Create)
@@ -102,14 +101,4 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 
 	// ICS public endpoint (no JWT - custom auth)
 	public.GET("/api/ics/:token", icsHandler.ServeICS)
-
-	// ── Task-kind-specific routes ────────────────────────────
-	// Each registered task kind may expose additional API endpoints
-	// under /api/tasks/:task_id/{kind}/...
-	for _, h := range taskkind.All() {
-		if rr, ok := h.(taskkind.RouteRegistrar); ok {
-			prefix := "/api/tasks/:task_id/" + h.Kind()
-			rr.RegisterRoutes(auth.Group(prefix), taskOps)
-		}
-	}
 }

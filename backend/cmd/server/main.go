@@ -14,9 +14,9 @@ import (
 	"github.com/dezhishen/now-and-again/backend/internal/logger"
 	"github.com/dezhishen/now-and-again/backend/internal/middleware"
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
-	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
 	"github.com/dezhishen/now-and-again/backend/internal/service"
 	"github.com/dezhishen/now-and-again/backend/internal/webui"
+	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -71,13 +71,15 @@ func main() {
 		logger.Fatalf("failed to create scheduler: %v", err)
 	}
 	taskSvc := service.NewTaskService(taskRepo, sched)
+	todoSvc := service.NewTodoService(taskRepo, sched)
+	logSvc := service.NewLogService(taskRepo)
 	icsSvc := service.NewIcsService(icsRepo, taskRepo, apiKeyRepo, userRepo)
 
 	// ── Seed admin ──────────────────────────────────────────────
 	seedAdmin(db)
 
 	// ── Bundle contracts ────────────────────────────────────────
-	allContracts := service.NewAllContracts(userSvc, familySvc, apiKeySvc, floorPlanSvc, taskSvc)
+	allContracts := service.NewAllContracts(userSvc, familySvc, apiKeySvc, floorPlanSvc, taskSvc, todoSvc, logSvc)
 
 	// ── HTTP Router ─────────────────────────────────────────────
 	router := gin.Default()
@@ -88,12 +90,12 @@ func main() {
 
 	imageHandler := handler.NewImageHandlers(imageRepo)
 	settingsHandler := handler.NewSettingsHandlers(settingsRepo)
-	taskHandler := &handler.TaskHandlers{Svc: taskSvc}
+	taskHandler := &handler.TaskHandlers{TaskSvc: taskSvc, TodoSvc: todoSvc, LogSvc: logSvc}
 	icsHandler := &handler.IcsHandlers{Svc: icsSvc}
 	auth := router.Group("")
 	auth.Use(middleware.JWTAuth(cfg.JWTSecret, apiKeyRepo))
 	auth.Use(middleware.ScopeGuard())
-	handler.RegisterRoutes(router, auth, allContracts, imageHandler, settingsHandler, taskHandler, icsHandler, taskSvc.Ops)
+	handler.RegisterRoutes(router, auth, allContracts, imageHandler, settingsHandler, taskHandler, icsHandler)
 
 	// ── Frontend SPA ───────────────────────────────────────────
 	webui.Serve(router)

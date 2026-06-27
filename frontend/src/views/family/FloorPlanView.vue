@@ -22,18 +22,7 @@ const showUploadMenu = ref(false)
 
 // ─── Edit modal ──────────────────────────────────────────────────
 const editPlan = ref<FloorPlan | null>(null)
-const marking = ref(false)
-const newLocName = ref('')
-const newLocColor = ref('#3b82f6')
-const newLocPoint = ref<Point | null>(null)
-const showLocInput = ref(false)
-const editingLoc = ref<Location | null>(null)
 const showLocations = ref(true)
-const hoveredLoc = ref<string | null>(null)
-
-const editImgRef = ref<HTMLImageElement | null>(null)
-const imgNatural = ref({ w: 0, h: 0 })
-const displaySize = ref({ w: 0, h: 0 })
 
 onMounted(async () => { loading.value = true; await loadPlans(); loading.value = false })
 
@@ -43,7 +32,11 @@ async function loadPlans() {
 
 async function loadPlanDetail(planId: string) {
   try {
-    const plan = await api.get<FloorPlan>('/floor-plans/' + planId)
+    const [plan, locs] = await Promise.all([
+      api.get<FloorPlan>('/floor-plans/' + planId),
+      api.get<Location[]>('/floor-plans/' + planId + '/locations'),
+    ])
+    plan.locations = locs
     const idx = floorPlans.value.findIndex(p => p.id === planId)
     if (idx >= 0) floorPlans.value[idx] = plan
     return plan
@@ -52,36 +45,10 @@ async function loadPlanDetail(planId: string) {
 
 function openEdit(plan: FloorPlan) {
   editPlan.value = plan
-  marking.value = false; newLocPoint.value = null
-  showLocInput.value = false; imgNatural.value = { w: 0, h: 0 }
   loadPlanDetail(plan.id).then(p => { if (p) editPlan.value = p })
 }
 
 function closeEdit() { editPlan.value = null }
-
-function onEditImgLoad() {
-  if (!editImgRef.value) return
-  imgNatural.value = { w: editImgRef.value.naturalWidth, h: editImgRef.value.naturalHeight }
-  updateDisplaySize()
-}
-
-function updateDisplaySize() {
-  if (!editImgRef.value) return
-  displaySize.value = { w: editImgRef.value.clientWidth, h: editImgRef.value.clientHeight }
-}
-
-const resizeHandler = () => updateDisplaySize()
-window.addEventListener('resize', resizeHandler)
-onUnmounted(() => window.removeEventListener('resize', resizeHandler))
-
-function scaleX(px: number) { return imgNatural.value.w ? (px / imgNatural.value.w) * displaySize.value.w : 0 }
-function scaleY(py: number) { return imgNatural.value.h ? (py / imgNatural.value.h) * displaySize.value.h : 0 }
-function unscaleX(sx: number) { return displaySize.value.w ? Math.round((sx / displaySize.value.w) * imgNatural.value.w) : 0 }
-function unscaleY(sy: number) { return displaySize.value.h ? Math.round((sy / displaySize.value.h) * imgNatural.value.h) : 0 }
-function svgOffset(e: MouseEvent): Point {
-  const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect()
-  return { x: e.clientX - rect.left, y: e.clientY - rect.top }
-}
 
 // ─── Upload ─────────────────────────────────────────────────────
 
@@ -127,71 +94,12 @@ async function setAsCover(plan: FloorPlan) {
   } catch (e: any) { error.value = e.message }
 }
 
-// ─── Location marking ───────────────────────────────────────────
-
-function onSvgClick(e: MouseEvent) {
-  if (!marking.value) return
-  const pos = svgOffset(e)
-  newLocPoint.value = { x: unscaleX(pos.x), y: unscaleY(pos.y) }
-  newLocName.value = ''
-  newLocColor.value = unusedColor()
-  editingLoc.value = null
-  showLocInput.value = true
-  marking.value = false
-}
-
-function startEditLoc(loc: Location) {
-  editingLoc.value = loc
-  newLocName.value = loc.name
-  newLocColor.value = loc.color
-  newLocPoint.value = null
-  showLocInput.value = true
-}
-
-async function saveLocation() {
-  if (!newLocName.value.trim() || !editPlan.value) return
-  error.value = ''
-
-  if (editingLoc.value) {
-    try {
-      const updated = await api.put<Location>('/locations/' + editingLoc.value.id, {
-        name: newLocName.value.trim(),
-        color: newLocColor.value,
-      })
-      const idx = editPlan.value.locations?.findIndex(l => l.id === editingLoc.value!.id)
-      if (idx != null && idx >= 0 && editPlan.value.locations) editPlan.value.locations[idx] = updated
-    } catch (e: any) { error.value = e.message; return }
-  } else if (newLocPoint.value) {
-    try {
-      const loc = await api.post<Location>('/floor-plans/' + editPlan.value.id + '/locations', {
-        name: newLocName.value.trim(),
-        point: newLocPoint.value,
-        color: newLocColor.value,
-      })
-      if (!editPlan.value.locations) editPlan.value.locations = []
-      editPlan.value.locations.push(loc)
-    } catch (e: any) { error.value = e.message; return }
-  }
-
-  showLocInput.value = false; newLocPoint.value = null; editingLoc.value = null
-}
-
-function cancelLoc() { showLocInput.value = false; newLocPoint.value = null; editingLoc.value = null }
-
-async function deleteLocation(locId: string) {
+async function unlinkLocation(locId: string) {
   error.value = ''
   try {
-    await api.delete('/locations/' + locId)
+    await api.put('/locations/' + locId, { floor_plan_id: '' })
     if (editPlan.value?.locations) editPlan.value.locations = editPlan.value.locations.filter(l => l.id !== locId)
   } catch (e: any) { error.value = e.message }
-}
-
-const PRESET_COLORS = ['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#78716c']
-
-function unusedColor(): string {
-  const used = new Set((editPlan.value?.locations || []).map(l => l.color))
-  if (editingLoc.value) used.delete(editingLoc.value.color)
-  return PRESET_COLORS.find(c => !used.has(c)) || PRESET_COLORS[0]
 }
 
 // ─── Canvas Drawing ──────────────────────────────────────────────
@@ -298,7 +206,7 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
 
     <!-- ─── Edit Modal ────────────────────────────────────────── -->
     <Teleport to="body">
-      <div v-if="editPlan" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="closeEdit">
+      <div v-if="editPlan" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @mousedown.self="closeEdit">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[95vw] max-w-5xl max-h-[95vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <div class="flex items-center gap-2">
@@ -306,45 +214,22 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
               <span v-if="editPlan.is_cover" class="text-yellow-500 text-sm">⭐ 封面</span>
             </div>
             <div class="flex items-center gap-2">
-              <button v-if="!marking" class="btn-primary text-xs" @click="marking = true">{{ t('floorPlan.markLocation') }}</button>
-              <button v-else class="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 dark:text-gray-300" @click="marking = false">取消标记</button>
               <button class="text-xs px-2 py-1 rounded" :class="showLocations ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 dark:text-gray-300'" @click="showLocations = !showLocations">{{ showLocations ? '📍 显示' : '📍 隐藏' }}</button>
               <button v-if="!editPlan.is_cover" class="text-xs px-2 py-1 rounded bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300" @click="setAsCover(editPlan)">⭐ 设为封面</button>
               <button class="text-xs px-2 py-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none" @click="closeEdit">✕</button>
             </div>
           </div>
           <div class="flex-1 overflow-auto p-4 flex flex-col lg:flex-row gap-4">
-            <div class="flex-1 min-h-[300px] bg-gray-200 dark:bg-gray-700 rounded-lg overflow-auto relative select-none">
-              <img ref="editImgRef" :src="editPlan.image_url" class="w-full h-auto block" :class="{ 'cursor-crosshair': marking }" @load="onEditImgLoad" draggable="false" />
-              <svg v-if="imgNatural.w > 0 && showLocations" class="absolute inset-0 pointer-events-none" :width="displaySize.w" :height="displaySize.h" :viewBox="`0 0 ${displaySize.w} ${displaySize.h}`">
-                <g v-for="loc in editPlan.locations || []" :key="loc.id" class="pointer-events-auto cursor-pointer" @click.stop @mouseenter="hoveredLoc = loc.id" @mouseleave="hoveredLoc = null">
-                  <circle :cx="scaleX(loc.point.x)" :cy="scaleY(loc.point.y)" r="6" :fill="loc.color" :stroke="hoveredLoc === loc.id ? '#fff' : 'transparent'" stroke-width="2" class="transition-all" />
-                  <text :x="scaleX(loc.point.x) + 10" :y="scaleY(loc.point.y) + 4" class="text-xs font-medium pointer-events-none" :fill="loc.color">{{ loc.name }}</text>
-                </g>
-              </svg>
-              <!-- Click overlay for marking -->
-              <div v-if="marking" class="absolute inset-0 z-10" @click="onSvgClick" />
+            <div class="flex-1 min-h-[300px] bg-gray-200 dark:bg-gray-700 rounded-lg overflow-auto relative">
+              <img :src="editPlan.image_url" class="w-full h-auto block" draggable="false" />
             </div>
-            <div class="w-full lg:w-56 flex-shrink-0 space-y-3">
-              <div v-if="showLocInput" class="card space-y-2">
-                <input v-model="newLocName" class="input" :placeholder="t('floorPlan.locNamePlaceholder')" @keyup.enter="saveLocation" />
-                <div class="flex gap-1 flex-wrap">
-                  <button v-for="c in PRESET_COLORS" :key="c" class="w-6 h-6 rounded-full border-2 transition-transform" :class="newLocColor === c ? 'border-gray-800 dark:border-white scale-125' : 'border-transparent'" :style="{ backgroundColor: c }" @click="newLocColor = c" />
-                </div>
-                <div class="flex gap-1">
-                  <button class="btn-primary text-xs flex-1" @click="saveLocation">{{ t('floorPlan.saveRoom') }}</button>
-                  <button class="text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="cancelLoc">{{ t('floorPlan.cancel') }}</button>
-                </div>
-              </div>
+            <div v-if="showLocations" class="w-full lg:w-56 flex-shrink-0">
               <div class="card">
-                <h4 class="text-sm font-medium mb-2 dark:text-gray-200">地点列表</h4>
-                <div v-if="!editPlan.locations?.length" class="text-xs text-gray-400 py-2">暂无地点</div>
-                <div v-for="loc in editPlan.locations" :key="loc.id" class="flex items-center justify-between py-1.5 text-sm" @mouseenter="hoveredLoc = loc.id" @mouseleave="hoveredLoc = null">
+                <h4 class="text-sm font-medium mb-2 dark:text-gray-200">关联地点</h4>
+                <div v-if="!editPlan.locations?.length" class="text-xs text-gray-400 py-2">暂无关联地点</div>
+                <div v-for="loc in editPlan.locations" :key="loc.id" class="flex items-center justify-between py-1.5 text-sm">
                   <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: loc.color }" /><span class="dark:text-gray-300 truncate">{{ loc.name }}</span></div>
-                  <div class="flex gap-0.5 flex-shrink-0 ml-1">
-                    <button class="text-xs px-1 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400" @click="startEditLoc(loc)" title="编辑">✎</button>
-                    <button class="text-xs text-danger hover:underline" @click="deleteLocation(loc.id)">删除</button>
-                  </div>
+                  <button class="text-xs text-danger hover:underline flex-shrink-0 ml-1" @click="unlinkLocation(loc.id)">取消关联</button>
                 </div>
               </div>
             </div>
@@ -355,7 +240,7 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
 
     <!-- ─── Drawing Modal ──────────────────────────────────────── -->
     <Teleport to="body">
-      <div v-if="showDrawer" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="closeDrawer">
+      <div v-if="showDrawer" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @mousedown.self="closeDrawer">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-4xl max-h-[90vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <h3 class="font-bold dark:text-gray-200">{{ t('floorPlan.drawPlan') }}</h3>

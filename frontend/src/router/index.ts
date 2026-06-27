@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { api } from '@/api/client'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -10,6 +11,7 @@ const router = createRouter({
     { path: '/', name: 'home', component: () => import('@/views/HomeView.vue'), meta: { requiresAuth: true } },
     { path: '/admin', name: 'admin', component: () => import('@/views/AdminView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/api-keys', name: 'api-keys', component: () => import('@/views/ApiKeyView.vue'), meta: { requiresAuth: true } },
+    { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true } },
     {
       path: '/family/:familyId', name: 'family',
       component: () => import('@/views/FamilyView.vue'), meta: { requiresAuth: true },
@@ -36,10 +38,14 @@ router.beforeEach(async (to, _from, next) => {
   if (auth.needsSetup && to.name !== 'setup') return next('/setup')
   if (!auth.needsSetup && to.name === 'setup') return next('/login')
 
-  if (!auth.sessionChecked) await auth.initSession()
+  // Only refresh session if we don't already have a valid token locally
+  if (!auth.sessionChecked && !api.hasValidToken()) {
+    await auth.initSession()
+  } else {
+    auth.sessionChecked = true
+  }
 
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
-    // Allow calendar-full with API key query param to bypass login
     if (to.name === 'calendar-full' && to.query.key) return next()
     return next('/login')
   }

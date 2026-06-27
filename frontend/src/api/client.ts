@@ -2,6 +2,29 @@ import type { APIResponse, User } from '@/types'
 
 const BASE_URL = '/api'
 
+// ─── JWT helpers ─────────────────────────────────────────────────
+
+function decodeJWT(token: string): { exp?: number } | null {
+  try {
+    const payload = token.split('.')[1]
+    return JSON.parse(atob(payload))
+  } catch { return null }
+}
+
+function isTokenExpired(token: string): boolean {
+  const claims = decodeJWT(token)
+  if (!claims?.exp) return false
+  return Date.now() >= claims.exp * 1000
+}
+
+function isTokenExpiringSoon(token: string, seconds = 60): boolean {
+  const claims = decodeJWT(token)
+  if (!claims?.exp) return false
+  return Date.now() >= (claims.exp - seconds) * 1000
+}
+
+// ─── API Client ──────────────────────────────────────────────────
+
 class ApiClient {
   private accessToken: string | null = null
   private refreshPromise: Promise<boolean> | null = null
@@ -10,11 +33,19 @@ class ApiClient {
   setAccessToken(token: string | null) { this.accessToken = token }
   getAccessToken() { return this.accessToken }
 
+  /** True if we have a non-expired access token locally. */
+  hasValidToken(): boolean {
+    return !!this.accessToken && !isTokenExpired(this.accessToken)
+  }
+
   /** Register callback: called when refresh token is also expired. */
   onExpired(fn: () => void) { this.onSessionExpired = fn }
 
   /** Try to restore session from refresh token cookie. Returns user if successful. */
   async initSession(): Promise<User | null> {
+    // Skip if we already have a valid token
+    if (this.hasValidToken()) return null
+
     try {
       const res = await fetch(`${BASE_URL}/auth/refresh`, {
         method: 'POST', credentials: 'include',
@@ -53,6 +84,11 @@ class ApiClient {
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    // Proactively refresh if token is about to expire
+    if (this.accessToken && isTokenExpiringSoon(this.accessToken, 120)) {
+      await this.refreshAccessToken()
+    }
+
     const doFetch = async () => {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json', Accept: 'application/json',
@@ -67,8 +103,8 @@ class ApiClient {
 
     let res = await doFetch()
 
-    // Auto-refresh on 401
-    if (res.status === 401 && this.accessToken) {
+    // On 401, try refresh and retry once
+    if (res.status === 401 && this.accessToken && path !== '/auth/refresh') {
       const refreshed = await this.refreshAccessToken()
       if (refreshed) {
         res = await doFetch()
