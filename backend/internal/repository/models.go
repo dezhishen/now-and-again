@@ -190,6 +190,7 @@ type TaskTemplateModel struct {
 	GroupID      string           `gorm:"index;type:char(36)"`
 	Group        FamilyGroupModel `gorm:"foreignKey:GroupID"`
 	LocationID   string           `gorm:"index;type:char(36)"`
+	SourceTaskID string           `gorm:"index;type:char(36)"` // for follow-up tasks: which inspection task created this
 	Name         string           `gorm:"size:128;not null"`
 	ScheduleType string           `gorm:"size:32;not null"`   // once/daily/weekly/monthly/interval
 	ScheduleData string           `gorm:"type:text;not null"` // JSON config

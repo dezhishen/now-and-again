@@ -49,12 +49,12 @@ func createFollowUpTask(ops *taskkind.Ops, todo *repository.TodoModel, itemName,
 }
 
 func createOneTimeTask(ops *taskkind.Ops, todo *repository.TodoModel, name, groupID, userID string) error {
-	// Reuse existing enabled one-time task with the same name, so repeated
-	// inspections for the same issue don't create duplicate task templates.
+	// Look for an existing follow-up task created by the same inspection task
+	// with the same name — reuse it to avoid duplicate task templates.
 	existing, err := ops.Repo.ListTasksByFamily(todo.FamilyID)
 	if err == nil {
 		for _, t := range existing {
-			if t.Name == name && t.Enabled && t.Kind == "simple" {
+			if t.SourceTaskID == todo.TaskID && t.Name == name && t.Enabled {
 				return createFollowUpTodo(ops, t.ID, todo, name, userID, false)
 			}
 		}
@@ -64,6 +64,7 @@ func createOneTimeTask(ops *taskkind.Ops, todo *repository.TodoModel, name, grou
 		FamilyID:     todo.FamilyID,
 		GroupID:      groupID,
 		LocationID:   todo.LocationID,
+		SourceTaskID: todo.TaskID,
 		Name:         name,
 		ScheduleType: "once",
 		ScheduleData: `{"time":"` + time.Now().Format("15:04") + `"}`,
