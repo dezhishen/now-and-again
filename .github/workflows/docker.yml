@@ -11,23 +11,78 @@ env:
   SERVER_IMAGE: ghcr.io/${{ github.repository_owner }}/now-and-again
   CLI_IMAGE: ghcr.io/${{ github.repository_owner }}/now-and-again-cli
 
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+permissions:
+  contents: read
+  packages: write
 
+jobs:
+  build-binaries:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Set up pnpm
+        run: corepack enable && corepack prepare pnpm@9 --activate
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build backend (amd64)
+        run: |
+          cp -r frontend/dist backend/internal/webui/dist
+          cd backend
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../dist/now-and-again-amd64 ./cmd/server/
+
+      - name: Build backend (arm64)
+        run: |
+          cd backend
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o ../dist/now-and-again-arm64 ./cmd/server/
+
+      - name: Build CLI (amd64)
+        run: |
+          cd cli
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../dist/na-amd64 .
+
+      - name: Build CLI (arm64)
+        run: |
+          cd cli
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o ../dist/na-arm64 .
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  docker:
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Log in to GitHub Container Registry
+      - name: Log in to GHCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
@@ -61,26 +116,22 @@ jobs:
           flavor: |
             latest=${{ startsWith(github.ref, 'refs/tags/v') }}
 
-      - name: Build and push server (multi-arch)
+      - name: Build and push server
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile
+          file: Dockerfile.ci
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-server.outputs.tags }}
           labels: ${{ steps.meta-server.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
-      - name: Build and push CLI (multi-arch)
+      - name: Build and push CLI
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: cli/Dockerfile
+          file: cli/Dockerfile.ci
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-cli.outputs.tags }}
           labels: ${{ steps.meta-cli.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

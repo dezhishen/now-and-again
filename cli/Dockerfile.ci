@@ -1,0 +1,11 @@
+# CI Dockerfile for CLI — copies pre-built binary (built by GitHub Actions)
+ARG TARGETARCH
+
+FROM ghcr.io/library/alpine:3.24
+RUN apk add --no-cache ca-certificates tzdata
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+COPY dist/na-${TARGETARCH} /usr/local/bin/na
+
+USER appuser
+ENTRYPOINT ["/usr/local/bin/na"]

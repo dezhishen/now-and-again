@@ -1,0 +1,25 @@
+# CI Dockerfile — copies pre-built binaries (built by GitHub Actions)
+# NOT for local use; use Dockerfile for local builds.
+ARG TARGETARCH
+
+FROM ghcr.io/library/alpine:3.24
+RUN apk add --no-cache ca-certificates tzdata
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+WORKDIR /app
+COPY dist/now-and-again-${TARGETARCH} /app/server
+
+ENV DATA_DIR=/data
+ENV GIN_MODE=release
+
+RUN mkdir -p /data/uploads /data/logs \
+    && chown -R appuser:appgroup /app /data
+VOLUME ["/data"]
+
+USER appuser
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget -q --spider http://localhost:8080/api/system/status || exit 1
+
+ENTRYPOINT ["./server"]
