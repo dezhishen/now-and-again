@@ -123,14 +123,12 @@ function getPlanLabel(planId: string) {
   <div>
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-semibold dark:text-gray-200">{{ t('nav.locations') }}</h2>
-      <button class="px-3 py-1.5 bg-primary text-white text-sm rounded-lg hover:opacity-90" @click="openCreate">
-        + 添加地点
-      </button>
+      <button class="btn-primary" @click="openCreate">+ {{ t('locations.add') }}</button>
     </div>
 
     <!-- List -->
     <div v-if="locations.length === 0" class="text-center text-gray-400 py-8">
-      暂无地点，点击上方按钮添加
+      {{ t('locations.empty') }}
     </div>
     <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
       <div v-for="loc in locations" :key="loc.id"
@@ -146,7 +144,7 @@ function getPlanLabel(planId: string) {
             <p v-if="loc.floor_plan_id" class="text-xs text-gray-400">
               🏠 {{ getPlanLabel(loc.floor_plan_id) }}
             </p>
-            <p v-else class="text-xs text-gray-300 italic">未标记到户型图</p>
+            <p v-else class="text-xs text-gray-300 italic">{{ t('locations.notOnPlan') }}</p>
           </div>
         </div>
         <div class="flex gap-1 flex-shrink-0">
@@ -161,21 +159,21 @@ function getPlanLabel(planId: string) {
       <div v-if="editing" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @mousedown.self="editing = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
           <h3 class="text-lg font-semibold mb-4 dark:text-gray-200">
-            {{ editLoc ? '编辑地点' : '添加地点' }}
+            {{ editLoc ? t('locations.editLocation') : t('locations.addLocation') }}
           </h3>
 
           <!-- Name -->
-          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">名称</label>
-          <input v-model="formName" class="w-full px-3 py-2 border rounded-lg mb-4 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" placeholder="例如：客厅、厨房、学校" />
+          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('locations.name') }}</label>
+          <input v-model="formName" class="input mb-4" :placeholder="t('locations.namePlaceholder')" />
 
           <!-- Color -->
-          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">颜色</label>
+          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('locations.color') }}</label>
           <div class="flex gap-2 mb-4 flex-wrap">
             <button v-for="c in PRESET_COLORS" :key="c" class="w-8 h-8 rounded-full border-2 transition-transform" :class="formColor === c ? 'border-gray-800 dark:border-white scale-110' : 'border-transparent'" :style="{ background: c }" @click="formColor = c" />
           </div>
 
           <!-- Kind -->
-          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">类型</label>
+          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('locations.kind') }}</label>
           <div class="flex gap-2 mb-4 flex-wrap">
             <button v-for="k in locationKinds" :key="k.kind"
               class="px-3 py-1.5 text-sm rounded-lg border transition-colors"
@@ -185,16 +183,16 @@ function getPlanLabel(planId: string) {
           </div>
 
           <!-- Floor Plan linking -->
-          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">关联户型图（可选）</label>
-          <select v-model="formPlanId" class="w-full px-3 py-2 border rounded-lg mb-4 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
-            <option value="">不关联户型图</option>
+          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('locations.linkPlan') }}</label>
+          <select v-model="formPlanId" class="input mb-4">
+            <option value="">{{ t('locations.noPlan') }}</option>
             <option v-for="fp in floorPlans" :key="fp.id" :value="fp.id">{{ fp.label }}</option>
           </select>
 
           <!-- Actions -->
           <div class="flex gap-2 justify-end">
-            <button class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" @click="editing = false">取消</button>
-            <button class="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:opacity-90" @click="saveLocation">保存</button>
+            <button class="btn-secondary" @click="editing = false">{{ t('locations.cancel') }}</button>
+            <button class="btn-primary" @click="saveLocation">{{ t('locations.save') }}</button>
           </div>
         </div>
       </div>

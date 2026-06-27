@@ -46,10 +46,10 @@ defineEmits<{
       </div>
     </div>
     <div class="flex gap-1 border-t dark:border-gray-700 pt-2 mt-2">
-      <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="$emit('edit', task)">{{ t('taskCard.edit') }}</button>
-      <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="$emit('logs', task.id)">{{ t('taskCard.logs') }}</button>
-      <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="$emit('trigger', task.id)">{{ t('taskCard.trigger') }}</button>
-      <button class="text-xs px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400 flex-1" @click="$emit('toggle', task)">{{ task.enabled ? t('taskCard.disable') : t('taskCard.enable') }}</button>
+      <button class="btn-ghost text-xs flex-1" @click="$emit('edit', task)">{{ t('taskCard.edit') }}</button>
+      <button class="btn-ghost text-xs flex-1" @click="$emit('logs', task.id)">{{ t('taskCard.logs') }}</button>
+      <button class="btn-ghost text-xs flex-1" @click="$emit('trigger', task.id)">{{ t('taskCard.trigger') }}</button>
+      <button class="btn-ghost text-xs flex-1" @click="$emit('toggle', task)">{{ task.enabled ? t('taskCard.disable') : t('taskCard.enable') }}</button>
       <button class="text-xs px-2 py-0.5 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/30 flex-1" @click="$emit('delete', task.id)">{{ t('taskCard.delete') }}</button>
     </div>
   </div>

@@ -443,8 +443,8 @@ function scheduleSummary(task: Task): string {
             />
           </div>
           <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">
-            <button class="btn-primary text-sm flex-1" :disabled="saving" @click="saveTask">{{ saving ? '...' : editingTask ? '保存' : '创建' }}</button>
-            <button class="text-sm px-4 py-2 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="showTaskForm = false">取消</button>
+            <button class="btn-primary flex-1" :disabled="saving" @click="saveTask">{{ saving ? '...' : editingTask ? '保存' : '创建' }}</button>
+            <button class="btn-secondary" @click="showTaskForm = false">取消</button>
           </div>
         </div>
       </div>

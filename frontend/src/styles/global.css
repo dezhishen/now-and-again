@@ -12,12 +12,43 @@
 }
 
 @layer components {
+  /* ── Primary button (filled, main action) ──────────────────── */
   .btn-primary {
-    @apply bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors font-medium;
+    @apply bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors font-medium text-sm;
   }
+  .btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* ── Secondary button (outlined, less prominent) ──────────── */
+  .btn-secondary {
+    @apply border border-gray-200 dark:border-gray-600 px-4 py-2 rounded-lg
+           hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium text-sm
+           text-gray-600 dark:text-gray-300;
+  }
+
+  /* ── Danger button (destructive action) ───────────────────── */
   .btn-danger {
-    @apply bg-danger text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity font-medium;
+    @apply bg-danger text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity font-medium text-sm;
   }
+  .btn-danger:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* ── Ghost button (text-only, minimal) ────────────────────── */
+  .btn-ghost {
+    @apply px-3 py-1.5 rounded-lg text-sm font-medium
+           hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors
+           text-gray-500 dark:text-gray-400;
+  }
+
+  /* ── Icon button (square, for close / action icons) ───────── */
+  .btn-icon {
+    @apply w-8 h-8 flex items-center justify-center rounded-lg
+           hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors
+           text-gray-400 dark:text-gray-500 text-lg;
+  }
+
   .card {
     @apply bg-white rounded-lg shadow-md p-4 dark:bg-gray-800;
   }

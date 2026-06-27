@@ -66,7 +66,7 @@ async function submit() {
           <button class="btn-primary text-sm flex-1" :disabled="submiting" @click="submit">
             {{ submiting ? t('todo.submitting') : t('todo.submitInspect') }}
           </button>
-          <button class="text-sm px-4 py-2 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="showModal = false">{{ t('todo.cancel') }}</button>
+          <button class="btn-secondary" @click="showModal = false">{{ t('todo.cancel') }}</button>
         </div>
       </div>
     </div>
