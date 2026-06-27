@@ -1,5 +1,5 @@
 # ─── Frontend Build ────────────────────────────────────────────────
-FROM ghcr.io/library/node:20-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /frontend
 RUN corepack enable && corepack prepare pnpm@9 --activate
@@ -11,7 +11,7 @@ COPY frontend/ .
 RUN pnpm build
 
 # ─── Backend Build ────────────────────────────────────────────────
-FROM ghcr.io/library/golang:1.25-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 COPY backend/go.mod backend/go.sum backend/
@@ -25,7 +25,7 @@ COPY --from=frontend-builder /frontend/dist /app/backend/internal/webui/dist
 RUN cd backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/server ./cmd/server
 
 # ─── Runtime ──────────────────────────────────────────────────────
-FROM ghcr.io/library/alpine:3.24
+FROM registry.alpinelinux.org/img/alpine:3.24:3.24
 RUN apk add --no-cache ca-certificates tzdata
 # Create non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
