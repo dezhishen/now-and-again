@@ -63,19 +63,13 @@ function openTab(id: string) {
     return
   }
 
-  if (id === 'calendar') {
-    window.open(`/calendar/${route.params.familyId}`, '_blank')
-    return
-  }
-
-  if (id === 'calendar') {
-    window.open(`/calendar/${route.params.familyId}`, '_blank')
-    return
-  }
-
   // Activate existing tab or create new one
   const existing = tabs.value.find(t => t.id === id)
   if (existing) {
+    activeTabId.value = id
+  } else if (id === 'dashboard') {
+    // Dashboard always goes first
+    tabs.value.unshift({ id: nav.id, label: t(nav.labelKey), icon: nav.icon, component: nav.component })
     activeTabId.value = id
   } else {
     tabs.value.push({ id: nav.id, label: t(nav.labelKey), icon: nav.icon, component: nav.component })
@@ -107,10 +101,15 @@ onMounted(async () => {
     isFamilyAdmin.value = me?.role === 'owner' || me?.role === 'admin'
   } catch { /* */ }
 
-  // Open tab based on current route
+  // Always ensure dashboard is the first tab
+  openTab('dashboard')
+
+  // Open tab based on current route (skip if already dashboard)
   const routeName = (route.name as string) || ''
   const tabId = routeName.startsWith('family-') ? routeName.replace('family-', '') : 'dashboard'
-  openTab(tabId)
+  if (tabId !== 'dashboard') {
+    openTab(tabId)
+  }
 })
 
 async function leaveFamily() {
@@ -123,7 +122,7 @@ async function leaveFamily() {
 </script>
 
 <template>
-  <div class="flex flex-col md:flex-row min-h-screen">
+  <div class="flex flex-col md:flex-row h-full overflow-hidden">
     <!-- Mobile hamburger -->
     <button class="md:hidden fixed top-2 left-3 z-40 w-8 h-8 rounded-lg flex items-center justify-center bg-gray-200 dark:bg-gray-700 shadow text-sm" @click="showMenu = !showMenu">
       {{ showMenu ? '✕' : '☰' }}
@@ -131,7 +130,7 @@ async function leaveFamily() {
 
     <!-- Sidebar -->
     <aside
-      class="w-[200px] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4 flex-shrink-0 transition-transform"
+      class="w-[200px] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4 flex-shrink-0 transition-transform overflow-y-auto"
       :class="showMenu ? 'fixed inset-y-0 left-0 z-30 translate-x-0' : 'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-30 max-md:-translate-x-full'"
       @click="showMenu = false"
     >
@@ -152,7 +151,7 @@ async function leaveFamily() {
     <div v-if="showMenu" class="md:hidden fixed inset-0 bg-black/30 z-20" @click="showMenu = false" />
 
     <!-- Content -->
-    <main class="flex-1 flex flex-col pt-14 md:pt-0 min-w-0">
+    <main class="flex-1 flex flex-col pt-14 md:pt-0 min-w-0 overflow-hidden">
       <!-- Tab bar -->
       <div class="flex items-center border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-2 overflow-x-auto flex-shrink-0">
         <button

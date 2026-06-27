@@ -183,7 +183,7 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
     </div>
 
     <!-- Card grid -->
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
       <div v-for="plan in floorPlans" :key="plan.id"
         class="card cursor-pointer hover:shadow-lg transition-shadow group overflow-hidden"
         @click="openEdit(plan)"

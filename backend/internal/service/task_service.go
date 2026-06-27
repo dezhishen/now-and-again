@@ -154,18 +154,18 @@ func (s *TaskService) GetTaskWithExtra(ctx context.Context, taskID uuid.UUID) (m
 
 func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.TaskTemplate, error) {
 	userID := ctx.Value("user_id").(string)
-	kind := req.Kind
+	kind := req.Task.Kind
 	if kind == "" {
 		kind = "simple"
 	}
-	dataJSON, _ := json.Marshal(req.ScheduleData)
+	dataJSON, _ := json.Marshal(req.Task.ScheduleData)
 	t := &repository.TaskTemplateModel{
 		FamilyID:     familyID.String(),
-		GroupID:      req.GroupID,
-		LocationID:   req.LocationID,
+		GroupID:      req.Task.GroupID,
+		LocationID:   req.Task.LocationID,
 		IsRoot:       true,
-		Name:         req.Name,
-		ScheduleType: req.ScheduleType,
+		Name:         req.Task.Name,
+		ScheduleType: req.Task.ScheduleType,
 		ScheduleData: string(dataJSON),
 		Enabled:      true,
 		Kind:         kind,
@@ -177,7 +177,7 @@ func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types
 		}
 		if h := taskkind.Get(kind); h != nil {
 			txOps := &taskkind.Ops{Repo: tx, Scheduler: s.scheduler}
-			if err := h.OnCreate(txOps, t, req.CheckItems); err != nil {
+			if err := h.OnCreate(txOps, t, req.Extra); err != nil {
 				return err
 			}
 		}
@@ -225,27 +225,30 @@ func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.U
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
-	if req.Name != nil {
-		t.Name = *req.Name
-	}
-	if req.ScheduleType != nil {
-		t.ScheduleType = *req.ScheduleType
-	}
-	if req.ScheduleData != nil {
-		dataJSON, _ := json.Marshal(req.ScheduleData)
-		t.ScheduleData = string(dataJSON)
-	}
-	if req.Enabled != nil {
-		t.Enabled = *req.Enabled
-	}
-	if req.GroupID != nil {
-		t.GroupID = *req.GroupID
-	}
-	if req.LocationID != nil {
-		t.LocationID = *req.LocationID
-	}
-	if req.Kind != nil {
-		t.Kind = *req.Kind
+	if req.Task != nil {
+		f := req.Task
+		if f.Name != nil {
+			t.Name = *f.Name
+		}
+		if f.ScheduleType != nil {
+			t.ScheduleType = *f.ScheduleType
+		}
+		if f.ScheduleData != nil {
+			dataJSON, _ := json.Marshal(f.ScheduleData)
+			t.ScheduleData = string(dataJSON)
+		}
+		if f.Enabled != nil {
+			t.Enabled = *f.Enabled
+		}
+		if f.GroupID != nil {
+			t.GroupID = *f.GroupID
+		}
+		if f.LocationID != nil {
+			t.LocationID = *f.LocationID
+		}
+		if f.Kind != nil {
+			t.Kind = *f.Kind
+		}
 	}
 	if err := s.repo.Tx(func(tx *repository.TaskRepo) error {
 		if err := tx.UpdateTask(t); err != nil {
@@ -253,7 +256,7 @@ func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.U
 		}
 		if h := taskkind.Get(t.Kind); h != nil {
 			txOps := &taskkind.Ops{Repo: tx, Scheduler: s.scheduler}
-			if err := h.OnUpdate(txOps, t, req.CheckItems); err != nil {
+			if err := h.OnUpdate(txOps, t, req.Extra); err != nil {
 				return err
 			}
 		}

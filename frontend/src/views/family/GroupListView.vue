@@ -159,7 +159,7 @@ async function removeMember(userId: string) {
     <div v-if="groups.length === 0" class="text-center text-gray-400 py-8">{{ t('groups.empty') }}</div>
 
     <!-- Group cards grid -->
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-4xl items-start">
+    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3 items-start">
       <div v-for="g in groups" :key="g.id"
         class="card flex flex-col gap-1.5 hover:shadow-md transition-shadow h-full"
       >

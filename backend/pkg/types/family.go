@@ -105,6 +105,7 @@ type Location struct {
 	ID          string    `json:"id"`
 	FamilyID    string    `json:"family_id"`
 	FloorPlanID *string   `json:"floor_plan_id,omitempty"`
+	Kind        string    `json:"kind"`
 	Name        string    `json:"name"`
 	Color       string    `json:"color"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -113,12 +114,14 @@ type Location struct {
 
 type CreateLocationRequest struct {
 	Name        string `json:"name" binding:"required"`
+	Kind        string `json:"kind"`
 	FloorPlanID string `json:"floor_plan_id,omitempty"`
 	Color       string `json:"color"`
 }
 
 type UpdateLocationRequest struct {
 	Name        string  `json:"name"`
+	Kind        string  `json:"kind"`
 	FloorPlanID *string `json:"floor_plan_id,omitempty"`
 	Color       string  `json:"color"`
 }

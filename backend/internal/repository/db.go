@@ -46,7 +46,7 @@ func NewDB(cfg config.DatabaseConfig) (*gorm.DB, error) {
 // Migrate runs auto-migration for all models.
 func Migrate(db *gorm.DB) error {
 	logger.Infof("running database migrations...")
-	if err := db.AutoMigrate(
+	return db.AutoMigrate(
 		&UserModel{},
 		&AccountModel{},
 		&RoleModel{},
@@ -68,24 +68,7 @@ func Migrate(db *gorm.DB) error {
 		&CheckItemModel{},
 		&CheckItemBranchModel{},
 		&IcsFeedModel{},
-	); err != nil {
-		return err
-	}
-
-	// Backfill family_id for existing locations (new first-class entity migration)
-	if err := backfillLocationFamilyID(db); err != nil {
-		logger.Warnf("warning: backfill location family_id: %v", err)
-	}
-	return nil
-}
-
-func backfillLocationFamilyID(db *gorm.DB) error {
-	// Update locations that have a floor_plan_id but no family_id yet
-	return db.Exec(`
-		UPDATE locations SET family_id = (
-			SELECT fp.family_id FROM floor_plans fp WHERE fp.id = locations.floor_plan_id
-		) WHERE family_id = '' OR family_id IS NULL
-	`).Error
+	)
 }
 
 // Seed inserts default roles.

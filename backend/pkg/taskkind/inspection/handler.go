@@ -30,12 +30,17 @@ func (Handler) GetExtra(ops *taskkind.Ops, task *repository.TaskTemplateModel) (
 	for _, ci := range full.CheckItems {
 		branches := make([]types.CheckItemBranchDTO, 0, len(ci.Branches))
 		for _, b := range ci.Branches {
-			branches = append(branches, types.CheckItemBranchDTO{
+			dto := types.CheckItemBranchDTO{
 				ID: b.ID, Name: b.Name,
 				CreateTodo:   b.CreateTodo,
 				BranchTaskID: b.BranchTaskID,
 				SortOrder:    b.SortOrder,
-			})
+			}
+			if b.BranchTask != nil {
+				dto.TodoName = b.BranchTask.Name
+				dto.LocationID = b.BranchTask.LocationID
+			}
+			branches = append(branches, dto)
 		}
 		extra.CheckItems = append(extra.CheckItems, types.CheckItemDTO{
 			ID: ci.ID, Name: ci.Name, SortOrder: ci.SortOrder,
@@ -164,8 +169,22 @@ func (Handler) OnUpdate(ops *taskkind.Ops, task *repository.TaskTemplateModel, e
 }
 
 func persistCheckItems(ops *taskkind.Ops, task *repository.TaskTemplateModel, extra any) error {
-	items, ok := extra.([]types.CheckItemDTO)
-	if !ok || len(items) == 0 {
+	// Extract check_items from the generic extra map
+	var items []types.CheckItemDTO
+	switch e := extra.(type) {
+	case map[string]interface{}:
+		if raw, ok := e["check_items"]; ok {
+			// Re-marshal through JSON for type conversion
+			b, _ := json.Marshal(raw)
+			json.Unmarshal(b, &items)
+		}
+	case []types.CheckItemDTO:
+		items = e
+	case []interface{}:
+		b, _ := json.Marshal(e)
+		json.Unmarshal(b, &items)
+	}
+	if len(items) == 0 {
 		// Update summary for empty case
 		ops.Repo.UpdateDisplaySummary(task.ID, "")
 		return nil
@@ -199,6 +218,7 @@ func persistCheckItems(ops *taskkind.Ops, task *repository.TaskTemplateModel, ex
 					FamilyID:     task.FamilyID,
 					IsRoot:       false,
 					ParentTaskID: task.ID,
+					LocationID:   b.LocationID,
 					Name:         todoName,
 					ScheduleType: "once",
 					ScheduleData: `{"time":"00:00"}`,

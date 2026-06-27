@@ -4,7 +4,11 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import { useToast } from '@/composables/useToast'
+import { getLocationKinds, getLocationKindIcon } from '@/composables/useLocationKinds'
+import { initLocationKinds } from '@/components/locations/init'
 import type { Location, FloorPlan } from '@/types'
+
+initLocationKinds()
 
 const { t } = useI18n()
 const toast = useToast()
@@ -24,6 +28,8 @@ const editLoc = ref<Location | null>(null)
 const formName = ref('')
 const formColor = ref('#3b82f6')
 const formPlanId = ref('')
+const formKind = ref('indoor')
+const locationKinds = getLocationKinds()
 
 const PRESET_COLORS = ['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#78716c']
 
@@ -50,6 +56,7 @@ function openCreate() {
   formName.value = ''
   formColor.value = '#3b82f6'
   formPlanId.value = ''
+  formKind.value = 'indoor'
   editing.value = true
 }
 
@@ -58,12 +65,13 @@ function openEdit(loc: Location) {
   formName.value = loc.name
   formColor.value = loc.color
   formPlanId.value = loc.floor_plan_id || ''
+  formKind.value = loc.kind || 'indoor'
   editing.value = true
 }
 
 async function saveLocation() {
   if (!formName.value.trim()) return
-  const body: any = { name: formName.value.trim(), color: formColor.value }
+  const body: any = { name: formName.value.trim(), kind: formKind.value, color: formColor.value }
   if (formPlanId.value) {
     body.floor_plan_id = formPlanId.value
   }
@@ -72,6 +80,7 @@ async function saveLocation() {
     if (editLoc.value) {
       const updated = await api.put<Location>('/locations/' + editLoc.value.id, {
         name: formName.value.trim(),
+        kind: formKind.value,
         color: formColor.value,
         floor_plan_id: formPlanId.value || null,
       })
@@ -123,7 +132,7 @@ function getPlanLabel(planId: string) {
     <div v-if="locations.length === 0" class="text-center text-gray-400 py-8">
       暂无地点，点击上方按钮添加
     </div>
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
       <div v-for="loc in locations" :key="loc.id"
         class="card flex items-center justify-between gap-3 hover:shadow-md transition-shadow cursor-pointer"
         @click="openEdit(loc)"
@@ -131,7 +140,9 @@ function getPlanLabel(planId: string) {
         <div class="flex items-center gap-3 min-w-0">
           <span class="w-5 h-5 rounded-full flex-shrink-0" :style="{ background: loc.color }"></span>
           <div class="min-w-0">
-            <p class="font-medium dark:text-gray-200 text-sm truncate">{{ loc.name }}</p>
+            <p class="font-medium dark:text-gray-200 text-sm truncate">
+              {{ getLocationKindIcon(loc.kind) }} {{ loc.name }}
+            </p>
             <p v-if="loc.floor_plan_id" class="text-xs text-gray-400">
               🏠 {{ getPlanLabel(loc.floor_plan_id) }}
             </p>
@@ -161,6 +172,16 @@ function getPlanLabel(planId: string) {
           <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">颜色</label>
           <div class="flex gap-2 mb-4 flex-wrap">
             <button v-for="c in PRESET_COLORS" :key="c" class="w-8 h-8 rounded-full border-2 transition-transform" :class="formColor === c ? 'border-gray-800 dark:border-white scale-110' : 'border-transparent'" :style="{ background: c }" @click="formColor = c" />
+          </div>
+
+          <!-- Kind -->
+          <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">类型</label>
+          <div class="flex gap-2 mb-4 flex-wrap">
+            <button v-for="k in locationKinds" :key="k.kind"
+              class="px-3 py-1.5 text-sm rounded-lg border transition-colors"
+              :class="formKind === k.kind ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400'"
+              @click="formKind = k.kind"
+            >{{ k.icon }} {{ k.label }}</button>
           </div>
 
           <!-- Floor Plan linking -->

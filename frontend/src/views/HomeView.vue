@@ -93,7 +93,7 @@ async function joinFamily() {
       <div v-if="families.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-8">还没有家庭</div>
 
       <!-- Family cards grid -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
         <div
           v-for="f in sortedFamilies"
           :key="f.id"

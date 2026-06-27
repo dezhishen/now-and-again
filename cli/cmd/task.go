@@ -37,9 +37,11 @@ var taskCreateCmd = &cobra.Command{
 		}
 
 		t, err := allClients.Task.Create(familyID, &types.CreateTaskRequest{
-			Name:         name,
-			ScheduleType: schedule,
-			ScheduleData: data,
+			Task: types.TaskFields{
+				Name:         name,
+				ScheduleType: schedule,
+				ScheduleData: data,
+			},
 		})
 		if err != nil {
 			return err
@@ -140,7 +142,9 @@ var taskToggleCmd = &cobra.Command{
 			return fmt.Errorf("--id and --enable (true|false) are required")
 		}
 		enable, _ := strconv.ParseBool(enableStr)
-		t, err := allClients.Task.Update(taskID, &types.UpdateTaskRequest{Enabled: &enable})
+		t, err := allClients.Task.Update(taskID, &types.UpdateTaskRequest{
+			Task: &types.UpdateTaskFields{Enabled: &enable},
+		})
 		if err != nil {
 			return err
 		}

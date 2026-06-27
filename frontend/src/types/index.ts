@@ -99,6 +99,7 @@ export interface Location {
   id: string
   family_id: string
   floor_plan_id?: string
+  kind: string
   name: string
   color: string
   created_at: string
@@ -125,8 +126,7 @@ export interface TaskTemplate {
   created_at: string
   updated_at: string
   // Kind-specific extras loaded via GET /tasks/:id?with_extra=true
-  check_items?: CheckItem[]
-  children?: TaskTemplate[]
+  extra?: any
 }
 
 export interface CheckItem {
@@ -141,7 +141,8 @@ export interface BranchItem {
   name: string
   create_todo: boolean
   todo_name?: string
-  group_id?: string            // kept for form compatibility
+  group_id?: string
+  location_id?: string
   branch_task_id?: string
   sort_order?: number
 }

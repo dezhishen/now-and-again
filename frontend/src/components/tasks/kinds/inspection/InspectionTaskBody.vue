@@ -24,11 +24,12 @@ defineEmits<{
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
           <span class="font-medium dark:text-gray-200 truncate">{{ task.name }}</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex-shrink-0">巡检</span>
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full" :class="task.enabled ? 'bg-green-500' : 'bg-gray-300'" />
         </div>
-        <p class="text-xs text-gray-400 mt-1">{{ summary(task) }}</p>
-        <div v-if="task.location_id" class="flex items-center gap-1 mt-1.5">
-          <span class="text-xs px-1.5 py-0.5 rounded" :style="{ background: locColor(task.location_id) + '20', color: locColor(task.location_id) }">
+        <div class="flex items-center justify-between gap-2 mt-1 h-5">
+          <span class="text-xs text-gray-400 truncate">{{ summary(task) }}</span>
+          <span v-if="task.location_id" class="text-xs px-1.5 py-0.5 rounded flex-shrink-0" :style="{ background: locColor(task.location_id) + '20', color: locColor(task.location_id) }">
             📍 {{ locName(task.location_id) }}
           </span>
         </div>

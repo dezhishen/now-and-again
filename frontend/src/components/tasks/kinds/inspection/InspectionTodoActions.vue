@@ -16,14 +16,14 @@ const fullTask = ref<any>(null)
 async function openInspect() {
   showModal.value = true
   selections.value = {}
-  if ((props.todo.task as any)?.check_items?.length) {
+  if ((props.todo.task as any)?.extra?.check_items?.length) {
     fullTask.value = props.todo.task
     return
   }
   loading.value = true
   try {
     const res = await api.get<{ extra: { check_items: CheckItem[] } }>('/todos/' + props.todo.id + '?with_extra=true')
-    fullTask.value = { ...props.todo.task, check_items: res.extra?.check_items || [] }
+    fullTask.value = { ...props.todo.task, extra: { check_items: res.extra?.check_items || [] } }
   } catch { /* */ }
   finally { loading.value = false }
 }

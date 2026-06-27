@@ -12,7 +12,6 @@ import type { TaskTemplate, FamilyGroup, CheckItem } from '@/types'
 
 // Initialize plugin task kinds
 initTaskKinds()
-const TASK_KINDS = getTaskKinds()
 
 const { t: _t } = useI18n()
 const toast = useToast()
@@ -26,8 +25,8 @@ watch(refreshKey, () => { loadTasks(); loadGroups(); loadLocations() })
 const tasks = ref<TaskTemplate[]>([])
 const groups = ref<FamilyGroup[]>([])
 const locations = ref<{ id: string; name: string; color: string; floor_plan_id?: string }[]>([])
-const activeTab = ref('all')
 const loading = ref(true)
+const showKindMenu = ref(false)
 
 // Log modal
 const showLogs = ref(false)
@@ -75,7 +74,10 @@ onMounted(async () => {
 
 // Active tasks: exclude disabled one-shot tasks (already completed).
 const activeTasks = computed(() => tasks.value.filter(t => t.enabled || t.schedule_type !== 'once'))
-const displayTasks = computed(() => activeTab.value === 'all' ? activeTasks.value : activeTasks.value.filter(t => t.kind === activeTab.value))
+const MAX_VISIBLE_KINDS = 3
+const allKinds = computed(() => getTaskKinds())
+const visibleKinds = computed(() => allKinds.value.slice(0, MAX_VISIBLE_KINDS))
+const hiddenKinds = computed(() => allKinds.value.slice(MAX_VISIBLE_KINDS))
 
 async function loadLocations() {
   try {
@@ -101,15 +103,8 @@ function buildScheduleData(): any {
   }
 }
 
-function openCreate() {
-  editingTask.value = null
-  taskName.value = ''; taskSchedule.value = 'daily'; taskTime.value = '09:00'
-  taskDate.value = ''; taskDays.value = []; taskGroupID.value = ''; taskLocationID.value = ''
-  taskKind.value = 'simple'; checkItems.value = []
-  showTaskForm.value = true
-}
-
-function openCreateKind(kind: string) {
+function openCreate(kind?: string) {
+  kind = kind || 'simple'
   editingTask.value = null
   taskName.value = ''; taskSchedule.value = 'daily'; taskTime.value = '09:00'
   taskDate.value = ''; taskDays.value = []; taskGroupID.value = ''; taskLocationID.value = ''
@@ -125,14 +120,16 @@ async function openEdit(task: TaskTemplate) {
   taskGroupID.value = task.group_id || ''
   taskLocationID.value = task.location_id || ''
   taskKind.value = task.kind || 'simple'
-  checkItems.value = Array.isArray(task.check_items) ? [...task.check_items] : []
-  // Load extras if check_items not present and kind has extras
-  if (!checkItems.value.length) {
+  checkItems.value = []
+
+  // Always load kind-specific extra data for kinds that have a form component
+  if (getFormComponent(task.kind || 'simple')) {
     try {
       const res = await api.get<{ extra: { check_items: CheckItem[] } }>('/tasks/' + task.id + '?with_extra=true')
       if (res.extra?.check_items) checkItems.value = [...res.extra.check_items]
-    } catch { /* */ }
+    } catch { /* non-critical */ }
   }
+
   showTaskForm.value = true
   const data = task.schedule_data || {}
   taskTime.value = data.time || '09:00'
@@ -142,15 +139,20 @@ async function openEdit(task: TaskTemplate) {
 
 async function saveTask() {
   const data = buildScheduleData()
-  const body: any = {
+  const taskFields: any = {
     name: taskName.value,
     schedule_type: taskSchedule.value,
     schedule_data: data,
+    kind: taskKind.value,
   }
-  if (taskGroupID.value) body.group_id = taskGroupID.value
-  if (taskLocationID.value) body.location_id = taskLocationID.value
-  body.kind = taskKind.value
-  body.check_items = checkItems.value
+  if (taskGroupID.value) taskFields.group_id = taskGroupID.value
+  if (taskLocationID.value) taskFields.location_id = taskLocationID.value
+
+  const body: any = { task: taskFields }
+  // Wrap kind-specific data into extra (plugin-friendly)
+  if (getFormComponent(taskKind.value)) {
+    body.extra = { check_items: checkItems.value }
+  }
 
   try {
     if (editingTask.value) {
@@ -167,7 +169,7 @@ async function saveTask() {
 
 async function toggleTask(task: TaskTemplate) {
   try {
-    await api.put('/tasks/' + task.id, { enabled: !task.enabled })
+    await api.put('/tasks/' + task.id, { task: { enabled: !task.enabled } })
     task.enabled = !task.enabled
   } catch (e: any) { toast.error(e.message) }
 }
@@ -268,29 +270,28 @@ function scheduleSummary(task: TaskTemplate): string {
 
     <template v-else>
 
-    <!-- Tabs -->
-    <div class="flex gap-1 mb-4 border-b dark:border-gray-700">
-      <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
-        :class="activeTab === 'all' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
-        @click="activeTab = 'all'"
-      >📋 全部 ({{ activeTasks.length }})</button>
-      <button v-for="k in TASK_KINDS" :key="k.kind"
-        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
-        :class="activeTab === k.kind ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
-        @click="activeTab = k.kind"
-      >{{ k.label }} ({{ activeTasks.filter(t => t.kind === k.kind).length }})</button>
-    </div>
-
     <!-- Content -->
     <div>
-      <button class="btn-primary text-sm mb-3" @click="activeTab === 'all' ? openCreate() : openCreateKind(activeTab)">
-        + {{ activeTab === 'all' ? '创建任务' : getCreateLabel(activeTab) }}
-      </button>
+      <div class="flex items-center gap-2 mb-3">
+        <button
+          v-for="k in visibleKinds" :key="k.kind"
+          class="btn-primary text-sm"
+          @click="openCreate(k.kind)"
+        >+ {{ k.label }}</button>
+        <div v-if="hiddenKinds.length > 0" class="relative">
+          <button class="btn-primary text-sm" @click.stop="showKindMenu = !showKindMenu">+ 更多 ▾</button>
+          <div v-if="showKindMenu" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 z-30 py-1 min-w-[120px]" @click="showKindMenu = false">
+            <button v-for="k in hiddenKinds" :key="k.kind" class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200" @click="openCreate(k.kind)">
+              {{ k.label }}
+            </button>
+          </div>
+        </div>
+      </div>
 
-      <div v-if="displayTasks.length === 0" class="text-center text-gray-400 py-8">暂无任务</div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 items-start">
+      <div v-if="activeTasks.length === 0" class="text-center text-gray-400 py-8">暂无任务</div>
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-2 items-start">
         <TaskCard
-          v-for="task in displayTasks" :key="task.id"
+          v-for="task in activeTasks" :key="task.id"
           :task="task"
           :loc-name="getLocName"
           :loc-color="getLocColor"
@@ -359,13 +360,16 @@ function scheduleSummary(task: TaskTemplate): string {
     <!-- Create/Edit Task Modal -->
     <Teleport to="body">
       <div v-if="showTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @mousedown.self="showTaskForm = false">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-xl max-h-[85vh] flex flex-col">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-2xl max-h-[85vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <h3 class="font-bold dark:text-gray-200">{{ editingTask ? '编辑' : getCreateLabel(taskKind) }}</h3>
             <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showTaskForm = false">✕</button>
           </div>
           <div class="flex-1 overflow-auto p-4 space-y-3">
-            <input v-model="taskName" class="input" :placeholder="getCreateLabel(taskKind) + '名称'" />
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">任务名称</label>
+              <input v-model="taskName" class="input" placeholder="输入任务名称" />
+            </div>
             <div>
               <label class="text-xs text-gray-400 block mb-1">调度方式</label>
               <select v-model="taskSchedule" class="input">
@@ -405,18 +409,23 @@ function scheduleSummary(task: TaskTemplate): string {
             </div>
             <div>
               <label class="text-xs text-gray-400 block mb-1">关联地点（可选）</label>
-              <select v-model="taskLocationID" class="input">
-                <option value="">不关联</option>
-                <option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
-              </select>
-              <p class="text-xs text-gray-400 mt-1">可在 <router-link :to="`/family/${familyId}/floor-plan`" class="text-primary underline">户型图</router-link> 中管理地点</p>
+              <div class="flex gap-2 items-center">
+                <select v-model="taskLocationID" class="input flex-1">
+                  <option value="">不关联</option>
+                  <option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
+                </select>
+                <button v-if="taskLocationID" class="text-xs text-gray-400 hover:text-danger flex-shrink-0" @click="taskLocationID = ''">清除</button>
+              </div>
             </div>
             <div>
               <label class="text-xs text-gray-400 block mb-1">分配给小组（可选）</label>
-              <select v-model="taskGroupID" class="input">
-                <option value="">全部成员</option>
-                <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-              </select>
+              <div class="flex gap-2 items-center">
+                <select v-model="taskGroupID" class="input flex-1">
+                  <option value="">全部成员</option>
+                  <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+                </select>
+                <button v-if="taskGroupID" class="text-xs text-gray-400 hover:text-danger flex-shrink-0" @click="taskGroupID = ''">清除</button>
+              </div>
             </div>
             <!-- Kind-specific form fields -->
             <component
@@ -424,6 +433,7 @@ function scheduleSummary(task: TaskTemplate): string {
               v-if="getFormComponent(taskKind)"
               v-model="checkItems"
               :groups="groups"
+              :locations="locations"
             />
           </div>
           <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">

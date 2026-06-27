@@ -5,9 +5,9 @@ import ToastContainer from '@/components/ToastContainer.vue'
 </script>
 
 <template>
-  <div id="na-app" class="min-h-screen">
+  <div id="na-app" class="h-screen overflow-hidden flex flex-col">
     <AppHeader />
-    <RouterView />
+    <RouterView class="flex-1 overflow-hidden" />
     <ToastContainer />
   </div>
 </template>

@@ -1,6 +1,6 @@
 # API 文档
 
-> 共 60+ 个端点。公开路由无鉴权，受保护路由需要 JWT 或 API Key（自动校验 Scope）。
+> 共 59 个端点。公开路由无鉴权，受保护路由需要 JWT 或 API Key。
 
 ## 系统初始化
 
@@ -9,24 +9,20 @@
 | GET | `/api/system/status` | 无 | 返回 `{initialized: bool}` |
 | POST | `/api/setup` | 无 | 创建第一个管理员（仅未初始化时可用） |
 
-> 首次运行服务时自动创建默认管理员账户（username: `admin`），密码由 `ADMIN_DEFAULT_PASSWORD` 环境变量控制。
-
 ## 认证
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
 | POST | `/api/auth/register` | 无 | 注册新用户 |
-| POST | `/api/auth/login` | 无 | 登录 → access_token + refresh_token(cookie) |
+| POST | `/api/auth/login` | 无 | 登录获取 access_token + refresh_token(cookie) |
 | POST | `/api/auth/refresh` | Cookie | 刷新 access_token |
-| POST | `/api/auth/logout` | Cookie | 登出，撤销 refresh_token |
+| POST | `/api/auth/logout` | Cookie | 登出 |
 
 ## 图片
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| GET | `/api/images/:id` | 无 | 301 重定向到实际文件（`/uploads/{filename}`） |
-
-> 图片表统一管理所有文件，业务表只存 `image_id`，支持未来扩展 S3/OSS 等存储后端。
+| GET | `/api/images/:id` | 无 | 301 重定向到实际文件 |
 
 ## 用户
 
@@ -34,38 +30,36 @@
 |------|------|------|------|
 | GET | `/api/users/me` | JWT/APIKey | 获取当前用户 |
 | PUT | `/api/users/me` | JWT/APIKey | 更新当前用户 |
+| GET | `/api/users/me/families` | JWT/APIKey | 我的家庭列表 |
 | GET | `/api/admin/users` | JWT(admin) | 管理员查看所有用户 |
 
 ## 管理面板
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| GET | `/api/admin/settings` | JWT | 获取所有系统设置 |
-| PUT | `/api/admin/settings` | JWT | 批量更新设置（JSON: `{"key":"value"}`） |
-
-> 系统设置当前支持 `storage.type`（默认 `"local"`），未来可扩展为 `"s3"`、`"minio"` 等。
+| GET | `/api/admin/settings` | JWT | 获取系统设置 |
+| PUT | `/api/admin/settings` | JWT | 更新设置 |
 
 ## 家庭
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| POST | `/api/families` | JWT/APIKey | 创建家庭（每个用户仅能创建一个） |
+| POST | `/api/families` | JWT/APIKey | 创建家庭 |
 | POST | `/api/families/join` | JWT/APIKey | 通过邀请码加入 |
 | GET | `/api/families/:family_id` | JWT/APIKey | 家庭详情 |
-| PATCH | `/api/families/:family_id` | JWT/APIKey | 修改家庭名称（owner/admin） |
-| DELETE | `/api/families/:family_id` | JWT/APIKey | 删除家庭（仅 owner） |
-| GET | `/api/users/me/families` | JWT/APIKey | 我的家庭列表（含封面缩略图） |
+| PATCH | `/api/families/:family_id` | JWT/APIKey | 修改家庭名称 (owner/admin) |
+| DELETE | `/api/families/:family_id` | JWT/APIKey | 删除家庭 (仅 owner) |
 | GET | `/api/families/:family_id/members` | JWT/APIKey | 成员列表 |
-| PUT | `/api/families/:family_id/members/:user_id/role` | JWT/APIKey | 修改成员角色（owner/admin） |
-| DELETE | `/api/families/:family_id/members/:user_id` | JWT/APIKey | 移除成员（owner/admin） |
+| PUT | `/api/families/:family_id/members/:user_id/role` | JWT/APIKey | 修改成员角色 (owner/admin) |
+| DELETE | `/api/families/:family_id/members/:user_id` | JWT/APIKey | 移除成员 (owner/admin) |
 | POST | `/api/families/:family_id/leave` | JWT/APIKey | 退出家庭 |
 
 ## 家庭审核
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| GET | `/api/families/:family_id/join-requests` | JWT/APIKey | 待审核申请列表 |
-| PUT | `/api/families/:family_id/join-requests` | JWT/APIKey | 审核申请（action: `active`/`rejected`） |
+| GET | `/api/families/:family_id/join-requests` | JWT/APIKey | 待审核申请 |
+| PUT | `/api/families/:family_id/join-requests` | JWT/APIKey | 审核申请 (active/rejected) |
 
 ## 小组
 
@@ -75,132 +69,107 @@
 | GET | `/api/families/:family_id/groups` | JWT/APIKey | 小组列表 |
 | POST | `/api/groups/:group_id/join` | JWT/APIKey | 加入小组 |
 | POST | `/api/groups/:group_id/leave` | JWT/APIKey | 离开小组 |
-| GET | `/api/groups/:group_id/members` | JWT/APIKey | 小组成员列表 |
-| DELETE | `/api/groups/:group_id/members/:user_id` | JWT/APIKey | 移除小组成员 |
-| GET | `/api/groups/:group_id/join-requests` | JWT/APIKey | 小组待审核申请 |
-| PUT | `/api/groups/:group_id/join-requests` | JWT/APIKey | 审核小组申请 |
-
-## 户型图
-
-| 方法 | 路径 | 鉴权 | 说明 |
-|------|------|------|------|
-| POST | `/api/families/:family_id/floor-plans` | JWT/APIKey | 上传户型图（multipart: file + label + is_cover） |
-| GET | `/api/families/:family_id/floor-plans` | JWT/APIKey | 列出所有楼层 |
-| GET | `/api/floor-plans/:plan_id` | JWT/APIKey | 获取单层详情（含地点列表） |
-| PUT | `/api/floor-plans/:plan_id/cover` | JWT/APIKey | 设为封面 |
-| DELETE | `/api/floor-plans/:plan_id` | JWT/APIKey | 删除楼层及图片 |
-
-## 地点标记
-
-| 方法 | 路径 | 鉴权 | 说明 |
-|------|------|------|------|
-| POST | `/api/floor-plans/:plan_id/locations` | JWT/APIKey | 创建地点（name + point + color） |
-| GET | `/api/floor-plans/:plan_id/locations` | JWT/APIKey | 地点列表 |
-| PUT | `/api/locations/:location_id` | JWT/APIKey | 更新地点 |
-| DELETE | `/api/locations/:location_id` | JWT/APIKey | 删除地点 |
+| GET | `/api/groups/:group_id/members` | JWT/APIKey | 小组成员 |
+| DELETE | `/api/groups/:group_id/members/:user_id` | JWT/APIKey | 移除成员 |
+| GET | `/api/groups/:group_id/join-requests` | JWT/APIKey | 待审核申请 |
+| PUT | `/api/groups/:group_id/join-requests` | JWT/APIKey | 审核申请 |
 
 ## API Key
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| POST | `/api/users/me/api-keys` | JWT | 创建 API Key（返回 raw_key 仅一次） |
-| GET | `/api/users/me/api-keys` | JWT | API Key 列表 |
-| DELETE | `/api/users/me/api-keys/:key_id` | JWT | 撤销 API Key |
+| POST | `/api/users/me/api-keys` | JWT/APIKey | 创建 API Key |
+| GET | `/api/users/me/api-keys` | JWT/APIKey | 列出 API Key |
+| DELETE | `/api/users/me/api-keys/:key_id` | JWT/APIKey | 撤销 API Key |
 
-> Scope 说明：创建时可传 `scopes[]`，支持精确 scope（如 `family:read`）和快捷组（`read`/`write`/`admin`）。详细定义见 `shared/scopes/scopes.go`。
+## 户型图
 
-## 任务模板
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| POST | `/api/families/:family_id/floor-plans` | JWT/APIKey | 上传户型图 (multipart: file + label + is_cover) |
+| GET | `/api/families/:family_id/floor-plans` | JWT/APIKey | 户型图列表 |
+| GET | `/api/floor-plans/:plan_id` | JWT/APIKey | 户型图详情 |
+| PUT | `/api/floor-plans/:plan_id/cover` | JWT/APIKey | 设为封面 |
+| DELETE | `/api/floor-plans/:plan_id` | JWT/APIKey | 删除户型图 |
 
-| 方法 | 路径 | 鉴权 | Scope | 说明 |
-|------|------|------|-------|------|
-| POST | `/api/families/:family_id/tasks` | JWT/APIKey | task:write | 创建任务模板 |
-| GET | `/api/families/:family_id/tasks` | JWT/APIKey | task:read | 任务模板列表 |
-| PUT | `/api/tasks/:task_id` | JWT/APIKey | task:write | 更新任务模板 |
-| DELETE | `/api/tasks/:task_id` | JWT/APIKey | task:write | 删除任务模板 |
-| POST | `/api/tasks/:task_id/trigger` | JWT/APIKey | task:write | 手动生成待办 |
-| POST | `/api/tasks/:task_id/inspection` | JWT/APIKey | task:write | 提交巡检结果 |
-| GET | `/api/tasks/:task_id/logs` | JWT/APIKey | task:read | 操作日志（?type=user 过滤用户日志） |
+## 地点（一级实体）
 
-> 任务统一模型：`kind` 字段区分类型 — `"simple"` 普通任务 / `"inspection"` 巡检任务。未来可扩展更多类型。
-> 巡检任务通过 `check_items` 数组配置检查项，每个检查项可选是否创建跟进任务。
+> Location 属于 Family，可选关联到 FloorPlan。kind 插件化（indoor 等）。
 
-### 创建普通任务
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/families/:family_id/locations` | JWT/APIKey | 家庭所有地点 |
+| POST | `/api/families/:family_id/locations` | JWT/APIKey | 创建地点 (name + kind + color, 可选 floor_plan_id) |
+| GET | `/api/floor-plans/:plan_id/locations` | JWT/APIKey | 户型图关联地点 |
+| PUT | `/api/locations/:location_id` | JWT/APIKey | 更新地点（可设置/取消户型图关联） |
+| DELETE | `/api/locations/:location_id` | JWT/APIKey | 删除地点（被任务引用时拒绝） |
+
+## 任务
+
+> 请求体：`{ task: {...}, extra: {...} }`，与 GET 返回格式对称。
+> 任务类型插件化：simple / inspection。
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| POST | `/api/families/:family_id/tasks` | JWT/APIKey | 创建任务 |
+| GET | `/api/families/:family_id/tasks` | JWT/APIKey | 任务列表 |
+| GET | `/api/tasks/:task_id` | JWT/APIKey | 获取任务 (with_extra=true 返回插件数据) |
+| PUT | `/api/tasks/:task_id` | JWT/APIKey | 更新任务 |
+| DELETE | `/api/tasks/:task_id` | JWT/APIKey | 删除任务 |
+| GET | `/api/tasks/:task_id/logs` | JWT/APIKey | 操作日志 |
+| POST | `/api/tasks/:task_id/trigger` | JWT/APIKey | 手动生成待办 |
+
+### 创建巡检任务示例
 
 ```json
 {
-  "name": "取快递",
-  "schedule_type": "once",
-  "schedule_data": {"date": "2026-06-28", "time": "18:00"},
-  "kind": "simple"
-}
-```
-
-### 创建巡检任务
-
-```json
-{
-  "name": "厨房安全巡检",
-  "schedule_type": "daily",
-  "schedule_data": {"time": "21:00"},
-  "kind": "inspection",
-  "check_items": [
-    {"name": "燃气阀门", "require_remark": false},
-    {"name": "水槽漏水", "require_remark": true}
-  ]
+  "task": {
+    "name": "厨房安全巡检",
+    "schedule_type": "daily",
+    "schedule_data": {"time": "21:00"},
+    "kind": "inspection"
+  },
+  "extra": {
+    "check_items": [
+      {
+        "name": "燃气阀门",
+        "branches": [
+          {"name": "正常", "create_todo": false},
+          {"name": "异常", "create_todo": true, "todo_name": "修复燃气阀门"}
+        ]
+      }
+    ]
+  }
 }
 ```
 
 ## 待办
 
-| 方法 | 路径 | 鉴权 | Scope | 说明 |
-|------|------|------|-------|------|
-| GET | `/api/families/:family_id/todos?status=pending` | JWT/APIKey | task:read | 待办列表 |
-| PUT | `/api/todos/:todo_id` | JWT/APIKey | task:write | 完成/跳过待办 |
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/families/:family_id/todos` | JWT/APIKey | 待办列表 (?status=pending) |
+| GET | `/api/todos/:todo_id` | JWT/APIKey | 待办详情 (with_extra=true) |
+| PUT | `/api/todos/:todo_id` | JWT/APIKey | 完成/跳过待办 |
 
-### 完成巡检待办
-
-```json
-{
-  "status": "done",
-  "branch_name": "漏水"
-}
-```
-> 选择检查项后，系统自动为标记为需要跟进的项创建独立任务和待办。
-
-## 日历 & 统计
-
-| 方法 | 路径 | 鉴权 | Scope | 说明 |
-|------|------|------|-------|------|
-| GET | `/api/families/:family_id/calendar?year=&month=&group_id=` | JWT/APIKey | task:read | 月度日历视图 |
-| GET | `/api/families/:family_id/statistics?period=week&date=` | JWT/APIKey | task:read | 任务完成统计（week/month/year） |
-
-## ICS 日历订阅
+## 日历
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| POST | `/api/families/:family_id/ics-feeds` | JWT | 创建 ICS 订阅（auth_type: api_key/basic） |
-| GET | `/api/families/:family_id/ics-feeds` | JWT | 订阅列表 |
-| GET | `/api/ics-feeds/:feed_id` | JWT | 查看订阅详情 |
-| PUT | `/api/ics-feeds/:feed_id` | JWT | 更新订阅 |
-| DELETE | `/api/ics-feeds/:feed_id` | JWT | 删除订阅 |
-| GET | `/api/ics/:token.ics` | 无(JWT)/自定义 | 公开 ICS 端点，支持 API Key（?key=）或 Basic Auth |
+| GET | `/api/families/:family_id/calendar` | JWT/APIKey | 日历视图 |
 
-## HTTP 响应规范
+## ICS 订阅
 
-| 状态码 | 格式 | 说明 |
-|--------|------|------|
-| 200 | `{"success":true,"data":...}` | 成功 |
-| 201 | 同上 | 创建成功 |
-| 301 | 重定向 | 图片服务重定向 |
-| 400 | `{"success":false,"error":"..."}` | 参数错误 |
-| 401 | 同上 | 未认证 → 触发自动刷新 |
-| 404 | 同上 | 资源不存在 |
-| 500 | 同上 | 服务器错误 |
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| POST | `/api/families/:family_id/ics-feeds` | JWT/APIKey | 创建 ICS 订阅 |
+| GET | `/api/families/:family_id/ics-feeds` | JWT/APIKey | 订阅列表 |
+| GET | `/api/ics-feeds/:feed_id` | JWT/APIKey | 订阅详情 |
+| PUT | `/api/ics-feeds/:feed_id` | JWT/APIKey | 更新订阅 |
+| DELETE | `/api/ics-feeds/:feed_id` | JWT/APIKey | 删除订阅 |
+| GET | `/api/ics/:token` | 无 | ICS 日历端点（支持 API Key / Basic Auth） |
 
 ## 认证方式
 
-```
-JWT:        Authorization: Bearer <access_token>
-API Key:    X-API-Key: na_xxxxxxxx...  或  Authorization: Bearer na_xxxxxxxx...
-Refresh:    Cookie: refresh_token=<opaque> (httpOnly, Secure, SameSite)
-```
+- JWT: `Authorization: Bearer <access_token>`
+- API Key: `X-API-Key: na_xxxx` 或 `Authorization: Bearer na_xxxx`
+- Refresh: Cookie `refresh_token` (httpOnly)

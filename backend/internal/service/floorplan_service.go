@@ -109,8 +109,13 @@ func (s *FloorPlanService) CreateLocation(ctx context.Context, familyID uuid.UUI
 	if color == "" {
 		color = "#3b82f6"
 	}
+	kind := req.Kind
+	if kind == "" {
+		kind = "indoor"
+	}
 	loc := &repository.LocationModel{
 		FamilyID: familyID.String(),
+		Kind:     kind,
 		Name:     req.Name,
 		Color:    color,
 	}
@@ -156,6 +161,9 @@ func (s *FloorPlanService) UpdateLocation(ctx context.Context, locationID uuid.U
 	if req.Name != "" {
 		l.Name = req.Name
 	}
+	if req.Kind != "" {
+		l.Kind = req.Kind
+	}
 	if req.Color != "" {
 		l.Color = req.Color
 	}
@@ -174,6 +182,13 @@ func (s *FloorPlanService) UpdateLocation(ctx context.Context, locationID uuid.U
 }
 
 func (s *FloorPlanService) DeleteLocation(ctx context.Context, locationID uuid.UUID) error {
+	count, err := s.repo.CountTasksByLocationID(locationID.String())
+	if err != nil {
+		return fmt.Errorf("check task references: %w", err)
+	}
+	if count > 0 {
+		return fmt.Errorf("该地点被 %d 个任务引用，无法删除", count)
+	}
 	return s.repo.DeleteLocation(locationID.String())
 }
 
@@ -184,6 +199,7 @@ func locationModelToType(l *repository.LocationModel) types.Location {
 		ID:          l.ID,
 		FamilyID:    l.FamilyID,
 		FloorPlanID: l.FloorPlanID,
+		Kind:        l.Kind,
 		Name:        l.Name,
 		Color:       l.Color,
 		CreatedAt:   l.CreatedAt,

@@ -11,7 +11,7 @@ function selectBranch(itemName: string, branchName: string) {
 
 <template>
   <div class="flex-1 overflow-auto p-4 space-y-4">
-    <div v-for="item in (task?.check_items || [])" :key="item.name" class="space-y-1">
+    <div v-for="item in (task?.extra?.check_items || [])" :key="item.name" class="space-y-1">
       <p class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ item.name }}</p>
       <div class="flex flex-wrap gap-1">
         <button

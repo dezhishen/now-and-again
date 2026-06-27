@@ -175,6 +175,7 @@ type LocationModel struct {
 	BaseModel
 	FamilyID    string  `gorm:"index;type:char(36);not null"`
 	FloorPlanID *string `gorm:"index;type:char(36)"`
+	Kind        string  `gorm:"size:32;not null;default:'indoor'"`
 	Name        string  `gorm:"size:128;not null"`
 	Color       string  `gorm:"size:16;not null;default:'#3b82f6'"`
 }

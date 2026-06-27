@@ -43,10 +43,8 @@ async function copyInviteCode() {
   } catch { /* */ }
 }
 
-async function completeTodo(todo: Todo, status: string) {
-  // Show remark prompt
+async function completeTodo(todo: Todo, _status: string) {
   remarkTodo.value = todo
-  remarkAction.value = status
   remarkText.value = ''
   showRemark.value = true
 }
@@ -55,23 +53,17 @@ async function completeTodo(todo: Todo, status: string) {
 
 const showRemark = ref(false)
 const remarkTodo = ref<Todo | null>(null)
-const remarkAction = ref('')
 const remarkText = ref('')
 
 async function submitRemark() {
   const todo = remarkTodo.value
   if (!todo) return
   try {
-    await api.put('/todos/' + todo.id, { status: remarkAction.value, remark: remarkText.value })
+    await api.put('/todos/' + todo.id, { status: 'done', remark: remarkText.value })
     await loadTodos()
-    toast.success(remarkAction.value === 'done' ? '已完成' : '已跳过')
+    toast.success('已完成')
     showRemark.value = false
   } catch (e: any) { toast.error(e.message) }
-}
-
-function skipRemarkAndComplete() {
-  showRemark.value = false
-  completeTodoDirect(remarkTodo.value!, remarkAction.value)
 }
 
 async function completeTodoDirect(todo: Todo, status: string) {
@@ -144,7 +136,7 @@ onMounted(async () => {
     <!-- Todos Tab -->
     <div v-if="activeTab === 'todos'">
       <div v-if="todos.length === 0" class="text-center text-gray-400 py-8">暂无待办事项 🎉</div>
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl items-stretch">
+      <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3 items-stretch">
         <div v-for="todo in displayTodos" :key="todo.id"
           class="card flex flex-col gap-1.5 hover:shadow-md transition-shadow h-full"
         >
@@ -178,7 +170,8 @@ onMounted(async () => {
             <component
               :is="getTodoActions(todo.task?.kind || '')"
               :todo="todo"
-              @done="completeTodo($event, 'done')"
+              @done="completeTodoDirect($event, 'done')"
+              @remark="completeTodo($event, 'done')"
               @skip="completeTodo($event, 'skipped')"
               @completed="loadTodos"
             />
@@ -216,7 +209,7 @@ onMounted(async () => {
       <div v-if="showRemark" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @mousedown.self="showRemark = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-md">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
-            <h3 class="font-bold dark:text-gray-200">{{ remarkAction === 'done' ? '✅ 完成' : '⏭️ 跳过' }} — 备注</h3>
+            <h3 class="font-bold dark:text-gray-200">📝 完成备注</h3>
             <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showRemark = false">✕</button>
           </div>
           <div class="p-4 space-y-3">
@@ -228,8 +221,8 @@ onMounted(async () => {
               @keydown.ctrl.enter="submitRemark"
             ></textarea>
             <div class="flex gap-2">
-              <button class="btn-primary text-sm flex-1" @click="submitRemark">确认</button>
-              <button class="text-sm px-4 py-2 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="skipRemarkAndComplete">跳过备注</button>
+              <button class="btn-primary text-sm flex-1" @click="submitRemark">确认完成</button>
+              <button class="text-sm px-4 py-2 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" @click="showRemark = false">取消</button>
             </div>
             <p class="text-[10px] text-gray-400">Ctrl+Enter 快速提交</p>
           </div>

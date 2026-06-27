@@ -2,14 +2,17 @@
 import type { CheckItem, FamilyGroup } from '@/types'
 
 const checkItems = defineModel<CheckItem[]>({ required: true })
-defineProps<{ groups: FamilyGroup[] }>()
+const props = defineProps<{
+  groups: FamilyGroup[]
+  locations: { id: string; name: string }[]
+}>()
 
 function addBranch(item: CheckItem) {
   item.branches.push({ name: '', create_todo: false })
 }
 
 function addItem() {
-  checkItems.value.push({
+  checkItems.value.unshift({
     name: '',
     branches: [
       { name: '正常', create_todo: false },
@@ -25,6 +28,7 @@ function addItem() {
       <p class="text-xs text-purple-600 dark:text-purple-400 font-medium">🔍 待检查项</p>
       <button class="text-xs text-primary hover:underline" @click="addItem">+ 添加检查项</button>
     </div>
+    <div class="max-h-60 overflow-y-auto space-y-2">
     <div v-for="(item, i) in checkItems" :key="i" class="space-y-1 pb-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
       <div class="flex gap-2 items-center">
         <input v-model="item.name" class="input flex-1 text-sm" placeholder="检查项名称，如 水槽" />
@@ -44,14 +48,19 @@ function addItem() {
           </label>
           <template v-if="b.create_todo">
             <input v-model="b.todo_name" class="input text-xs flex-1 min-w-[120px]" placeholder="任务名" />
-            <select v-model="b.group_id" class="input text-xs w-28">
+            <select v-model="b.group_id" class="input text-xs w-20">
               <option value="">小组</option>
-              <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+              <option v-for="g in props.groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+            </select>
+            <select v-model="b.location_id" class="input text-xs w-20">
+              <option value="">地点</option>
+              <option v-for="loc in props.locations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
             </select>
           </template>
           <button class="text-xs text-danger hover:underline" @click="item.branches.splice(j, 1)">×</button>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>

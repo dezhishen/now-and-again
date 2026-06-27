@@ -35,29 +35,38 @@ type CheckItemBranchDTO struct {
 	Name         string `json:"name"`
 	CreateTodo   bool   `json:"create_todo"`
 	TodoName     string `json:"todo_name,omitempty"`
+	LocationID   string `json:"location_id,omitempty"`
 	BranchTaskID string `json:"branch_task_id,omitempty"`
 	SortOrder    int    `json:"sort_order,omitempty"`
 }
 
 type CreateTaskRequest struct {
-	Name         string         `json:"name" binding:"required"`
-	ScheduleType string         `json:"schedule_type" binding:"required"`
-	ScheduleData any            `json:"schedule_data" binding:"required"`
-	GroupID      string         `json:"group_id,omitempty"`
-	LocationID   string         `json:"location_id,omitempty"`
-	Kind         string         `json:"kind,omitempty"`        // simple | inspection
-	CheckItems   []CheckItemDTO `json:"check_items,omitempty"` // only for kind=inspection
+	Task  TaskFields `json:"task" binding:"required"`
+	Extra any        `json:"extra,omitempty"`
+}
+
+type TaskFields struct {
+	Name         string `json:"name" binding:"required"`
+	ScheduleType string `json:"schedule_type" binding:"required"`
+	ScheduleData any    `json:"schedule_data" binding:"required"`
+	GroupID      string `json:"group_id,omitempty"`
+	LocationID   string `json:"location_id,omitempty"`
+	Kind         string `json:"kind,omitempty"`
 }
 
 type UpdateTaskRequest struct {
-	Name         *string        `json:"name,omitempty"`
-	ScheduleType *string        `json:"schedule_type,omitempty"`
-	ScheduleData any            `json:"schedule_data,omitempty"`
-	Enabled      *bool          `json:"enabled,omitempty"`
-	GroupID      *string        `json:"group_id,omitempty"`
-	LocationID   *string        `json:"location_id,omitempty"`
-	Kind         *string        `json:"kind,omitempty"`
-	CheckItems   []CheckItemDTO `json:"check_items,omitempty"`
+	Task  *UpdateTaskFields `json:"task,omitempty"`
+	Extra any               `json:"extra,omitempty"`
+}
+
+type UpdateTaskFields struct {
+	Name         *string `json:"name,omitempty"`
+	ScheduleType *string `json:"schedule_type,omitempty"`
+	ScheduleData any     `json:"schedule_data,omitempty"`
+	Enabled      *bool   `json:"enabled,omitempty"`
+	GroupID      *string `json:"group_id,omitempty"`
+	LocationID   *string `json:"location_id,omitempty"`
+	Kind         *string `json:"kind,omitempty"`
 }
 
 // ─── Todo ────────────────────────────────────────────────────────
