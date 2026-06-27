@@ -42,7 +42,7 @@ export default {
   },
   nav: {
     family: '家庭',
-    dashboard: '仪表盘',
+    dashboard: '首页',
     groups: '小组',
     tasks: '任务',
     members: '成员',
@@ -76,7 +76,7 @@ export default {
     removeConfirm: '确定要移除此成员吗？',
   },
   dashboard: {
-    heading: '仪表盘',
+    heading: '首页',
     members: '家庭成员',
     groups: '家庭小组',
     inviteCode: '邀请码',

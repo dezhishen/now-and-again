@@ -42,7 +42,7 @@ export default {
   },
   nav: {
     family: 'Family',
-    dashboard: 'Dashboard',
+    dashboard: 'Home',
     groups: 'Groups',
     tasks: 'Tasks',
     members: 'Members',
@@ -76,7 +76,7 @@ export default {
     removeConfirm: 'Remove this member?',
   },
   dashboard: {
-    heading: 'Dashboard',
+    heading: 'Home',
     members: 'Family Members',
     groups: 'Family Groups',
     inviteCode: 'Invite Code',

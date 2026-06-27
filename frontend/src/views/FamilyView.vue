@@ -18,7 +18,6 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const showMenu = ref(false)
-const familyName = ref('')
 const isFamilyAdmin = ref(false)
 
 interface Tab {
@@ -29,7 +28,7 @@ interface Tab {
 }
 
 const NAV_ITEMS: { id: string; icon: string; labelKey: string; component: any; adminOnly?: boolean }[] = [
-  { id: 'dashboard', icon: '📊', labelKey: 'nav.dashboard', component: markRaw(DashboardView) },
+  { id: 'dashboard', icon: '🏠', labelKey: 'nav.dashboard', component: markRaw(DashboardView) },
   { id: 'tasks', icon: '✅', labelKey: 'nav.tasks', component: markRaw(TaskView) },
   { id: 'groups', icon: '👥', labelKey: 'nav.groups', component: markRaw(GroupListView) },
   { id: 'members', icon: '👤', labelKey: 'nav.members', component: markRaw(MemberListView) },
@@ -100,10 +99,6 @@ function closeTab(id: string) {
 
 onMounted(async () => {
   try {
-    const f = await api.get<{ name: string }>('/families/' + route.params.familyId)
-    familyName.value = f.name
-  } catch { /* */ }
-  try {
     const members = await api.get<{ user_id: string; role: string }[]>('/families/' + route.params.familyId + '/members')
     const me = members.find(m => m.user_id === auth.user?.id)
     isFamilyAdmin.value = me?.role === 'owner' || me?.role === 'admin'
@@ -157,9 +152,6 @@ async function leaveFamily() {
     <main class="flex-1 flex flex-col pt-14 md:pt-0 min-w-0">
       <!-- Tab bar -->
       <div class="flex items-center border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-2 overflow-x-auto flex-shrink-0">
-        <div class="flex items-center text-sm font-medium text-gray-600 dark:text-gray-300 px-3 py-2 flex-shrink-0 mr-2">
-          {{ familyName || t('nav.family') }}
-        </div>
         <button
           v-for="tab in tabs" :key="tab.id"
           class="group flex items-center gap-1 px-3 py-2 text-sm border-b-2 transition-colors flex-shrink-0 max-w-[160px]"
