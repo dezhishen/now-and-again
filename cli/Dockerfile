@@ -11,8 +11,11 @@ RUN cd cli && CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/na .
 
 FROM alpine:3.21
 
-RUN apk add --no-cache ca-certificates tzdata \
-    && addgroup -S appgroup && adduser -S appuser -G appgroup
+# Copy CA certificates and timezone data from builder (avoids apk network issues)
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 COPY --from=builder /app/na /usr/local/bin/na
 
