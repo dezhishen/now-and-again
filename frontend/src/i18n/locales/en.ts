@@ -135,6 +135,21 @@ export default {
     disable: 'Disable',
     enable: 'Enable',
     delete: 'Delete',
+    more: 'More',
+    noTasks: 'No tasks',
+  },
+  taskKind: {
+    simple: 'Task',
+    inspect: 'Inspection',
+    create: 'Create Task',
+    createInspect: 'Create Inspection',
+  },
+  schedule: {
+    once: 'Once',
+    daily: 'Daily',
+    weekly: 'Weekly',
+    monthly: 'Monthly',
+    interval: 'Interval',
   },
   todo: {
     quickDone: 'Quick Done',

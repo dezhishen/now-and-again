@@ -135,6 +135,21 @@ export default {
     disable: '禁用',
     enable: '启用',
     delete: '删除',
+    more: '更多',
+    noTasks: '暂无任务',
+  },
+  taskKind: {
+    simple: '任务',
+    inspect: '巡检',
+    create: '创建任务',
+    createInspect: '创建巡检',
+  },
+  schedule: {
+    once: '一次性',
+    daily: '每天',
+    weekly: '每周',
+    monthly: '每月',
+    interval: '间隔天数',
   },
   todo: {
     quickDone: '快速完成',

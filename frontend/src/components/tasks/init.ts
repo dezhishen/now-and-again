@@ -11,8 +11,8 @@ export function initTaskKinds() {
   registerTaskKind('simple', {
     card: SimpleTaskBody,
     todoActions: SimpleTodoActions,
-    label: '任务',
-    createLabel: '创建任务',
+    labelKey: 'taskKind.simple',
+    createLabelKey: 'taskKind.create',
   })
 
   registerTaskKind('inspection', {
@@ -21,9 +21,9 @@ export function initTaskKinds() {
     todoActions: InspectionTodoActions,
     todoInfo: InspectionTodoInfo,
     formComponent: TaskFormCheckItems,
-    todoBadge: '巡检',
-    label: '巡检',
-    createLabel: '创建巡检',
+    todoBadgeKey: 'taskKind.inspect',
+    labelKey: 'taskKind.inspect',
+    createLabelKey: 'taskKind.createInspect',
     defaultCheckItems: [
       {
         name: '检查项1',

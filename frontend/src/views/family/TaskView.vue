@@ -6,14 +6,13 @@ import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import TaskCard from '@/components/tasks/TaskCard.vue'
 import { useToast } from '@/composables/useToast'
-import { getCreateLabel, getDefaultCheckItems, getTaskKinds, getFormComponent } from '@/composables/useTaskKinds'
+import { getCreateLabelKey, getDefaultCheckItems, getTaskKinds, getFormComponent } from '@/composables/useTaskKinds'
 import { initTaskKinds } from '@/components/tasks/init'
 import type { Task, FamilyGroup, CheckItem } from '@/types'
 
 // Initialize plugin task kinds
 initTaskKinds()
 
-const { t: _t } = useI18n()
 const toast = useToast()
 const route = useRoute()
 const familyId = route.params.familyId as string
@@ -56,12 +55,14 @@ const checkItems = ref<CheckItem[]>([])
 const editingTask = ref<Task | null>(null)
 const saving = ref(false)
 
+const { t } = useI18n()
+
 const SCHEDULE_TYPES = [
-  { value: 'once', label: '一次性' },
-  { value: 'daily', label: '每天' },
-  { value: 'weekly', label: '每周' },
-  { value: 'monthly', label: '每月' },
-  { value: 'interval', label: '间隔天数' },
+  { value: 'once', labelKey: 'schedule.once' },
+  { value: 'daily', labelKey: 'schedule.daily' },
+  { value: 'weekly', labelKey: 'schedule.weekly' },
+  { value: 'monthly', labelKey: 'schedule.monthly' },
+  { value: 'interval', labelKey: 'schedule.interval' },
 ]
 
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
@@ -281,18 +282,18 @@ function scheduleSummary(task: Task): string {
           v-for="k in visibleKinds" :key="k.kind"
           class="btn-primary text-sm"
           @click="openCreate(k.kind)"
-        >+ {{ k.label }}</button>
+        >+ {{ t(k.labelKey) }}</button>
         <div v-if="hiddenKinds.length > 0" class="relative">
-          <button class="btn-primary text-sm" @click.stop="showKindMenu = !showKindMenu">+ 更多 ▾</button>
+          <button class="btn-primary text-sm" @click.stop="showKindMenu = !showKindMenu">+ {{ t('taskCard.more') }} ▾</button>
           <div v-if="showKindMenu" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 z-30 py-1 min-w-[120px]" @click="showKindMenu = false">
             <button v-for="k in hiddenKinds" :key="k.kind" class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200" @click="openCreate(k.kind)">
-              {{ k.label }}
+              {{ t(k.labelKey) }}
             </button>
           </div>
         </div>
       </div>
 
-      <div v-if="activeTasks.length === 0" class="text-center text-gray-400 py-8">暂无任务</div>
+      <div v-if="activeTasks.length === 0" class="text-center text-gray-400 py-8">{{ t('taskCard.noTasks') }}</div>
       <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-2 items-start">
         <TaskCard
           v-for="task in activeTasks" :key="task.id"
@@ -367,7 +368,7 @@ function scheduleSummary(task: Task): string {
       <div v-if="showTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @mousedown.self="showTaskForm = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-2xl max-h-[85vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
-            <h3 class="font-bold dark:text-gray-200">{{ editingTask ? '编辑' : getCreateLabel(taskKind) }}</h3>
+            <h3 class="font-bold dark:text-gray-200">{{ editingTask ? t('taskCard.edit') : t(getCreateLabelKey(taskKind)) }}</h3>
             <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showTaskForm = false">✕</button>
           </div>
           <div class="flex-1 overflow-auto p-4 space-y-3">
@@ -378,7 +379,7 @@ function scheduleSummary(task: Task): string {
             <div>
               <label class="text-xs text-gray-400 block mb-1">调度方式</label>
               <select v-model="taskSchedule" class="input">
-                <option v-for="s in SCHEDULE_TYPES" :key="s.value" :value="s.value">{{ s.label }}</option>
+                <option v-for="s in SCHEDULE_TYPES" :key="s.value" :value="s.value">{{ t(s.labelKey) }}</option>
               </select>
             </div>
             <div>

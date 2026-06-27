@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useToast } from '@/composables/useToast'
-import { getTodoActions, getTodoInfo, getTodoBadge } from '@/composables/useTaskKinds'
+import { getTodoActions, getTodoInfo, getTodoBadgeKey } from '@/composables/useTaskKinds'
 import { initTaskKinds } from '@/components/tasks/init'
 import type { Family, Todo } from '@/types'
 
@@ -155,9 +155,9 @@ onMounted(async () => {
           <!-- Header: name + kind badge -->
           <div class="flex items-start justify-between gap-2">
             <p class="font-medium dark:text-gray-200 text-sm leading-snug line-clamp-2">{{ todo.task?.name || todo.task_id }}</p>
-            <span v-if="getTodoBadge(todo.task?.kind || '')"
-              class="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex-shrink-0"
-            >{{ getTodoBadge(todo.task?.kind || '') }}</span>
+            <span v-if="getTodoBadgeKey(todo.task?.kind || '')"
+              class="text-[10px] px-1 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 font-medium"
+            >{{ t(getTodoBadgeKey(todo.task?.kind || '')) }}</span>
           </div>
 
           <!-- Meta info -->
