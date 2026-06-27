@@ -11,7 +11,8 @@ import type { Family, Todo } from '@/types'
 
 initTaskKinds()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const localeCode = computed(() => locale.value)
 const toast = useToast()
 const route = useRoute()
 const familyId = route.params.familyId as string
@@ -95,8 +96,9 @@ async function loadTodos() {
 function fmtRange(start: string, end: string): string {
   const s = new Date(start)
   const e = new Date(end)
+  const locale = (localeCode.value === 'en' ? 'en-US' : 'zh-CN')
   const opts: Intl.DateTimeFormatOptions = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }
-  return s.toLocaleDateString('zh-CN', opts) + ' → ' + e.toLocaleDateString('zh-CN', opts)
+  return s.toLocaleDateString(locale, opts) + ' → ' + e.toLocaleDateString(locale, opts)
 }
 
 function getLocName(id: string) { return locations.value.find(l => l.id === id)?.name || '' }
@@ -138,7 +140,7 @@ onMounted(async () => {
       <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
         :class="activeTab === 'todos' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
         @click="activeTab = 'todos'"
-      >待办 ({{ todos.length }})</button>
+      >{{ t('dashboard.todos') }} ({{ todos.length }})</button>
       <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
         :class="activeTab === 'overview' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
         @click="activeTab = 'overview'"
@@ -147,7 +149,7 @@ onMounted(async () => {
 
     <!-- Todos Tab -->
     <div v-if="activeTab === 'todos'">
-      <div v-if="todos.length === 0" class="text-center text-gray-400 py-8">暂无待办事项 🎉</div>
+      <div v-if="todos.length === 0" class="text-center text-gray-400 py-8">{{ t('dashboard.noTodos') }}</div>
       <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3 items-stretch">
         <div v-for="todo in displayTodos" :key="todo.id"
           class="card flex flex-col gap-1.5 hover:shadow-md transition-shadow h-full"
@@ -192,7 +194,7 @@ onMounted(async () => {
       </div>
       <div v-if="hasMore" class="text-center mt-4">
         <button class="text-sm text-primary hover:underline font-medium" @click="showAll = !showAll">
-          {{ showAll ? '收起' : `显示全部 (${todos.length})` }}
+          {{ showAll ? t('dashboard.collapse') : t('dashboard.showAll').replace('{count}', String(todos.length)) }}
         </button>
       </div>
     </div>

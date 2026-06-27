@@ -67,6 +67,10 @@ export default {
   dashboard: {
     heading: '首页',
     overview: '概览',
+    todos: '待办',
+    noTodos: '暂无待办事项 🎉',
+    collapse: '收起',
+    showAll: '显示全部 ({count})',
     members: '家庭成员',
     groups: '家庭小组',
     inviteCode: '邀请码',

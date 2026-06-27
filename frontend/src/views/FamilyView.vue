@@ -23,7 +23,7 @@ const isFamilyAdmin = ref(false)
 
 interface Tab {
   id: string
-  label: string
+  labelKey: string
   icon: string
   component: any
 }
@@ -69,10 +69,10 @@ function openTab(id: string) {
     activeTabId.value = id
   } else if (id === 'dashboard') {
     // Dashboard always goes first
-    tabs.value.unshift({ id: nav.id, label: t(nav.labelKey), icon: nav.icon, component: nav.component })
+    tabs.value.unshift({ id: nav.id, labelKey: nav.labelKey, icon: nav.icon, component: nav.component })
     activeTabId.value = id
   } else {
-    tabs.value.push({ id: nav.id, label: t(nav.labelKey), icon: nav.icon, component: nav.component })
+    tabs.value.push({ id: nav.id, labelKey: nav.labelKey, icon: nav.icon, component: nav.component })
     activeTabId.value = id
   }
 
@@ -160,7 +160,7 @@ async function leaveFamily() {
           :class="activeTabId === tab.id ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
           @click="activeTabId = tab.id"
         >
-          <span class="truncate">{{ tab.icon }} {{ tab.label }}</span>
+          <span class="truncate">{{ tab.icon }} {{ t(tab.labelKey) }}</span>
           <span class="ml-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition-opacity flex-shrink-0" v-if="tab.id !== 'dashboard'" @click.stop="closeTab(tab.id)">✕</span>
         </button>
       </div>

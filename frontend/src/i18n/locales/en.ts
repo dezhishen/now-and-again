@@ -67,6 +67,10 @@ export default {
   dashboard: {
     heading: 'Home',
     overview: 'Overview',
+    todos: 'Todos',
+    noTodos: 'Nothing to do 🎉',
+    collapse: 'Collapse',
+    showAll: 'Show All ({count})',
     members: 'Family Members',
     groups: 'Family Groups',
     inviteCode: 'Invite Code',
