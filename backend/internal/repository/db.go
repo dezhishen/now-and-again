@@ -8,8 +8,8 @@ import (
 	"github.com/dezhishen/now-and-again/backend/internal/config"
 	"github.com/dezhishen/now-and-again/backend/internal/logger"
 
+	"github.com/glebarez/sqlite"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
