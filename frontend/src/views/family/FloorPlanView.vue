@@ -202,7 +202,7 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
             <button class="text-xs px-1.5 py-0.5 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/30" @click.stop="deletePlan(plan)" title="删除">🗑</button>
           </div>
         </div>
-        <p class="text-xs text-gray-400 mt-1">{{ plan.locations?.length || 0 }} 个地点</p>
+        <p class="text-xs text-gray-400 mt-1">{{ t('floorPlan.locationsCount').replace('{count}', String(plan.locations?.length || 0)) }}</p>
       </div>
     </div>
 
@@ -213,11 +213,11 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <div class="flex items-center gap-2">
               <h3 class="font-bold dark:text-gray-200">{{ editPlan.label }}</h3>
-              <span v-if="editPlan.is_cover" class="text-yellow-500 text-sm">⭐ 封面</span>
+              <span v-if="editPlan.is_cover" class="text-yellow-500 text-sm">⭐ {{ t('floorPlan.cover') }}</span>
             </div>
             <div class="flex items-center gap-2">
-              <button class="text-xs px-2 py-1 rounded" :class="showLocations ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 dark:text-gray-300'" @click="showLocations = !showLocations">{{ showLocations ? '📍 显示' : '📍 隐藏' }}</button>
-              <button v-if="!editPlan.is_cover" class="text-xs px-2 py-1 rounded bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300" @click="setAsCover(editPlan)">⭐ 设为封面</button>
+              <button class="text-xs px-2 py-1 rounded" :class="showLocations ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 dark:text-gray-300'" @click="showLocations = !showLocations">{{ showLocations ? '📍 ' + t('floorPlan.show') : '📍 ' + t('floorPlan.hide') }}</button>
+              <button v-if="!editPlan.is_cover" class="text-xs px-2 py-1 rounded bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300" @click="setAsCover(editPlan)">⭐ {{ t('floorPlan.setCover') }}</button>
               <button class="text-xs px-2 py-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none" @click="closeEdit">✕</button>
             </div>
           </div>
@@ -227,11 +227,11 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
             </div>
             <div v-if="showLocations" class="w-full lg:w-56 flex-shrink-0">
               <div class="card">
-                <h4 class="text-sm font-medium mb-2 dark:text-gray-200">关联地点</h4>
-                <div v-if="!editPlan.locations?.length" class="text-xs text-gray-400 py-2">暂无关联地点</div>
+                <h4 class="text-sm font-medium mb-2 dark:text-gray-200">{{ t('floorPlan.linkedLocations') }}</h4>
+                <div v-if="!editPlan.locations?.length" class="text-xs text-gray-400 py-2">{{ t('floorPlan.noLinked') }}</div>
                 <div v-for="loc in editPlan.locations" :key="loc.id" class="flex items-center justify-between py-1.5 text-sm">
                   <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: loc.color }" /><span class="dark:text-gray-300 truncate">{{ loc.name }}</span></div>
-                  <button class="text-xs text-danger hover:underline flex-shrink-0 ml-1" @click="unlinkLocation(loc.id)">取消关联</button>
+                  <button class="text-xs text-danger hover:underline flex-shrink-0 ml-1" @click="unlinkLocation(loc.id)">{{ t('floorPlan.unlink') }}</button>
                 </div>
               </div>
             </div>
@@ -247,9 +247,9 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <h3 class="font-bold dark:text-gray-200">{{ t('floorPlan.drawPlan') }}</h3>
             <div class="flex items-center gap-2">
-              <button class="text-xs px-2 py-1 rounded transition-colors" :class="snapToGrid ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-700 dark:text-gray-300'" @click="snapToGrid = !snapToGrid">⊞ 吸附</button>
-              <button class="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 dark:text-gray-300 hover:opacity-80" @click="undoLastPoint">↩ 撤销</button>
-              <button class="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 dark:text-gray-300 hover:opacity-80" @click="clearCanvas">🗑 清除</button>
+              <button class="text-xs px-2 py-1 rounded transition-colors" :class="snapToGrid ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-700 dark:text-gray-300'" @click="snapToGrid = !snapToGrid">⊞ {{ t('floorPlan.snap') }}</button>
+              <button class="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 dark:text-gray-300 hover:opacity-80" @click="undoLastPoint">↩ {{ t('floorPlan.undo') }}</button>
+              <button class="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 dark:text-gray-300 hover:opacity-80" @click="clearCanvas">🗑 {{ t('floorPlan.clear') }}</button>
               <button class="text-xs px-2 py-1 rounded bg-primary text-white hover:opacity-90" :disabled="drawPoints.length < 2" @click="saveDrawing">保存</button>
               <button class="text-xs px-2 py-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" @click="closeDrawer">✕</button>
             </div>
