@@ -122,6 +122,7 @@ now-and-again/
 │       └── output/             #   格式化输出 (table / json)
 │
 ├── doc/                        # 文档
+│   ├── deployment/docker.md    #   Docker 部署指南
 │   ├── architecture/overview.md
 │   ├── api/endpoints.md
 │   └── database/schema.md
@@ -238,6 +239,7 @@ export DB_DSN="host=localhost user=postgres password=xxx dbname=now_and_again po
 
 | 文档 | 说明 |
 |------|------|
+| [Docker 部署](doc/deployment/docker.md) | Docker 一键部署、环境变量、数据持久化、PostgreSQL |
 | [架构设计](doc/architecture/overview.md) | 系统架构、设计原则、数据流、部署方式 |
 | [API 文档](doc/api/endpoints.md) | 完整 RESTful API 路由表（60+ 个端点） |
 | [数据库 Schema](doc/database/schema.md) | 18 张表结构、索引策略 |
