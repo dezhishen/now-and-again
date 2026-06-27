@@ -298,5 +298,6 @@ export default {
     currentStatus: 'Current Status', storageTypeLabel: 'Storage type: ',
     storageLocalActive: '✓ Local storage active. Images stored in the server uploads directory.',
   },
+  confirm: { cancel: 'Cancel', ok: 'OK' },
   family: { leaveConfirm: 'Leave this family?', leaveFamily: 'Leave Family' },
 }

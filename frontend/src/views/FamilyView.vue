@@ -3,6 +3,7 @@ import { ref, onMounted, markRaw, provide, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import { useConfirm } from '@/composables/useConfirm'
 import { api } from '@/api/client'
 
 import DashboardView from './family/DashboardView.vue'
@@ -115,7 +116,7 @@ onMounted(async () => {
 })
 
 async function leaveFamily() {
-  if (!confirm(t('family.leaveConfirm'))) return
+  if (!await useConfirm(t('family.leaveConfirm'))) return
   try {
     await api.post('/families/' + route.params.familyId + '/leave')
     window.location.href = '/'

@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import { useConfirm } from '@/composables/useConfirm'
 import type { FamilyGroup, FamilyGroupMember } from '@/types'
 
 const { t } = useI18n()
@@ -126,7 +127,7 @@ async function reviewRequest(userId: string, action: 'active' | 'rejected') {
 }
 
 async function removeMember(userId: string) {
-  if (!confirm(t('groups.removeConfirm'))) return
+  if (!await useConfirm(t('groups.removeConfirm'))) return
   loading.value[userId] = true
   try {
     await api.delete('/groups/' + manageGroupId.value + '/members/' + userId)

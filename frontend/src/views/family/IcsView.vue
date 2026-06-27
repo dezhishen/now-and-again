@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, inject, watch, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useConfirm } from '@/composables/useConfirm'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useToast } from '@/composables/useToast'
@@ -135,7 +136,7 @@ async function saveFeed() {
 }
 
 async function deleteFeed(id: string) {
-  if (!confirm(t('ics.deleteConfirm'))) return
+  if (!await useConfirm(t('ics.deleteConfirm'))) return
   try { await api.delete('/ics-feeds/' + id); await loadFeeds(); toast.success(t('ics.deleted')) } catch (e: any) { toast.error(e.message) }
 }
 

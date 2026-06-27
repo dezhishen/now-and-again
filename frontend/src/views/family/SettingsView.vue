@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import { useConfirm } from '@/composables/useConfirm'
 import type { Family } from '@/types'
 
 const { t } = useI18n()
@@ -51,7 +52,7 @@ async function saveName() {
 }
 
 async function deleteFamily() {
-  if (!confirm(t('settingsPage.deleteConfirm'))) return
+  if (!await useConfirm(t('settingsPage.deleteConfirm'))) return
   try {
     await api.delete('/families/' + familyId)
     router.push('/')

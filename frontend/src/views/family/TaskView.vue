@@ -7,6 +7,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import TaskCard from '@/components/tasks/TaskCard.vue'
 import { useToast } from '@/composables/useToast'
 import { getCreateLabelKey, getDefaultCheckItems, getTaskKinds, getFormComponent } from '@/composables/useTaskKinds'
+import { useConfirm } from '@/composables/useConfirm'
 import { initTaskKinds } from '@/components/tasks/init'
 import type { Task, FamilyGroup, CheckItem } from '@/types'
 
@@ -180,7 +181,7 @@ async function toggleTask(task: Task) {
 }
 
 async function deleteTask(id: string) {
-  if (!confirm('确定删除此任务？')) return
+  if (!await useConfirm(t('taskCard.deleteConfirm'))) return
   try { await api.delete('/tasks/' + id); await loadTasks(); toast.success('已删除') } catch (e: any) { toast.error(e.message) }
 }
 

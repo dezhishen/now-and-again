@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import { useConfirm } from '@/composables/useConfirm'
 import type { FloorPlan, Location, Point } from '@/types'
 
 const { t } = useI18n()
@@ -77,7 +78,7 @@ async function doUpload(file: File, label?: string, isCover?: boolean) {
 }
 
 async function deletePlan(plan: FloorPlan) {
-  if (!confirm(t('floorPlan.deleteConfirm'))) return
+  if (!await useConfirm(t('floorPlan.deleteConfirm'))) return
   try {
     await api.delete('/floor-plans/' + plan.id)
     floorPlans.value = floorPlans.value.filter(p => p.id !== plan.id)

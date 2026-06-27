@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import { useConfirm } from '@/composables/useConfirm'
 import type { FamilyMember, FamilyRole } from '@/types'
 
 const { t } = useI18n()
@@ -58,7 +59,7 @@ async function changeRole(userId: string, role: FamilyRole) {
 }
 
 async function removeMember(userId: string) {
-  if (!confirm(t('members.removeConfirm'))) return
+  if (!await useConfirm(t('members.removeConfirm'))) return
   loading.value[userId] = true
   error.value = ''
   try {

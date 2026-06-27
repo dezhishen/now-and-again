@@ -307,5 +307,6 @@ export default {
     currentStatus: '当前状态', storageTypeLabel: '存储类型：',
     storageLocalActive: '✓ 本地存储已激活，图片保存在服务器的 uploads 目录下。',
   },
+  confirm: { cancel: '取消', ok: '确认' },
   family: { leaveConfirm: '确定要离开这个家庭吗？', leaveFamily: '离开家庭' },
 }

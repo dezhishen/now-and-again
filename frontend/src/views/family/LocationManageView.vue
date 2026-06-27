@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 import { getLocationKinds, getLocationKindIcon } from '@/composables/useLocationKinds'
 import { initLocationKinds } from '@/components/locations/init'
 import type { Location, FloorPlan } from '@/types'
@@ -97,7 +98,7 @@ async function saveLocation() {
 }
 
 async function deleteLocation(loc: Location) {
-  if (!confirm(t('locations.deleteConfirm').replace('{name}', loc.name))) return
+  if (!await useConfirm(t('locations.deleteConfirm').replace('{name}', loc.name))) return
   try {
     await api.delete('/locations/' + loc.id)
     locations.value = locations.value.filter(l => l.id !== loc.id)
@@ -105,8 +106,8 @@ async function deleteLocation(loc: Location) {
   } catch (e: any) { toast.error(e.message) }
 }
 
-function unlinkPlan(loc: Location) {
-  if (!confirm(t('locations.unlinkConfirm').replace('{name}', loc.name))) return
+async function unlinkPlan(loc: Location) {
+  if (!await useConfirm(t('locations.unlinkConfirm').replace('{name}', loc.name))) return
   api.put<Location>('/locations/' + loc.id, { floor_plan_id: '' }).then(updated => {
     const idx = locations.value.findIndex(l => l.id === loc.id)
     if (idx >= 0) locations.value[idx] = updated
