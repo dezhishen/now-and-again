@@ -40,6 +40,8 @@ class ApiClient {
   private accessToken: string | null = null
   private refreshPromise: Promise<boolean> | null = null
   private onSessionExpired: (() => void) | null = null
+  /** Prevent concurrent expired-session redirects. */
+  private sessionExpiredFired = false
 
   constructor() {
     // Restore token from sessionStorage on page refresh
@@ -52,6 +54,7 @@ class ApiClient {
   private setToken(token: string | null) {
     this.accessToken = token
     saveToken(token)
+    if (token) this.sessionExpiredFired = false // reset on new token
   }
 
   setAccessToken(token: string | null) { this.setToken(token) }
@@ -62,7 +65,7 @@ class ApiClient {
     return !!this.accessToken && !isTokenExpired(this.accessToken)
   }
 
-  /** Register callback: called only when refresh returns 401 (session truly expired). */
+  /** Register callback: fired exactly once when session is confirmed expired (refresh returned 401). */
   onExpired(fn: () => void) { this.onSessionExpired = fn }
 
   /**
@@ -89,9 +92,17 @@ class ApiClient {
     } catch { return null }
   }
 
-  /** Refresh access token using the httpOnly cookie. Returns true if succeeded. */
+  /**
+   * Refresh the access token using the httpOnly refresh-token cookie.
+   *
+   * Returns:
+   *   true  — new token obtained, stored in memory + sessionStorage
+   *   false — refresh failed; if HTTP 401 the old token was already cleared
+   *
+   * Concurrent calls are deduplicated: all wait for the single in-flight refresh.
+   */
   private async refreshAccessToken(): Promise<boolean> {
-    // Dedupe concurrent refresh calls
+    // Dedupe: if a refresh is already in flight, wait for its result
     if (this.refreshPromise) return this.refreshPromise
 
     this.refreshPromise = (async () => {
@@ -100,10 +111,18 @@ class ApiClient {
           method: 'POST', credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
         })
-        if (!res.ok) {
+
+        if (res.status === 401) {
+          // Refresh token is also expired — session is truly over
           this.setToken(null)
           return false
         }
+
+        if (!res.ok) {
+          // Server error (5xx) or other — keep existing token, caller can retry
+          return false
+        }
+
         const json: APIResponse<{ access_token: string }> = await res.json()
         if (json.success && json.data?.access_token) {
           this.setToken(json.data.access_token)
@@ -111,6 +130,7 @@ class ApiClient {
         }
         return false
       } catch {
+        // Network error — keep existing token, caller can retry
         return false
       } finally {
         this.refreshPromise = null
@@ -121,9 +141,15 @@ class ApiClient {
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    // Proactively refresh if token is about to expire
+    // Proactively refresh if token is about to expire.
+    // If refresh fails (network error), keep the old token and let the actual
+    // API call decide — it might still be valid, or it will return 401.
     if (this.accessToken && isTokenExpiringSoon(this.accessToken, 120)) {
       await this.refreshAccessToken()
+      // Note: we do NOT check the result here. If refresh cleared the token
+      // (401), the next API call will get 401 and the handler below will
+      // trigger the logout flow. If refresh failed due to network, the old
+      // token might still work.
     }
 
     const doFetch = async () => {
@@ -140,18 +166,28 @@ class ApiClient {
 
     let res = await doFetch()
 
-    // Only refresh on 401 (session expired) — not on other error codes
+    // ── 401: token expired → try refresh once ─────────────────
+    // Guards:
+    //  - Only on 401 (not 403, 5xx, etc.)
+    //  - Must have a token to refresh (otherwise we'd loop on public endpoints)
+    //  - Never refresh the refresh endpoint itself
     if (res.status === SESSION_EXPIRED_CODE && this.accessToken && path !== '/auth/refresh') {
       const refreshed = await this.refreshAccessToken()
+
       if (refreshed) {
-        // Retry the original request with new token
+        // New token obtained → retry the original request once
         res = await doFetch()
-      } else {
-        // Refresh also failed → truly expired
-        this.setToken(null)
-        this.onSessionExpired?.()
+      } else if (!this.accessToken) {
+        // Token was cleared by refreshAccessToken (received 401 from /auth/refresh).
+        // Session is confirmed expired — redirect to login exactly once.
+        if (!this.sessionExpiredFired) {
+          this.sessionExpiredFired = true
+          this.onSessionExpired?.()
+        }
         throw new Error('Session expired')
       }
+      // else: refresh failed due to network/server error, token kept.
+      // Fall through to let the original 401 response propagate naturally.
     }
 
     const json: APIResponse<T> = await res.json()
