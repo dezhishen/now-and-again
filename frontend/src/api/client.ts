@@ -46,68 +46,29 @@ function getJWTExpiry(token: string): number {
 // ─── API Client ──────────────────────────────────────────────────
 
 class ApiClient {
-  /** Raw access token (mirrors storedToken.token for fast access). */
   private accessToken: string | null = null
-  /** Expiry as epoch ms. 0 means unknown/not set. */
   private accessTokenExpiresAt: number = 0
   private refreshPromise: Promise<boolean> | null = null
   private onSessionExpired: (() => void) | null = null
-  /** Prevent concurrent expired-session redirects. */
   private sessionExpiredFired = false
-  /** Timer handle for scheduled background refresh. */
-  private refreshTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor() {
-    // Restore token + expiry from sessionStorage on page refresh
     const stored = loadStoredToken()
     if (stored && stored.expiresAt > Date.now()) {
       this.accessToken = stored.token
       this.accessTokenExpiresAt = stored.expiresAt
-      this.scheduleRefresh()
     }
   }
 
-  /** Persist token + expiry to both memory and sessionStorage. */
   private setToken(token: string | null, expiresAt: number = 0) {
     this.accessToken = token
     this.accessTokenExpiresAt = expiresAt
     if (token && expiresAt > 0) {
       saveStoredToken({ token, expiresAt })
-      this.scheduleRefresh()
     } else {
       saveStoredToken(null)
-      this.clearRefreshTimer()
     }
     if (token) this.sessionExpiredFired = false
-  }
-
-  /**
-   * Schedule a background refresh shortly before the token expires.
-   * This keeps the session alive even when the user is idle (no API calls).
-   * Refresh fires at 80% of token lifetime (e.g. 12 min into a 15 min token).
-   */
-  private scheduleRefresh() {
-    this.clearRefreshTimer()
-    if (!this.accessTokenExpiresAt) return
-
-    const now = Date.now()
-    const remaining = this.accessTokenExpiresAt - now
-    if (remaining <= 0) return
-
-    // Fire at 80% of remaining lifetime, but at least 10s from now
-    const delay = Math.max(Math.floor(remaining * 0.8), 10_000)
-
-    this.refreshTimer = setTimeout(() => {
-      // Silently refresh — if it fails, the next API call will handle 401
-      this.refreshAccessToken().catch(() => {})
-    }, delay)
-  }
-
-  private clearRefreshTimer() {
-    if (this.refreshTimer) {
-      clearTimeout(this.refreshTimer)
-      this.refreshTimer = null
-    }
   }
 
   setAccessToken(token: string | null) {
