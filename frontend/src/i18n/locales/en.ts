@@ -3,6 +3,7 @@ export default {
     title: 'Now & Again',
     subtitle: 'Life is just a mix of "Now" and "Again".',
     tagline: 'Family chore management, starting now.',
+    loading: 'Loading...',
   },
   register: {
     heading: 'Create Account',
@@ -136,6 +137,12 @@ export default {
     save: 'Save',
     delete: 'Delete',
     unlink: 'Unlink',
+    updated: 'Updated',
+    created: 'Created',
+    deleted: 'Deleted',
+    deleteConfirm: 'Delete location "{name}"?',
+    unlinkConfirm: 'Unlink "{name}" from floor plan?',
+    unlinked: 'Unlinked',
   },
   ics: {
     guide: 'Calendar Subscription',

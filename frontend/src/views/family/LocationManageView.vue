@@ -88,31 +88,31 @@ async function saveLocation() {
       })
       const idx = locations.value.findIndex(l => l.id === editLoc.value!.id)
       if (idx >= 0) locations.value[idx] = updated
-      toast.success('已更新')
+      toast.success(t('locations.updated'))
     } else {
       const created = await api.post<Location>('/families/' + familyId + '/locations', body)
       locations.value.push(created)
-      toast.success('已创建')
+      toast.success(t('locations.created'))
     }
     editing.value = false
   } catch (e: any) { toast.error(e.message) }
 }
 
 async function deleteLocation(loc: Location) {
-  if (!confirm(`删除地点"${loc.name}"？`)) return
+  if (!confirm(t('locations.deleteConfirm').replace('{name}', loc.name))) return
   try {
     await api.delete('/locations/' + loc.id)
     locations.value = locations.value.filter(l => l.id !== loc.id)
-    toast.success('已删除')
+    toast.success(t('locations.deleted'))
   } catch (e: any) { toast.error(e.message) }
 }
 
 function unlinkPlan(loc: Location) {
-  if (!confirm(`将"${loc.name}"从户型图中取消标记？`)) return
+  if (!confirm(t('locations.unlinkConfirm').replace('{name}', loc.name))) return
   api.put<Location>('/locations/' + loc.id, { floor_plan_id: '' }).then(updated => {
     const idx = locations.value.findIndex(l => l.id === loc.id)
     if (idx >= 0) locations.value[idx] = updated
-    toast.success('已取消标记')
+    toast.success(t('locations.unlinked'))
   }).catch((e: any) => toast.error(e.message))
 }
 

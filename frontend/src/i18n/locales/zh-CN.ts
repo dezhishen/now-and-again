@@ -3,6 +3,7 @@ export default {
     title: 'Now & Again',
     subtitle: 'Life is just a mix of "Now" and "Again".',
     tagline: '家庭事务管理，从此刻开始。',
+    loading: '加载中...',
   },
   register: {
     heading: '注册账号',
@@ -136,6 +137,12 @@ export default {
     save: '保存',
     delete: '删除',
     unlink: '取消标记',
+    updated: '已更新',
+    created: '已创建',
+    deleted: '已删除',
+    deleteConfirm: '删除地点"{name}"？',
+    unlinkConfirm: '将"{name}"从户型图中取消标记？',
+    unlinked: '已取消标记',
   },
   ics: {
     guide: '日历订阅',
