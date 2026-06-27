@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 
+const { t } = useI18n()
 const auth = useAuthStore()
 const loading = ref(true)
 const saving = ref(false)
@@ -50,7 +52,7 @@ async function save() {
 
 <template>
   <div class="max-w-xl mx-auto">
-    <h2 class="text-xl md:text-2xl font-bold mb-6 dark:text-gray-200">个人中心</h2>
+    <h2 class="text-xl md:text-2xl font-bold mb-6 dark:text-gray-200">{{ t('profile.heading') }}</h2>
 
     <p v-if="error" class="text-danger text-sm mb-4">{{ error }}</p>
     <LoadingSpinner v-if="loading" />
@@ -64,28 +66,28 @@ async function save() {
           <div>
             <p class="font-medium text-lg dark:text-gray-200">{{ auth.user?.display_name }}</p>
             <p class="text-sm text-gray-400">{{ auth.user?.email }}</p>
-            <p v-if="auth.isAdmin" class="text-xs text-primary mt-0.5">系统管理员</p>
+            <p v-if="auth.isAdmin" class="text-xs text-primary mt-0.5">{{ t('profile.adminRole') }}</p>
           </div>
         </div>
 
         <div class="space-y-4">
           <div>
-            <label class="text-xs text-gray-400 block mb-1">显示名称</label>
-            <input v-model="displayName" class="input" placeholder="你的显示名称" />
+            <label class="text-xs text-gray-400 block mb-1">{{ t('profile.displayName') }}</label>
+            <input v-model="displayName" class="input" :placeholder="t('profile.displayNamePlaceholder')" />
           </div>
           <div>
-            <label class="text-xs text-gray-400 block mb-1">邮箱</label>
+            <label class="text-xs text-gray-400 block mb-1">{{ t('profile.email') }}</label>
             <input v-model="email" type="email" class="input" placeholder="your@email.com" />
           </div>
           <div>
-            <label class="text-xs text-gray-400 block mb-1">手机号</label>
-            <input v-model="phone" class="input" placeholder="可选" />
+            <label class="text-xs text-gray-400 block mb-1">{{ t('profile.phone') }}</label>
+            <input v-model="phone" class="input" :placeholder="t('profile.phoneOptional')" />
           </div>
         </div>
       </div>
 
       <button class="btn-primary" :disabled="saving" @click="save">
-        {{ saving ? '保存中...' : saved ? '已保存 ✓' : '保存修改' }}
+        {{ saving ? t('profile.saving') : saved ? t('profile.saved') : t('profile.save') }}
       </button>
     </template>
   </div>
