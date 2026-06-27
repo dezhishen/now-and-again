@@ -8,11 +8,11 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DATABASE_DRIVER=sqlite
-      - DATABASE_DSN=/data/now-and-again.db
-      - JWT_SECRET=dev-secret-change-in-production
       - DATA_DIR=/data
       - GIN_MODE=release
+      # JWT_SECRET=    # 可选，不设置则自动生成并持久化到 /data/.jwt_secret
+      # DB_DRIVER=postgres  # 使用 PostgreSQL 时取消注释
+      # DB_DSN=host=postgres user=... password=... dbname=now_and_again sslmode=disable
     volumes:
       - data:/data
     restart: unless-stopped
