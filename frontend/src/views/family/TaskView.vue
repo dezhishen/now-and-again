@@ -38,7 +38,7 @@ const logPage = ref(1)
 const logTotal = ref(0)
 const logSearch = ref('')
 const LOG_PAGE_SIZE = 10
-const logs = ref<{ id: string; task_id: string; status: string; message?: string; log_type: string; operator_id?: string; created_at: string }[]>([])
+const logs = ref<{ id: string; task_id: string; task_name?: string; status: string; message?: string; log_type: string; operator_id?: string; created_at: string }[]>([])
 
 const logTotalPages = computed(() => Math.max(1, Math.ceil(logTotal.value / LOG_PAGE_SIZE)))
 
@@ -334,6 +334,7 @@ function scheduleSummary(task: Task): string {
             <template v-else>
             <div v-for="log in logs" :key="log.id" class="flex items-start gap-2 py-1.5 text-sm border-b dark:border-gray-700 last:border-0">
               <span class="text-xs text-gray-400 w-32 flex-shrink-0">{{ new Date(log.created_at).toLocaleString() }}</span>
+              <span v-if="log.task_name" class="text-xs text-primary bg-primary/10 px-1 rounded flex-shrink-0 max-w-[80px] truncate" :title="log.task_name">{{ log.task_name }}</span>
               <span class="font-medium w-20 flex-shrink-0" :class="LOG_CLASSES[log.status] || 'text-gray-500'">{{ LOG_LABELS[log.status] || log.status }}</span>
               <span v-if="log.message" class="text-gray-400 truncate flex-1">{{ log.message }}</span>
               <span v-if="log.log_type === 'system'" class="text-xs text-gray-400">系统</span>

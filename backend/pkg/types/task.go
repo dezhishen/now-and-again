@@ -107,6 +107,7 @@ type InspectionSelection struct {
 type TaskLog struct {
 	ID         string    `json:"id"`
 	TaskID     string    `json:"task_id"`
+	TaskName   string    `json:"task_name,omitempty"`
 	TodoID     string    `json:"todo_id,omitempty"`
 	Status     string    `json:"status"`
 	Message    string    `json:"message,omitempty"`

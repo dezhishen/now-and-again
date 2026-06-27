@@ -40,8 +40,8 @@ func (s *LogService) ListTaskLogs(ctx context.Context, taskID uuid.UUID, limit, 
 	result := make([]types.TaskLog, len(logs))
 	for i, l := range logs {
 		result[i] = types.TaskLog{
-			ID: l.ID, TaskID: l.TaskID, TodoID: l.TodoID, Status: l.Status,
-			Message: l.Message, LogType: l.LogType,
+			ID: l.ID, TaskID: l.TaskID, TaskName: l.Task.Name, TodoID: l.TodoID,
+			Status: l.Status, Message: l.Message, LogType: l.LogType,
 			OperatorID: l.OperatorID, CreatedAt: l.CreatedAt,
 		}
 	}

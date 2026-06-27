@@ -155,15 +155,32 @@ func (r *TaskRepo) CreateUserLog(taskID, todoID, userID, action, message string)
 	}).Error
 }
 
+// childTaskIDs returns a subquery selecting IDs of tasks whose parent is taskID.
+func (r *TaskRepo) childTaskIDs(taskID string) *gorm.DB {
+	return r.db.Model(&TaskModel{}).Select("id").Where("parent_task_id = ?", taskID)
+}
+
+// ListLogs returns logs for a task AND its child tasks, with Task names preloaded.
 func (r *TaskRepo) ListLogs(taskID string, limit, offset int) ([]TaskLogModel, error) {
 	var logs []TaskLogModel
-	err := r.db.Where("task_id = ?", taskID).Order("created_at DESC").Limit(limit).Offset(offset).Find(&logs).Error
+	err := r.db.
+		Preload("Task").
+		Where("task_id = ? OR task_id IN (?)", taskID, r.childTaskIDs(taskID)).
+		Order("created_at DESC").
+		Limit(limit).Offset(offset).
+		Find(&logs).Error
 	return logs, err
 }
 
+// ListUserLogs returns user-generated logs for a task AND its child tasks.
 func (r *TaskRepo) ListUserLogs(taskID string, limit, offset int) ([]TaskLogModel, error) {
 	var logs []TaskLogModel
-	err := r.db.Where("task_id = ? AND log_type = ?", taskID, "user").Order("created_at DESC").Limit(limit).Offset(offset).Find(&logs).Error
+	err := r.db.
+		Preload("Task").
+		Where("(task_id = ? OR task_id IN (?)) AND log_type = ?", taskID, r.childTaskIDs(taskID), "user").
+		Order("created_at DESC").
+		Limit(limit).Offset(offset).
+		Find(&logs).Error
 	return logs, err
 }
 

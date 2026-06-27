@@ -285,13 +285,13 @@ func (CheckItemModel) TableName() string { return "check_items" }
 
 type CheckItemBranchModel struct {
 	BaseModel
-	CheckItemID  string          `gorm:"index;type:char(36);not null"`
-	Name         string          `gorm:"size:128;not null"`
-	CreateTodo   bool            `gorm:"not null;default:false"`
-	BranchTaskID string          `gorm:"index;type:char(36)"`
-	SortOrder    int             `gorm:"not null;default:0"`
-	CheckItem    CheckItemModel  `gorm:"foreignKey:CheckItemID"`
-	BranchTask   *TaskModel      `gorm:"foreignKey:BranchTaskID"`
+	CheckItemID  string         `gorm:"index;type:char(36);not null"`
+	Name         string         `gorm:"size:128;not null"`
+	CreateTodo   bool           `gorm:"not null;default:false"`
+	BranchTaskID string         `gorm:"index;type:char(36)"`
+	SortOrder    int            `gorm:"not null;default:0"`
+	CheckItem    CheckItemModel `gorm:"foreignKey:CheckItemID"`
+	BranchTask   *TaskModel     `gorm:"foreignKey:BranchTaskID"`
 }
 
 func (CheckItemBranchModel) TableName() string { return "check_item_branches" }
