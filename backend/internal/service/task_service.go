@@ -106,6 +106,9 @@ func (s *TaskService) CreateTask(ctx context.Context, familyID uuid.UUID, req *t
 func (s *TaskService) UpdateTask(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.Task, error) {
 	return s.Update(ctx, taskID, req)
 }
+func (s *TaskService) SetTaskEnabled(ctx context.Context, taskID uuid.UUID, enabled bool) (*types.Task, error) {
+	return s.SetEnabled(ctx, taskID, enabled)
+}
 func (s *TaskService) DeleteTask(ctx context.Context, taskID uuid.UUID) error {
 	return s.Delete(ctx, taskID)
 }
@@ -118,31 +121,28 @@ func (s *TaskService) TriggerTask(ctx context.Context, taskID uuid.UUID) error {
 
 func (s *TaskService) registerToScheduler(task *repository.TaskModel) {
 	if !task.Enabled {
-		s.scheduler.RemoveJob(task.ID)
+		s.scheduler.Unschedule(task.ID)
 		return
 	}
-	b := &scheduler.JobBuilder{
+	s.scheduler.Schedule(scheduler.TaskInfo{
 		TaskID:       task.ID,
 		ScheduleType: task.ScheduleType,
 		ScheduleData: task.ScheduleData,
-		Callback: func(taskID string, triggeredAt time.Time) error {
+		OnFire: func(taskID string, triggeredAt time.Time) error {
 			return s.onTaskTriggered(taskID, task.FamilyID)
 		},
-	}
-
-	// One-shot tasks auto-disable after firing. Determined by the handler,
-	// not by hardcoded schedule-type string comparison.
-	if h := scheduler.HandlerByCode(task.ScheduleType); h != nil && h.IsOneShot() {
-		taskID := task.ID
-		b.AfterFire = func(_ string) {
+		OnDone: func(taskID string) {
 			s.repo.DisableTask(taskID)
-		}
-	}
-
-	s.scheduler.RegisterJob(b)
+		},
+	})
 }
 
 func (s *TaskService) onTaskTriggered(taskID, familyID string) error {
+	// Double-check: don't create todo for disabled or deleted tasks.
+	task, err := s.repo.FindTaskByID(taskID)
+	if err != nil || task == nil || !task.Enabled {
+		return nil
+	}
 	return s.createTodo(taskID, familyID, false)
 }
 
@@ -179,6 +179,8 @@ func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID
 	if err := tx.CreateTodo(todo); err != nil {
 		return err
 	}
+	// Log system-generated todo creation so it appears in task logs.
+	tx.CreateLog(taskID, "generated", fmt.Sprintf("系统自动生成待办: %s", task.Name))
 	return tx.UpdateLastTodoAt(taskID, now)
 }
 
@@ -251,6 +253,9 @@ func (s *TaskService) Trigger(ctx context.Context, taskID uuid.UUID) error {
 	if err != nil {
 		return err
 	}
+	if !task.Enabled {
+		return fmt.Errorf("禁用的任务无法生成待办，请先启用")
+	}
 
 	// Avoid duplicate: don't create another todo if one is already pending today.
 	if has, _ := s.repo.HasPendingTodoForTaskToday(taskID.String(), timeutil.Now()); has {
@@ -277,6 +282,9 @@ func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.U
 	t, err := s.repo.FindTaskByID(taskID.String())
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
+	}
+	if !t.Enabled {
+		return nil, fmt.Errorf("禁用的任务无法修改，请先启用")
 	}
 	if req.Task != nil {
 		f := req.Task
@@ -308,9 +316,13 @@ func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.U
 		if err := tx.UpdateTask(t); err != nil {
 			return err
 		}
-		if h := s.taskManager.Get(t.Kind); h != nil {
-			if err := h.OnUpdate(&_taskStorage{repo: tx}, t, req.Extra); err != nil {
-				return err
+		// Only invoke plugin lifecycle when extra data is actually provided.
+		// Toggling enabled or changing schedule fields should not delete/recreate plugin data.
+		if req.Extra != nil {
+			if h := s.taskManager.Get(t.Kind); h != nil {
+				if err := h.OnUpdate(&_taskStorage{repo: tx}, t, req.Extra); err != nil {
+					return err
+				}
 			}
 		}
 		return nil
@@ -318,6 +330,22 @@ func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.U
 		return nil, err
 	}
 
+	s.registerToScheduler(t)
+	t, _ = s.repo.FindTaskByID(taskID.String())
+	return taskModelToType(t), nil
+}
+
+// SetEnabled enables or disables a task without touching plugin-owned data.
+// It only updates the enabled flag and registers/unregisters with the scheduler.
+func (s *TaskService) SetEnabled(ctx context.Context, taskID uuid.UUID, enabled bool) (*types.Task, error) {
+	t, err := s.repo.FindTaskByID(taskID.String())
+	if err != nil {
+		return nil, fmt.Errorf("task not found")
+	}
+	t.Enabled = enabled
+	if err := s.repo.UpdateTask(t); err != nil {
+		return nil, err
+	}
 	s.registerToScheduler(t)
 	t, _ = s.repo.FindTaskByID(taskID.String())
 	return taskModelToType(t), nil
@@ -337,7 +365,7 @@ func (s *TaskService) Delete(ctx context.Context, taskID uuid.UUID) error {
 			return err
 		}
 	}
-	s.scheduler.RemoveJob(taskID.String())
+	s.scheduler.Unschedule(taskID.String())
 	return nil
 }
 
@@ -591,5 +619,5 @@ func marshalJSON(v any) string {
 }
 
 func taskModelToType(t *repository.TaskModel) *types.Task {
-	return repository.TaskModelToType(t)
+	return types.TaskFromModel(t)
 }

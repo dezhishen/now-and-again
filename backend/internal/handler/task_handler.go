@@ -101,6 +101,27 @@ func (h *TaskHandlers) Delete(c *gin.Context) {
 	ok(c, gin.H{"message": "task deleted"})
 }
 
+func (h *TaskHandlers) SetEnabled(c *gin.Context) {
+	taskID, err := paramUUID(c, "task_id")
+	if err != nil {
+		badRequest(c, "invalid task_id")
+		return
+	}
+	var body struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		badRequest(c, err.Error())
+		return
+	}
+	t, err := h.TaskSvc.SetTaskEnabled(userCtx(c), taskID, body.Enabled)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, t)
+}
+
 func (h *TaskHandlers) ListTodos(c *gin.Context) {
 	familyID, err := paramUUID(c, "family_id")
 	if err != nil {

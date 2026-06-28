@@ -7,6 +7,7 @@ import (
 
 	"github.com/dezhishen/now-and-again/backend/internal/config"
 	"github.com/dezhishen/now-and-again/backend/internal/logger"
+	"github.com/dezhishen/now-and-again/backend/pkg/model"
 	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 
 	"github.com/glebarez/sqlite"
@@ -45,10 +46,10 @@ func NewDB(cfg config.DatabaseConfig) (*gorm.DB, error) {
 	return db, nil
 }
 
-// Migrate runs auto-migration for all models.
+// Migrate runs auto-migration for all models (built-in + plugin-registered).
 func Migrate(db *gorm.DB) error {
 	logger.Infof("running database migrations...")
-	return db.AutoMigrate(
+	models := []any{
 		&UserModel{},
 		&AccountModel{},
 		&RoleModel{},
@@ -66,11 +67,10 @@ func Migrate(db *gorm.DB) error {
 		&TaskModel{},
 		&TodoModel{},
 		&TaskLogModel{},
-		&InspectionResultModel{},
-		&CheckItemModel{},
-		&CheckItemBranchModel{},
 		&IcsFeedModel{},
-	)
+	}
+	models = append(models, model.MigrationModels()...)
+	return db.AutoMigrate(models...)
 }
 
 // Seed inserts default roles.

@@ -1,6 +1,6 @@
 package locationkind
 
-import "github.com/dezhishen/now-and-again/backend/internal/repository"
+import "github.com/dezhishen/now-and-again/backend/pkg/model"
 
 // ─── Handler Interface ───────────────────────────────────────────
 
@@ -16,7 +16,7 @@ type Handler interface {
 
 	// Validate is called before creating/updating a location.
 	// Return nil if valid, or an error if the extra data is invalid.
-	Validate(loc *repository.LocationModel, extra any) error
+	Validate(loc *model.LocationModel, extra any) error
 }
 
 // ─── Registry ────────────────────────────────────────────────────

@@ -11,109 +11,145 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 )
 
-// Callback is invoked when a scheduled task triggers.
-type Callback func(taskID string, triggeredAt time.Time) error
-
 // LogFunc records scheduler events to an external system (e.g. DB).
 type LogFunc func(taskID, status, message string)
 
-// JobBuilder packages parameters for building a gocron job,
-// hiding gocron details from business code.
-type JobBuilder struct {
+// TaskInfo is the contract between service layer and scheduler.
+// The scheduler handles all type-specific logic (one-shot, recurring, etc.)
+// internally. The service layer only provides task metadata and callbacks.
+type TaskInfo struct {
 	TaskID       string
 	ScheduleType string
 	ScheduleData string // raw JSON
-	Callback     Callback
-	AfterFire    func(taskID string) // optional, called after Callback succeeds
+	OnFire       func(taskID string, triggeredAt time.Time) error
+	OnDone       func(taskID string) // called when a one-shot task finishes (fired or manually completed)
 }
 
-// Scheduler wraps gocron.Scheduler, providing Register/Remove by task ID
-// and bridging handler definitions to gocron jobs.
+// scheduledTask is the internal record stored per scheduled task.
+type scheduledTask struct {
+	scheduleType string
+	onDone       func(taskID string)
+}
+
+// Scheduler wraps gocron.Scheduler, providing closed-loop task scheduling.
+// All schedule-type-specific logic (one-shot auto-remove, etc.) is handled
+// internally. The service layer only calls Schedule/Unschedule/MarkCompleted.
 type Scheduler struct {
-	gs       gocron.Scheduler
-	mu       sync.Mutex
-	logFunc  LogFunc
-	handlers map[string]Handler // populated via RegisterHandler
+	gs        gocron.Scheduler
+	mu        sync.Mutex
+	logFunc   LogFunc
+	registry  *Registry                // handler registry (defaults to global)
+	scheduled map[string]scheduledTask // taskID → internal record
 }
 
-// New creates a gocron-backed Scheduler. opts are passed directly to gocron.
+// New creates a gocron-backed Scheduler using the default global handler registry.
 func New(logFunc LogFunc, opts ...gocron.SchedulerOption) (*Scheduler, error) {
+	return NewWithRegistry(logFunc, defaultRegistry, opts...)
+}
+
+// NewWithRegistry creates a Scheduler with a specific handler registry.
+func NewWithRegistry(logFunc LogFunc, reg *Registry, opts ...gocron.SchedulerOption) (*Scheduler, error) {
 	gs, err := gocron.NewScheduler(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("create gocron: %w", err)
 	}
-	s := &Scheduler{
-		gs:       gs,
-		logFunc:  logFunc,
-		handlers: make(map[string]Handler),
-	}
-	// Register built-in handlers from the global registry
-	for _, h := range AllHandlers() {
-		s.handlers[h.Code()] = h
-	}
-	return s, nil
+	return &Scheduler{
+		gs:        gs,
+		logFunc:   logFunc,
+		registry:  reg,
+		scheduled: make(map[string]scheduledTask),
+	}, nil
 }
 
-// RegisterJob builds a gocron job from the JobBuilder and registers it.
-// If a job with the same task_id tag already exists, it is replaced.
-func (s *Scheduler) RegisterJob(b *JobBuilder) error {
+// Schedule registers or replaces a job for the given task.
+// The scheduler internally handles one-shot auto-remove after firing.
+func (s *Scheduler) Schedule(t TaskInfo) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Remove existing job tagged with this task_id
-	s.removeByTag(b.TaskID)
+	// Remove existing job for this task ID
+	s.removeByTag(t.TaskID)
 
-	handler, ok := s.handlers[b.ScheduleType]
-	if !ok {
-		return fmt.Errorf("unknown schedule type: %s", b.ScheduleType)
+	handler := s.registry.Get(t.ScheduleType)
+	if handler == nil {
+		return fmt.Errorf("unknown schedule type: %s", t.ScheduleType)
 	}
 
 	var data map[string]interface{}
-	json.Unmarshal([]byte(b.ScheduleData), &data)
+	json.Unmarshal([]byte(t.ScheduleData), &data)
 
 	def := handler.BuildJob(data)
 	if def == nil {
-		return fmt.Errorf("handler %s returned nil def", b.ScheduleType)
+		return fmt.Errorf("handler %s returned nil def", t.ScheduleType)
 	}
 
-	// Build gocron task with callback
+	isOneShot := handler.IsOneShot()
+
+	// Build gocron task. The scheduler wraps the callback with one-shot logic.
 	taskFn := gocron.NewTask(func() {
 		now := timeutil.Now()
-		s.log("triggered", b.TaskID, "")
-		if err := b.Callback(b.TaskID, now); err != nil {
-			s.log("error", b.TaskID, err.Error())
+		s.log("triggered", t.TaskID, "")
+		if err := t.OnFire(t.TaskID, now); err != nil {
+			s.log("error", t.TaskID, err.Error())
 			return
 		}
-		if b.AfterFire != nil {
-			b.AfterFire(b.TaskID)
+		// One-shot tasks auto-unschedule after successful fire.
+		if isOneShot {
+			s.removeByTagLocked(t.TaskID)
+			delete(s.scheduled, t.TaskID)
+			if t.OnDone != nil {
+				t.OnDone(t.TaskID)
+			}
 		}
 	})
 
-	_, err := s.gs.NewJob(def.toGocronDefinition(), taskFn, gocron.WithTags(b.TaskID))
+	_, err := s.gs.NewJob(def.toGocronDefinition(), taskFn, gocron.WithTags(t.TaskID))
 	if err != nil {
 		return fmt.Errorf("register job: %w", err)
 	}
 
-	s.log("registered", b.TaskID, "schedule="+b.ScheduleType)
+	// Store internal record for MarkCompleted lookup.
+	s.scheduled[t.TaskID] = scheduledTask{
+		scheduleType: t.ScheduleType,
+		onDone:       t.OnDone,
+	}
+
+	s.log("registered", t.TaskID, "schedule="+t.ScheduleType)
 	return nil
 }
 
-// RemoveJob removes a job by task_id tag.
-func (s *Scheduler) RemoveJob(taskID string) {
+// Unschedule removes a job by task ID.
+func (s *Scheduler) Unschedule(taskID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.removeByTag(taskID)
+	s.removeByTagLocked(taskID)
+	delete(s.scheduled, taskID)
 	s.log("removed", taskID, "")
 }
 
-func (s *Scheduler) removeByTag(tag string) {
-	for _, j := range s.gs.Jobs() {
-		for _, t := range j.Tags() {
-			if t == tag {
-				s.gs.RemoveJob(j.ID())
-				return
-			}
-		}
+// MarkCompleted signals that a task's todo was completed by the user.
+// For one-shot tasks this unschedules and calls OnDone.
+// For recurring tasks this is a no-op.
+func (s *Scheduler) MarkCompleted(taskID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	rec, ok := s.scheduled[taskID]
+	if !ok {
+		return
+	}
+
+	// Only one-shot tasks are affected by manual completion.
+	if h := s.registry.Get(rec.scheduleType); h == nil || !h.IsOneShot() {
+		return
+	}
+
+	s.removeByTagLocked(taskID)
+	delete(s.scheduled, taskID)
+	s.log("completed", taskID, "")
+
+	if rec.onDone != nil {
+		rec.onDone(taskID)
 	}
 }
 
@@ -128,9 +164,27 @@ func (s *Scheduler) Stop() error {
 	return s.gs.Shutdown()
 }
 
+// ─── Internal helpers ──────────────────────────────────────────
+
 func (s *Scheduler) log(status, taskID, message string) {
 	if s.logFunc != nil {
 		s.logFunc(taskID, status, message)
+	}
+}
+
+func (s *Scheduler) removeByTag(tag string) {
+	// Lock must be held by caller.
+	s.removeByTagLocked(tag)
+}
+
+func (s *Scheduler) removeByTagLocked(tag string) {
+	for _, j := range s.gs.Jobs() {
+		for _, t := range j.Tags() {
+			if t == tag {
+				s.gs.RemoveJob(j.ID())
+				return
+			}
+		}
 	}
 }
 

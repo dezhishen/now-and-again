@@ -85,6 +85,7 @@ type TaskContract interface {
 	GetTask(ctx context.Context, taskID uuid.UUID) (*types.Task, error)
 	GetTaskWithExtra(ctx context.Context, taskID uuid.UUID) (*types.TaskWithExtra, error)
 	UpdateTask(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.Task, error)
+	SetTaskEnabled(ctx context.Context, taskID uuid.UUID, enabled bool) (*types.Task, error)
 	DeleteTask(ctx context.Context, taskID uuid.UUID) error
 	ListTasks(ctx context.Context, familyID uuid.UUID) ([]types.Task, error)
 	TriggerTask(ctx context.Context, taskID uuid.UUID) error

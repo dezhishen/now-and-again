@@ -40,9 +40,10 @@ backend/
     config/                配置
     logger/                日志
   pkg/
-    types/                 共享 DTO
+    types/                 共享 DTO + model→DTO 转换
+    model/                 共享 GORM 模型（BaseModel, TaskModel 等）
     contracts/             API 接口定义
-    scheduler/             任务调度引擎 (gocron)
+    scheduler/             任务调度引擎 (gocron) + 类型注册表
     taskkind/              任务类型插件 (simple, inspection)
     locationkind/          地点类型插件 (indoor)
     scopes/                权限范围
@@ -70,8 +71,16 @@ frontend/
 |------|--------|-----------------|---------|
 | 任务类型 | `pkg/taskkind/` | `useTaskKinds` | simple, inspection |
 | 地点类型 | `pkg/locationkind/` | `useLocationKinds` | indoor |
+| 调度类型 | `pkg/scheduler/` | — | once, daily, weekly, monthly, interval |
 
-新增类型只需实现接口并注册，无需修改任何现有代码。
+新增类型只需实现接口并注册（`init()` 自动注册），无需修改任何现有代码。
+
+### 插件注册模式
+
+- **taskkind**：`TaskManager` struct 管理 Handler 注册表
+- **scheduler**：`Registry` struct（含 `sync.RWMutex`）管理调度类型注册表
+- **locationkind**：包级 `map[string]Handler` + `Register()` 函数
+- **GORM 迁移注册**：插件通过 `model.RegisterModel()` 在 `init()` 中注册模型，`AutoMigrate` 动态发现，无需手动维护模型列表
 
 ### 认证
 

@@ -114,7 +114,8 @@
 | POST | `/api/families/:family_id/tasks` | JWT/APIKey | 创建任务 |
 | GET | `/api/families/:family_id/tasks` | JWT/APIKey | 任务列表 |
 | GET | `/api/tasks/:task_id` | JWT/APIKey | 获取任务 (with_extra=true 返回插件数据) |
-| PUT | `/api/tasks/:task_id` | JWT/APIKey | 更新任务 |
+| PUT | `/api/tasks/:task_id` | JWT/APIKey | 更新任务（含 extra 数据时触发插件 OnUpdate） |
+| PUT | `/api/tasks/:task_id/enabled` | JWT/APIKey | 启用/禁用任务（不触发插件，仅更新调度器） |
 | DELETE | `/api/tasks/:task_id` | JWT/APIKey | 删除任务 |
 | GET | `/api/tasks/:task_id/logs` | JWT/APIKey | 操作日志 |
 | POST | `/api/tasks/:task_id/trigger` | JWT/APIKey | 手动生成待办 |

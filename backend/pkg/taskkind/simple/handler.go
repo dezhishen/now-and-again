@@ -1,7 +1,7 @@
 package simple
 
 import (
-	"github.com/dezhishen/now-and-again/backend/internal/repository"
+	"github.com/dezhishen/now-and-again/backend/pkg/model"
 	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
 )
 
@@ -14,22 +14,22 @@ func init() {
 
 func (Handler) Kind() string { return "simple" }
 
-func (Handler) OnCreate(taskStorage taskkind.TaskStorage, task *repository.TaskModel, extra any) error {
+func (Handler) OnCreate(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
 	return nil
 }
 
-func (Handler) OnUpdate(taskStorage taskkind.TaskStorage, task *repository.TaskModel, extra any) error {
+func (Handler) OnUpdate(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
 	return nil
 }
 
-func (Handler) OnDelete(taskStorage taskkind.TaskStorage, task *repository.TaskModel) error {
+func (Handler) OnDelete(taskStorage taskkind.TaskStorage, task *model.TaskModel) error {
 	return nil
 }
 
-func (Handler) OnComplete(taskStorage taskkind.TaskStorage, todo *repository.TodoModel, extra any) error {
+func (Handler) OnComplete(taskStorage taskkind.TaskStorage, todo *model.TodoModel, extra any) error {
 	return nil
 }
 
-func (Handler) GetExtra(taskStorage taskkind.TaskStorage, task *repository.TaskModel) (any, error) {
+func (Handler) GetExtra(taskStorage taskkind.TaskStorage, task *model.TaskModel) (any, error) {
 	return nil, nil
 }

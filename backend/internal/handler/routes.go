@@ -78,6 +78,7 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 	auth.GET("/api/families/:family_id/tasks", taskHandler.List)
 	auth.GET("/api/tasks/:task_id", taskHandler.Get)
 	auth.PUT("/api/tasks/:task_id", taskHandler.Update)
+	auth.PUT("/api/tasks/:task_id/enabled", taskHandler.SetEnabled)
 	auth.DELETE("/api/tasks/:task_id", taskHandler.Delete)
 	auth.GET("/api/tasks/:task_id/logs", taskHandler.ListLogs)
 	auth.POST("/api/tasks/:task_id/trigger", taskHandler.Trigger)

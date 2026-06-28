@@ -87,7 +87,7 @@ erDiagram
 |------|------|
 | 🔀 **Now & Again 双模式** | 一次性任务完成后归档；周期性任务自动计算下次到期日 |
 | 🔍 **巡检驱动** | 检查项→分支→异常自动创建跟进子任务（可指定地点/小组） |
-| 🧩 **插件化架构** | 任务类型(taskkind) + 地点类型(locationkind) 双插件系统，新增类型零侵入 |
+| 🧩 **插件化架构** | 任务类型(taskkind) + 调度类型(scheduler) + 地点类型(locationkind) 三插件系统，新增类型零侵入 |
 | 📍 **地点独立管理** | 地点为一级实体，不强制绑定户型图，支持室内/户外等多种类型 |
 | 👥 **家庭 + 小组分工** | 任务精确指派到小组/地点，巡检分支可独立配置 |
 | 📋 **完整操作日志** | 全程记录创建/完成/跳过/巡检/跟进 |
@@ -107,11 +107,12 @@ now-and-again/
 │   ├── cmd/server/main.go      #   入口
 │   ├── pkg/                    #   公共包（CLI 直接引用）
 │   │   ├── contracts/          #     API 接口定义
-│   │   ├── scheduler/          #     调度引擎
+│   │   ├── model/              #     共享 GORM 模型 + 迁移注册表
+│   │   ├── scheduler/          #     调度引擎 + 类型注册表
 │   │   ├── taskkind/           #     任务类型插件 (simple, inspection)
 │   │   ├── locationkind/       #     地点类型插件 (indoor)
 │   │   ├── scopes/             #     权限范围
-│   │   └── types/         #     共享 DTO (todo.go, log.go, task/{task,inspection}.go)
+│   │   └── types/              #     共享 DTO + model→DTO 转换
 │   └── internal/
 │       ├── config/             #   配置
 │       ├── handler/            #   HTTP 路由 + 请求处理

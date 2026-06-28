@@ -1,7 +1,7 @@
 package taskkind
 
 import (
-	"github.com/dezhishen/now-and-again/backend/internal/repository"
+	"github.com/dezhishen/now-and-again/backend/pkg/model"
 	"gorm.io/gorm"
 )
 
@@ -10,10 +10,10 @@ import (
 // Write methods (Create/Update/Delete) are suffixed NoRoot because they
 // must only be used for plugin-owned sub-tasks, never the root task.
 type TaskStorage interface {
-	FindTaskByID(taskID string) (*repository.TaskModel, error)
-	FindTaskByParentId(parentID string) (*repository.TaskModel, error)
-	CreateNoRootTask(task *repository.TaskModel) error
-	UpdateNoRootTask(task *repository.TaskModel) error
+	FindTaskByID(taskID string) (*model.TaskModel, error)
+	FindTaskByParentId(parentID string) (*model.TaskModel, error)
+	CreateNoRootTask(task *model.TaskModel) error
+	UpdateNoRootTask(task *model.TaskModel) error
 	DeleteNoRootTask(taskID string) error
 	DB() *gorm.DB
 }
@@ -26,15 +26,15 @@ type Handler interface {
 	Kind() string
 
 	// Lifecycle — called by taskService for every task.
-	OnCreate(taskStorage TaskStorage, task *repository.TaskModel, extra any) error
-	OnUpdate(taskStorage TaskStorage, task *repository.TaskModel, extra any) error
-	OnDelete(taskStorage TaskStorage, task *repository.TaskModel) error
+	OnCreate(taskStorage TaskStorage, task *model.TaskModel, extra any) error
+	OnUpdate(taskStorage TaskStorage, task *model.TaskModel, extra any) error
+	OnDelete(taskStorage TaskStorage, task *model.TaskModel) error
 	// OnComplete is called when a todo of this kind is completed.
 	// extra carries the kind-specific payload from CompleteTodoRequest.
-	OnComplete(taskStorage TaskStorage, todo *repository.TodoModel, extra any) error
+	OnComplete(taskStorage TaskStorage, todo *model.TodoModel, extra any) error
 	// GetExtra returns kind-specific data for the task detail page.
 	// e.g. for inspection: check_items + children
-	GetExtra(taskStorage TaskStorage, task *repository.TaskModel) (any, error)
+	GetExtra(taskStorage TaskStorage, task *model.TaskModel) (any, error)
 }
 
 // Selection represents one checked item in an inspection.

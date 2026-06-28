@@ -22,20 +22,7 @@ const (
 // ─── Helpers ──────────────────────────────────────────────────────
 
 func userModelToUser(m *repository.UserModel) *types.User {
-	roles := make([]string, 0, len(m.Roles))
-	for _, ur := range m.Roles {
-		roles = append(roles, ur.Role.Name)
-	}
-	return &types.User{
-		ID:          m.ID,
-		DisplayName: m.DisplayName,
-		Email:       m.Email,
-		Phone:       m.Phone,
-		AvatarURL:   m.AvatarURL,
-		Roles:       roles,
-		CreatedAt:   m.CreatedAt,
-		UpdatedAt:   m.UpdatedAt,
-	}
+	return types.UserFromModel(m)
 }
 
 func (s *UserService) generateTokens(ctx context.Context, userID string) (*types.TokenPair, error) {

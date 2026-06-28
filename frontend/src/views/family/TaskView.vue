@@ -184,8 +184,9 @@ async function saveTask() {
 
 async function toggleTask(task: Task) {
   try {
-    await api.put('/tasks/' + task.id, { task: { enabled: !task.enabled } })
-    task.enabled = !task.enabled
+    const newEnabled = !task.enabled
+    await api.put('/tasks/' + task.id + '/enabled', { enabled: newEnabled })
+    task.enabled = newEnabled
   } catch (e: any) { toast.error(e.message) }
 }
 

@@ -94,30 +94,9 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 }
 
 func (s *TodoService) disableCompletedOnceTask(todo *repository.TodoModel) {
-	if todo.Task.ScheduleType != "once" {
-		return
-	}
-	s.repo.DisableTask(todo.TaskID)
-	s.scheduler.RemoveJob(todo.TaskID)
+	s.scheduler.MarkCompleted(todo.TaskID)
 }
 
 func todoModelToType(t *repository.TodoModel) *types.Todo {
-	var task *types.Task
-	if t.Task.ID != "" {
-		task = taskModelToType(&t.Task)
-	}
-	var user *types.User
-	if t.User.ID != "" {
-		user = userModelToUser(&t.User)
-	}
-	return &types.Todo{
-		ID: t.ID, TaskID: t.TaskID, FamilyID: t.FamilyID,
-		LocationID: t.LocationID,
-		AssignedTo: t.AssignedTo, Status: t.Status, Remark: t.Remark,
-		DueStart:    t.DueStart,
-		DueDate:     t.DueDate,
-		CompletedAt: t.CompletedAt, CompletedBy: t.CompletedBy,
-		Task: task, User: user,
-		CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
-	}
+	return types.TodoFromModel(t)
 }
