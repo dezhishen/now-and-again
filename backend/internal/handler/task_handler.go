@@ -1,16 +1,16 @@
 package handler
 
 import (
-	"github.com/dezhishen/now-and-again/backend/internal/service"
+	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/dezhishen/now-and-again/backend/pkg/types/task"
 	"github.com/gin-gonic/gin"
 )
 
 type TaskHandlers struct {
-	TaskSvc *service.TaskService
-	TodoSvc *service.TodoService
-	LogSvc  *service.LogService
+	TaskSvc contracts.TaskContract
+	TodoSvc contracts.TodoContract
+	LogSvc  contracts.LogContract
 }
 
 func (h *TaskHandlers) Create(c *gin.Context) {
@@ -24,12 +24,12 @@ func (h *TaskHandlers) Create(c *gin.Context) {
 		badRequest(c, err.Error())
 		return
 	}
-	task, err := h.TaskSvc.Create(userCtx(c), familyID, req)
+	t, err := h.TaskSvc.CreateTask(userCtx(c), familyID, req)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
-	created(c, task)
+	created(c, t)
 }
 
 func (h *TaskHandlers) List(c *gin.Context) {
@@ -38,7 +38,7 @@ func (h *TaskHandlers) List(c *gin.Context) {
 		badRequest(c, "invalid family_id")
 		return
 	}
-	tasks, err := h.TaskSvc.List(userCtx(c), familyID)
+	tasks, err := h.TaskSvc.ListTasks(userCtx(c), familyID)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -62,12 +62,12 @@ func (h *TaskHandlers) Get(c *gin.Context) {
 		ok(c, result)
 		return
 	}
-	task, err := h.TaskSvc.GetTask(userCtx(c), taskID)
+	t, err := h.TaskSvc.GetTask(userCtx(c), taskID)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
-	ok(c, task)
+	ok(c, t)
 }
 
 func (h *TaskHandlers) Update(c *gin.Context) {
@@ -81,12 +81,12 @@ func (h *TaskHandlers) Update(c *gin.Context) {
 		badRequest(c, err.Error())
 		return
 	}
-	task, err := h.TaskSvc.Update(userCtx(c), taskID, req)
+	t, err := h.TaskSvc.UpdateTask(userCtx(c), taskID, req)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
-	ok(c, task)
+	ok(c, t)
 }
 
 func (h *TaskHandlers) Delete(c *gin.Context) {
@@ -95,7 +95,7 @@ func (h *TaskHandlers) Delete(c *gin.Context) {
 		badRequest(c, "invalid task_id")
 		return
 	}
-	if err := h.TaskSvc.Delete(userCtx(c), taskID); err != nil {
+	if err := h.TaskSvc.DeleteTask(userCtx(c), taskID); err != nil {
 		serverError(c, err)
 		return
 	}
@@ -170,7 +170,7 @@ func (h *TaskHandlers) ListLogs(c *gin.Context) {
 	limit := queryInt(c, "limit", 50)
 	offset := queryInt(c, "offset", 0)
 	userOnly := c.Query("type") == "user"
-	logs, err := h.LogSvc.ListTaskLogs(userCtx(c), taskID, limit, offset, userOnly)
+	logs, err := h.LogSvc.ListLogs(userCtx(c), taskID, limit, offset, userOnly)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -184,7 +184,7 @@ func (h *TaskHandlers) Trigger(c *gin.Context) {
 		badRequest(c, "invalid task_id")
 		return
 	}
-	if err := h.TaskSvc.Trigger(userCtx(c), taskID); err != nil {
+	if err := h.TaskSvc.TriggerTask(userCtx(c), taskID); err != nil {
 		serverError(c, err)
 		return
 	}

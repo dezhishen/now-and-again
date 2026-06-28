@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/scopes"
 	"github.com/gin-gonic/gin"
@@ -17,7 +18,9 @@ func CORS() gin.HandlerFunc {
 			origin = "*"
 		}
 		c.Header("Access-Control-Allow-Origin", origin)
-		c.Header("Access-Control-Allow-Credentials", "true")
+		if origin != "*" {
+			c.Header("Access-Control-Allow-Credentials", "true")
+		}
 		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
 		if c.Request.Method == http.MethodOptions {
@@ -73,7 +76,7 @@ func JWTAuth(secret string, apiKeyValidator ApiKeyValidator) gin.HandlerFunc {
 				return nil, jwt.ErrSignatureInvalid
 			}
 			return []byte(secret), nil
-		})
+		}, jwt.WithLeeway(30*time.Second))
 		if err != nil || !token.Valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return
@@ -83,6 +86,14 @@ func JWTAuth(secret string, apiKeyValidator ApiKeyValidator) gin.HandlerFunc {
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
 			return
+		}
+
+		// Explicit exp check (defense-in-depth)
+		if exp, ok := claims["exp"].(float64); ok {
+			if time.Now().Unix() > int64(exp) {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token expired"})
+				return
+			}
 		}
 
 		userID, _ := claims["sub"].(string)

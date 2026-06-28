@@ -112,7 +112,7 @@ func (h *IcsHandlers) ServeICS(c *gin.Context) {
 
 	ics, err := h.Svc.GenerateICS(token, apiKey, username, password)
 	if err != nil {
-		c.JSON(401, gin.H{"error": err.Error()})
+		unauthorized(c, err.Error())
 		return
 	}
 

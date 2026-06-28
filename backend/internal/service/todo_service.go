@@ -8,25 +8,16 @@ import (
 
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
-	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	tasktypes "github.com/dezhishen/now-and-again/backend/pkg/types/task"
 )
 
 type TodoService struct {
-	repo        *repository.TaskRepo
-	scheduler   *scheduler.Scheduler
-	taskStorage taskkind.TaskStorage
-	taskManager *taskkind.TaskManager
+	*taskOrchestrator
 }
 
 func NewTodoService(repo *repository.TaskRepo, sched *scheduler.Scheduler) *TodoService {
-	return &TodoService{
-		repo:        repo,
-		scheduler:   sched,
-		taskManager: taskkind.GetManager(),
-		taskStorage: &_taskStorage{repo: repo},
-	}
+	return &TodoService{taskOrchestrator: newTaskOrchestrator(repo, sched)}
 }
 
 // ─── Todo ────────────────────────────────────────────────────────

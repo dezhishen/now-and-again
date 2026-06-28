@@ -5,6 +5,18 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
 )
 
+// ─── Compile-time contract checks ────────────────────────────────
+
+var (
+	_ contracts.UserContract      = (*UserService)(nil)
+	_ contracts.FamilyContract    = (*FamilyService)(nil)
+	_ contracts.ApiKeyContract    = (*ApiKeyService)(nil)
+	_ contracts.FloorPlanContract = (*FloorPlanService)(nil)
+	_ contracts.TaskContract      = (*TaskService)(nil)
+	_ contracts.TodoContract      = (*TodoService)(nil)
+	_ contracts.LogContract       = (*LogService)(nil)
+)
+
 // ─── User ─────────────────────────────────────────────────────────
 
 type UserService struct {

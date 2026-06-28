@@ -161,25 +161,9 @@ func (h *handler) getExtraData(taskStorage taskkind.TaskStorage, task *repositor
 			if b.BranchTaskID != "" {
 				branchTask, err := taskStorage.FindTaskByID(b.BranchTaskID)
 				if err == nil && branchTask != nil {
-					brachTaskWithExtra := &tasktypes.TaskWithExtra{
-						Task: &tasktypes.Task{ID: branchTask.ID,
-							FamilyID:       branchTask.FamilyID,
-							GroupID:        branchTask.GroupID,
-							LocationID:     branchTask.LocationID,
-							ParentTaskID:   branchTask.ParentTaskID,
-							IsRoot:         branchTask.IsRoot,
-							Name:           branchTask.Name,
-							ScheduleType:   branchTask.ScheduleType,
-							ScheduleData:   branchTask.ScheduleData,
-							Enabled:        branchTask.Enabled,
-							Kind:           branchTask.Kind,
-							DisplaySummary: branchTask.DisplaySummary,
-							LastTodoAt:     branchTask.LastTodoAt,
-							CreatedBy:      branchTask.CreatedBy,
-							CreatedAt:      branchTask.CreatedAt,
-							UpdatedAt:      branchTask.UpdatedAt},
+					dto.BranchTask = &tasktypes.TaskWithExtra{
+						Task: repository.TaskModelToType(branchTask),
 					}
-					dto.BranchTask = brachTaskWithExtra
 				}
 			}
 

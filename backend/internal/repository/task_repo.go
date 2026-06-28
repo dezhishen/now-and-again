@@ -1,9 +1,11 @@
 package repository
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
+	tasktypes "github.com/dezhishen/now-and-again/backend/pkg/types/task"
 	"gorm.io/gorm"
 )
 
@@ -79,17 +81,14 @@ func (r *TaskRepo) FindTodoByID(id string) (*TodoModel, error) {
 	return &t, err
 }
 
-// FindTodoFull loads a todo with its Task and User. Kind-specific extra data
-// (e.g. check items) is loaded by the plugin via GetExtra — never joined here.
+// FindTodoFull delegates to FindTodoByID (identical query; kept for semantic clarity).
 func (r *TaskRepo) FindTodoFull(id string) (*TodoModel, error) {
-	var t TodoModel
-	err := r.db.Preload("Task").Preload("User").Where("id = ?", id).First(&t).Error
-	return &t, err
+	return r.FindTodoByID(id)
 }
 
 func (r *TaskRepo) ListTodosByFamily(familyID string, status string) ([]TodoModel, error) {
 	var todos []TodoModel
-	q := r.db.Preload("Task").Preload("User").Where("family_id = ?", familyID)
+	q := r.db.Preload("Task.Group").Preload("User").Where("family_id = ?", familyID)
 	if status != "" {
 		q = q.Where("status = ?", status)
 	}
@@ -206,4 +205,19 @@ func (r *TaskRepo) ListLogsByFamilyAndTask(familyID, taskID, since, until string
 // DeleteChildren removes child tasks (is_root=false) for a given parent.
 func (r *TaskRepo) DeleteChildren(parentTaskID string) error {
 	return r.db.Where("parent_task_id = ? AND is_root = ?", parentTaskID, false).Delete(&TaskModel{}).Error
+}
+
+// TaskModelToType converts a TaskModel to the public task.Task DTO.
+func TaskModelToType(t *TaskModel) *tasktypes.Task {
+	var data any
+	json.Unmarshal([]byte(t.ScheduleData), &data)
+	return &tasktypes.Task{
+		ID: t.ID, FamilyID: t.FamilyID, GroupID: t.GroupID,
+		ParentTaskID: t.ParentTaskID, IsRoot: t.IsRoot,
+		LocationID: t.LocationID,
+		Name: t.Name, ScheduleType: t.ScheduleType, ScheduleData: data,
+		Enabled: t.Enabled, Kind: t.Kind, DisplaySummary: t.DisplaySummary,
+		LastTodoAt: t.LastTodoAt,
+		CreatedBy: t.CreatedBy, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+	}
 }

@@ -19,8 +19,8 @@ func NewLogService(repo *repository.TaskRepo) *LogService {
 
 // ─── Logs ────────────────────────────────────────────────────────
 
-func (s *LogService) ListLogs(ctx context.Context, taskID uuid.UUID, limit int, userOnly bool) ([]types.TaskLog, error) {
-	return s.ListTaskLogs(ctx, taskID, limit, 0, userOnly)
+func (s *LogService) ListLogs(ctx context.Context, taskID uuid.UUID, limit, offset int, userOnly bool) ([]types.TaskLog, error) {
+	return s.ListTaskLogs(ctx, taskID, limit, offset, userOnly)
 }
 
 func (s *LogService) ListTaskLogs(ctx context.Context, taskID uuid.UUID, limit, offset int, userOnly bool) ([]types.TaskLog, error) {

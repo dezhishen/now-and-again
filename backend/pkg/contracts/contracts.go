@@ -83,19 +83,24 @@ type FloorPlanContract interface {
 // TaskContract defines the core task/todo operations that both server and CLI must implement.
 type TaskContract interface {
 	CreateTask(ctx context.Context, familyID uuid.UUID, req *task.CreateTaskRequest) (*task.Task, error)
+	GetTask(ctx context.Context, taskID uuid.UUID) (*task.Task, error)
+	GetTaskWithExtra(ctx context.Context, taskID uuid.UUID) (*task.TaskWithExtra, error)
 	UpdateTask(ctx context.Context, taskID uuid.UUID, req *task.UpdateTaskRequest) (*task.Task, error)
 	DeleteTask(ctx context.Context, taskID uuid.UUID) error
 	ListTasks(ctx context.Context, familyID uuid.UUID) ([]task.Task, error)
 	TriggerTask(ctx context.Context, taskID uuid.UUID) error
+	GetCalendar(ctx context.Context, familyID string, year, month int, groupID string) (any, error)
 }
 
 type TodoContract interface {
 	ListTodos(ctx context.Context, familyID uuid.UUID, groupID, status string) ([]types.Todo, error)
+	GetTodo(ctx context.Context, todoID uuid.UUID) (*types.Todo, error)
+	GetTodoWithExtra(ctx context.Context, todoID uuid.UUID) (*types.TodoWithExtra, error)
 	CompleteTodo(ctx context.Context, todoID uuid.UUID, req *types.CompleteTodoRequest) (*types.Todo, error)
 }
 
 type LogContract interface {
-	ListLogs(ctx context.Context, taskID uuid.UUID, limit int, userOnly bool) ([]types.TaskLog, error)
+	ListLogs(ctx context.Context, taskID uuid.UUID, limit, offset int, userOnly bool) ([]types.TaskLog, error)
 }
 
 type AllContracts struct {

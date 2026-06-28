@@ -23,14 +23,28 @@ import (
 )
 
 type TaskService struct {
+	*taskOrchestrator
+}
+
+type _taskStorage struct {
+	repo *repository.TaskRepo
+}
+
+// taskOrchestrator bundles the shared dependencies for TaskService and TodoService.
+type taskOrchestrator struct {
 	repo        *repository.TaskRepo
 	scheduler   *scheduler.Scheduler
 	taskManager *taskkind.TaskManager
 	taskStorage taskkind.TaskStorage
 }
 
-type _taskStorage struct {
-	repo *repository.TaskRepo
+func newTaskOrchestrator(repo *repository.TaskRepo, sched *scheduler.Scheduler) *taskOrchestrator {
+	return &taskOrchestrator{
+		repo:        repo,
+		scheduler:   sched,
+		taskManager: taskkind.GetManager(),
+		taskStorage: &_taskStorage{repo: repo},
+	}
 }
 
 func (s *_taskStorage) FindTaskByID(taskID string) (*repository.TaskModel, error) {
@@ -58,12 +72,7 @@ func (s *_taskStorage) DB() *gorm.DB {
 }
 
 func NewTaskService(repo *repository.TaskRepo, sched *scheduler.Scheduler) *TaskService {
-	svc := &TaskService{
-		repo:        repo,
-		scheduler:   sched,
-		taskManager: taskkind.GetManager(),
-		taskStorage: &_taskStorage{repo: repo}, // TaskRepo implements taskkind.TaskStorage
-	}
+	svc := &TaskService{taskOrchestrator: newTaskOrchestrator(repo, sched)}
 	svc._init()
 	return svc
 }
@@ -124,9 +133,9 @@ func (s *TaskService) registerToScheduler(task *repository.TaskModel) {
 
 	// One-shot tasks auto-disable after firing (no recurrence).
 	if task.ScheduleType == "once" {
-		b.AfterFire = func(taskID string) {
-			task.Enabled = false
-			s.repo.UpdateTask(task)
+		taskID := task.ID
+		b.AfterFire = func(_ string) {
+			s.repo.DisableTask(taskID)
 		}
 	}
 
@@ -350,7 +359,7 @@ type CalendarEvent struct {
 	GroupName    string `json:"group_name,omitempty"`
 }
 
-func (s *TaskService) GetCalendar(ctx context.Context, familyID string, year, month int, groupID string) ([]CalendarDay, error) {
+func (s *TaskService) GetCalendar(ctx context.Context, familyID string, year, month int, groupID string) (any, error) {
 	tasks, err := s.repo.ListTasksByFamily(familyID)
 	if err != nil {
 		return nil, err
@@ -582,16 +591,6 @@ func marshalJSON(v any) string {
 }
 
 func taskModelToType(t *repository.TaskModel) *tasktypes.Task {
-	var data any
-	json.Unmarshal([]byte(t.ScheduleData), &data)
-
-	return &tasktypes.Task{
-		ID: t.ID, FamilyID: t.FamilyID, GroupID: t.GroupID,
-		ParentTaskID: t.ParentTaskID, IsRoot: t.IsRoot,
-		LocationID: t.LocationID,
-		Name:       t.Name, ScheduleType: t.ScheduleType, ScheduleData: data,
-		Enabled: t.Enabled, Kind: t.Kind, DisplaySummary: t.DisplaySummary,
-		LastTodoAt: t.LastTodoAt,
-		CreatedBy:  t.CreatedBy, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
-	}
+	return repository.TaskModelToType(t)
 }
+

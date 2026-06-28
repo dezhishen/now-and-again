@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
+	"github.com/dezhishen/now-and-again/backend/pkg/locationkind"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 )
 
@@ -125,6 +126,12 @@ func (s *FloorPlanService) CreateLocation(ctx context.Context, familyID uuid.UUI
 	if err := s.repo.CreateLocation(loc); err != nil {
 		return nil, fmt.Errorf("create location: %w", err)
 	}
+	// Validate kind-specific extra via plugin
+	if h := locationkind.Get(kind); h != nil {
+		if err := h.Validate(loc, nil); err != nil {
+			return nil, fmt.Errorf("validate location: %w", err)
+		}
+	}
 	result := locationModelToType(loc)
 	return &result, nil
 }
@@ -176,6 +183,11 @@ func (s *FloorPlanService) UpdateLocation(ctx context.Context, locationID uuid.U
 	}
 	if err := s.repo.UpdateLocation(l); err != nil {
 		return nil, fmt.Errorf("update location: %w", err)
+	}
+	if h := locationkind.Get(l.Kind); h != nil {
+		if err := h.Validate(l, nil); err != nil {
+			return nil, fmt.Errorf("validate location: %w", err)
+		}
 	}
 	result := locationModelToType(l)
 	return &result, nil

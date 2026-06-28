@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/dezhishen/now-and-again/backend/internal/logger"
 	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -32,6 +33,7 @@ func badRequest(c *gin.Context, msg string) {
 	c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": msg})
 }
 func serverError(c *gin.Context, err error) {
+	logger.Errorf("handler error: %v", err)
 	c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 }
 func unauthorized(c *gin.Context, msg string) {
