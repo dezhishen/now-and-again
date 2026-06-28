@@ -3,6 +3,7 @@ package inspection
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/model"
@@ -90,6 +91,7 @@ func (h *handler) OnComplete(taskStorage taskkind.TaskStorage, todo *model.TodoM
 		return fmt.Errorf("load check items: %w", err)
 	}
 
+	var details []string
 	for _, sel := range selections {
 		ci := findCheckItemByID(checkItems, sel.ItemID)
 		if ci == nil {
@@ -109,6 +111,8 @@ func (h *handler) OnComplete(taskStorage taskkind.TaskStorage, todo *model.TodoM
 		if branchName == "" {
 			branchName = branch.Name
 		}
+		details = append(details, itemName+" → "+branchName)
+
 		result := &InspectionResultModel{
 			TaskID:     todo.TaskID,
 			TodoID:     todo.ID,
@@ -123,6 +127,18 @@ func (h *handler) OnComplete(taskStorage taskkind.TaskStorage, todo *model.TodoM
 		if branch.CreateTodo {
 			h.ensureBranchTask(taskStorage, todo, branch)
 		}
+	}
+
+	// Write a detailed log so users can trace why branch todos were generated.
+	if len(details) > 0 {
+		taskStorage.DB().Create(&model.TaskLogModel{
+			TaskID:     todo.TaskID,
+			TodoID:     todo.ID,
+			Status:     "done",
+			Message:    fmt.Sprintf("巡检结果: %s", strings.Join(details, ", ")),
+			LogType:    "user",
+			OperatorID: todo.CompletedBy,
+		})
 	}
 
 	return nil
@@ -316,12 +332,23 @@ func (h *handler) ensureBranchTask(taskStorage taskkind.TaskStorage, todo *model
 	}
 	now := time.Now()
 	db := taskStorage.DB()
-	db.Create(&model.TodoModel{
+	branchTodo := &model.TodoModel{
 		TaskID:     branchTask.ID,
 		FamilyID:   branchTask.FamilyID,
 		LocationID: branchTask.LocationID,
 		DueStart:   now,
 		DueDate:    now.Add(24 * time.Hour),
 		Status:     "pending",
+	}
+	if err := db.Create(branchTodo).Error; err != nil {
+		return
+	}
+	// Log the auto-generated branch todo so it appears in task logs.
+	db.Create(&model.TaskLogModel{
+		TaskID:  branchTask.ID,
+		TodoID:  branchTodo.ID,
+		Status:  "generated",
+		Message: fmt.Sprintf("巡检分支「%s」自动生成待办: %s", branch.Name, branchTask.Name),
+		LogType: "system",
 	})
 }
