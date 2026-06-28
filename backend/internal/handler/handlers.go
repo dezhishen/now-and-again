@@ -34,6 +34,9 @@ func badRequest(c *gin.Context, msg string) {
 func serverError(c *gin.Context, err error) {
 	c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 }
+func unauthorized(c *gin.Context, msg string) {
+	c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": msg})
+}
 
 // ─── Param parsers ────────────────────────────────────────────────
 

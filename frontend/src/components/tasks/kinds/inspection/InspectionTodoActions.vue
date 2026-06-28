@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
-import type { Todo, CheckItem } from '@/types'
+import type { Todo } from '@/types'
 import InspectionInspect from './InspectionInspect.vue'
 
 const { t } = useI18n()
@@ -11,7 +11,7 @@ const props = defineProps<{ todo: Todo }>()
 const emit = defineEmits<{ completed: [] }>()
 
 const showModal = ref(false)
-const selections = ref<Record<string, string>>({})
+const selections = ref<Record<string, { item_id: string; item_name: string; branch_name: string }>>({})
 const loading = ref(false)
 const submiting = ref(false)
 const fullTask = ref<any>(null)
@@ -19,24 +19,29 @@ const fullTask = ref<any>(null)
 async function openInspect() {
   showModal.value = true
   selections.value = {}
-  if ((props.todo.task as any)?.extra?.check_items?.length) {
-    fullTask.value = props.todo.task
-    return
-  }
   loading.value = true
   try {
-    const res = await api.get<{ extra: { check_items: CheckItem[] } }>('/todos/' + props.todo.id + '?with_extra=true')
-    fullTask.value = { ...props.todo.task, extra: { check_items: res.extra?.check_items || [] } }
+    const res = await api.get<{ todo: any; extra: any }>('/todos/' + props.todo.id + '?with_extra=true')
+    fullTask.value = { task: res.todo?.task || props.todo.task, extra: res.extra }
   } catch { /* */ }
   finally { loading.value = false }
 }
 
 async function submit() {
-  const sels = Object.entries(selections.value).map(([item, branch]) => ({ item, branch }))
+  const sels = Object.entries(selections.value).map(([branchId, v]) => ({
+    item_id: v.item_id,
+    branch_id: branchId,
+    item_name: v.item_name,
+    branch_name: v.branch_name,
+  }))
   if (sels.length === 0) return
+  const displaySummary = sels.map(s => s.item_name + ':' + s.branch_name).join(', ')
   submiting.value = true
   try {
-    await api.put('/todos/' + props.todo.id, { status: 'done', selections: sels })
+    await api.put('/todos/' + props.todo.id, {
+      todo: { status: 'done' },
+      extra: { selections: sels, display_summary: displaySummary },
+    })
     showModal.value = false
     emit('completed')
   } catch { /* */ }

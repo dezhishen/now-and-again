@@ -77,7 +77,7 @@ func (h *UserHandlers) Logout(c *gin.Context) {
 func (h *UserHandlers) GetMe(c *gin.Context) {
 	user, err := h.C.GetMe(userCtx(c))
 	if err != nil {
-		serverError(c, err)
+		unauthorized(c, err.Error())
 		return
 	}
 	ok(c, user)

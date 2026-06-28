@@ -6,254 +6,338 @@ import (
 	"time"
 
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
-	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
 	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
-	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
-	"github.com/dezhishen/now-and-again/backend/pkg/types"
+	tasktypes "github.com/dezhishen/now-and-again/backend/pkg/types/task"
 )
 
-// Handler implements taskkind.Handler and taskkind.Inspector for inspection tasks.
-type Handler struct{}
+// handler implements taskkind.Handler for inspection tasks.
+type handler struct{}
 
-func (Handler) Kind() string { return "inspection" }
-
-// GetExtra returns check_items + children for the detail view.
-func (Handler) GetExtra(ops *taskkind.Ops, task *repository.TaskModel) (any, error) {
-	// Reload with full relations
-	full, err := ops.Repo.FindTaskFull(task.ID)
-	if err != nil {
-		return nil, err
-	}
-	extra := struct {
-		CheckItems []types.CheckItemDTO `json:"check_items"`
-		Children   []types.Task         `json:"children"`
-	}{}
-	for _, ci := range full.CheckItems {
-		branches := make([]types.CheckItemBranchDTO, 0, len(ci.Branches))
-		for _, b := range ci.Branches {
-			dto := types.CheckItemBranchDTO{
-				ID: b.ID, Name: b.Name,
-				CreateTodo:   b.CreateTodo,
-				BranchTaskID: b.BranchTaskID,
-				SortOrder:    b.SortOrder,
-			}
-			if b.BranchTask != nil {
-				dto.TodoName = b.BranchTask.Name
-				dto.LocationID = b.BranchTask.LocationID
-			}
-			branches = append(branches, dto)
-		}
-		extra.CheckItems = append(extra.CheckItems, types.CheckItemDTO{
-			ID: ci.ID, Name: ci.Name, SortOrder: ci.SortOrder,
-			Branches: branches,
-		})
-	}
-	for _, c := range full.Children {
-		var data any
-		json.Unmarshal([]byte(c.ScheduleData), &data)
-		extra.Children = append(extra.Children, types.Task{
-			ID: c.ID, Name: c.Name, Kind: c.Kind,
-			ParentTaskID: c.ParentTaskID, IsRoot: c.IsRoot,
-			ScheduleType: c.ScheduleType, ScheduleData: data,
-			Enabled: c.Enabled,
-		})
-	}
-	return extra, nil
+func init() {
+	taskkind.Register(&handler{})
 }
 
-func (Handler) OnComplete(ops *taskkind.Ops, todo *repository.TodoModel, extra any, branchName, userID string) error {
-	// Try different types that might carry inspection selections
-	switch s := extra.(type) {
-	case []taskkind.Selection:
-		if len(s) == 0 {
-			return nil
-		}
-		return doInspect(ops, todo, s, userID)
-	case []types.InspectionSelection:
-		if len(s) == 0 {
-			return nil
-		}
-		selections := make([]taskkind.Selection, len(s))
-		for i, sel := range s {
-			selections[i] = taskkind.Selection{Item: sel.Item, Branch: sel.Branch}
-		}
-		return doInspect(ops, todo, selections, userID)
+func (handler) Kind() string { return "inspection" }
+
+type extraData struct {
+	CheckItems []tasktypes.CheckItemDTO `json:"check_items"`
+}
+
+// Lifecycle — called by taskService for every task.
+// Only handles extra CRUD; task fields (e.g. display_summary) are the
+// caller's responsibility.
+func (h *handler) OnCreate(taskStorage taskkind.TaskStorage, task *repository.TaskModel, extra any) error {
+	items, err := parseCheckItems(extra)
+	if err != nil {
+		return fmt.Errorf("parse check items: %w", err)
+	}
+	return h.saveCheckItems(taskStorage, task, items)
+}
+
+func (h *handler) OnUpdate(taskStorage taskkind.TaskStorage, task *repository.TaskModel, extra any) error {
+	db := taskStorage.DB()
+	// Delete child tasks referenced by branch_task_id
+	db.Where("id IN (?)",
+		db.Model(&repository.CheckItemBranchModel{}).Select("branch_task_id").
+			Where("branch_task_id != '' AND check_item_id IN (?)",
+				db.Model(&repository.CheckItemModel{}).Select("id").Where("task_id = ?", task.ID),
+			),
+	).Delete(&repository.TaskModel{})
+	// Delete old branches and check items
+	if err := repository.NewCheckItemBranchRepo(db).DeleteCheckItemBranchesByTask(task.ID); err != nil {
+		return fmt.Errorf("delete old branches: %w", err)
+	}
+	if err := repository.NewCheckItemRepo(db).DeleteCheckItemsByTask(task.ID); err != nil {
+		return fmt.Errorf("delete old check items: %w", err)
+	}
+	items, err := parseCheckItems(extra)
+	if err != nil {
+		return fmt.Errorf("parse check items: %w", err)
+	}
+	return h.saveCheckItems(taskStorage, task, items)
+}
+
+func (h *handler) OnDelete(taskStorage taskkind.TaskStorage, task *repository.TaskModel) error {
+	db := taskStorage.DB()
+	// Delete child tasks referenced by branch_task_id
+	db.Where("id IN (?)",
+		db.Model(&repository.CheckItemBranchModel{}).Select("branch_task_id").
+			Where("branch_task_id != '' AND check_item_id IN (?)",
+				db.Model(&repository.CheckItemModel{}).Select("id").Where("task_id = ?", task.ID),
+			),
+	).Delete(&repository.TaskModel{})
+	if err := repository.NewCheckItemBranchRepo(db).DeleteCheckItemBranchesByTask(task.ID); err != nil {
+		return fmt.Errorf("delete branches: %w", err)
+	}
+	if err := repository.NewCheckItemRepo(db).DeleteCheckItemsByTask(task.ID); err != nil {
+		return fmt.Errorf("delete check items: %w", err)
 	}
 	return nil
 }
 
-// OnInspect handles the multi-item inspection submission (called via the dedicated endpoint).
-func (Handler) OnInspect(ops *taskkind.Ops, todo *repository.TodoModel, selections []taskkind.Selection, userID string) error {
-	return doInspect(ops, todo, selections, userID)
-}
+func (h *handler) OnComplete(taskStorage taskkind.TaskStorage, todo *repository.TodoModel, extra any) error {
+	selections, err := parseSelections(extra)
+	if err != nil {
+		return fmt.Errorf("parse extra: %w", err)
+	}
+	if len(selections) == 0 {
+		return nil
+	}
 
-func doInspect(ops *taskkind.Ops, todo *repository.TodoModel, selections []taskkind.Selection, userID string) error {
+	// Load check items with branches for this task
+	checkItems, err := repository.NewCheckItemRepo(taskStorage.DB()).FindCheckItemsByTask(todo.TaskID)
+	if err != nil {
+		return fmt.Errorf("load check items: %w", err)
+	}
+
 	for _, sel := range selections {
-		// Persist to inspection_results table
+		ci := findCheckItemByID(checkItems, sel.ItemID)
+		if ci == nil {
+			continue
+		}
+		branch := findBranchByID(ci.Branches, sel.BranchID)
+		if branch == nil {
+			continue
+		}
+
+		// Record inspection result
+		itemName := sel.ItemName
+		if itemName == "" {
+			itemName = ci.Name
+		}
+		branchName := sel.BranchName
+		if branchName == "" {
+			branchName = branch.Name
+		}
 		result := &repository.InspectionResultModel{
 			TaskID:     todo.TaskID,
 			TodoID:     todo.ID,
 			FamilyID:   todo.FamilyID,
-			ItemName:   sel.Item,
-			BranchName: sel.Branch,
-			CreatedBy:  userID,
+			ItemName:   itemName,
+			BranchName: branchName,
+			CreatedBy:  todo.CompletedBy,
 		}
-		if err := ops.Repo.CreateInspectionResult(result); err != nil {
-			return fmt.Errorf("save inspection result: %w", err)
+		repository.NewCheckItemRepo(taskStorage.DB()).CreateInspectionResult(result)
+
+		// If branch has create_todo, spawn or trigger child task
+		if branch.CreateTodo {
+			h.ensureBranchTask(taskStorage, todo, branch)
 		}
-
-		ops.Repo.CreateUserLog(todo.TaskID, todo.ID, userID, "inspection",
-			fmt.Sprintf("[%s] → %s", sel.Item, sel.Branch))
-
-		// Find the pre-created branch task
-		branchTask, err := ops.Repo.FindBranchTask(todo.TaskID, sel.Item, sel.Branch)
-		if err != nil || branchTask == nil || branchTask.ID == "" {
-			continue // no follow-up task needed (e.g. "正常" branch)
-		}
-
-		// Enable the branch task
-		branchTask.Enabled = true
-		if err := ops.Repo.UpdateTask(branchTask); err != nil {
-			return fmt.Errorf("enable branch task: %w", err)
-		}
-
-		// Create todo immediately
-		followTodo := &repository.TodoModel{
-			TaskID:   branchTask.ID,
-			FamilyID: todo.FamilyID,
-			Status:   "pending",
-			DueStart: timeutil.Now(),
-			DueDate:  timeutil.Now().Add(24 * time.Hour),
-		}
-		if err := ops.Repo.CreateTodo(followTodo); err != nil {
-			return fmt.Errorf("create follow-up todo: %w", err)
-		}
-
-		// Register with scheduler
-		ops.Scheduler.RegisterJob(&scheduler.JobBuilder{
-			TaskID:       branchTask.ID,
-			ScheduleType: "once",
-			ScheduleData: branchTask.ScheduleData,
-			Callback:     func(taskID string, triggeredAt time.Time) error { return nil },
-			AfterFire:    func(taskID string) { ops.Repo.DisableTask(taskID) },
-		})
-
-		ops.Repo.CreateUserLog(todo.TaskID, todo.ID, userID, "follow_up",
-			fmt.Sprintf("巡检跟进 → 启用任务「%s」(%s)", branchTask.Name, branchTask.ID))
 	}
 
-	ops.Repo.CreateUserLog(todo.TaskID, todo.ID, userID, "inspection",
-		fmt.Sprintf("巡检完成: %s", todo.Task.Name))
-
-	// Disable one-shot inspection after completion
-	if todo.Task.ScheduleType == "once" {
-		ops.Repo.DisableTask(todo.TaskID)
-		ops.Scheduler.RemoveJob(todo.TaskID)
-	}
 	return nil
 }
 
-func init() {
-	taskkind.Register(Handler{})
+// GetExtra returns check_items + children for the detail view.
+func (h *handler) GetExtra(taskStorage taskkind.TaskStorage, task *repository.TaskModel) (any, error) {
+	extraData, err := h.getExtraData(taskStorage, task)
+	if err != nil {
+		return nil, fmt.Errorf("get extra data: %w", err)
+	}
+	return extraData, nil
 }
 
-// OnCreate persists check_items, branches, and child tasks for a new inspection.
-func (Handler) OnCreate(ops *taskkind.Ops, task *repository.TaskModel, extra any) error {
-	return persistCheckItems(ops, task, extra)
-}
+// GetExtra returns kind-specific data for the task detail page.
+// e.g. for inspection: check_items + children
 
-// OnUpdate clears old sub-tables and recreates from the updated check items.
-func (Handler) OnUpdate(ops *taskkind.Ops, task *repository.TaskModel, extra any) error {
-	ops.Repo.DeleteChildren(task.ID)
-	ops.Repo.DeleteCheckItemsByTask(task.ID)
-	return persistCheckItems(ops, task, extra)
-}
-
-func persistCheckItems(ops *taskkind.Ops, task *repository.TaskModel, extra any) error {
-	// Extract check_items from the generic extra map
-	var items []types.CheckItemDTO
-	switch e := extra.(type) {
-	case map[string]interface{}:
-		if raw, ok := e["check_items"]; ok {
-			// Re-marshal through JSON for type conversion
-			b, _ := json.Marshal(raw)
-			json.Unmarshal(b, &items)
-		}
-	case []types.CheckItemDTO:
-		items = e
-	case []interface{}:
-		b, _ := json.Marshal(e)
-		json.Unmarshal(b, &items)
+func (h *handler) getExtraData(taskStorage taskkind.TaskStorage, task *repository.TaskModel) (*extraData, error) {
+	// Load check items and branches
+	checkItems, error := repository.NewCheckItemRepo(taskStorage.DB()).FindCheckItemsByTask(task.ID)
+	if error != nil {
+		return nil, fmt.Errorf("load check items: %w", error)
 	}
-	if len(items) == 0 {
-		// Update summary for empty case
-		ops.Repo.UpdateDisplaySummary(task.ID, "")
-		return nil
-	}
-
-	// Build display summary: "3个检查项"
-	totalBranches := 0
-	for _, dto := range items {
-		totalBranches += len(dto.Branches)
-	}
-	summary := fmt.Sprintf("%d个检查项", len(items))
-	ops.Repo.UpdateDisplaySummary(task.ID, summary)
-
-	for _, dto := range items {
-		item := &repository.CheckItemModel{
-			TaskID:    task.ID,
-			Name:      dto.Name,
-			SortOrder: dto.SortOrder,
-		}
-		if err := ops.Repo.CreateCheckItem(item); err != nil {
-			return fmt.Errorf("create check item: %w", err)
-		}
-		for _, b := range dto.Branches {
-			var branchTaskID string
-			if b.CreateTodo {
-				todoName := b.TodoName
-				if todoName == "" {
-					todoName = dto.Name + " - " + b.Name
-				}
-				child := &repository.TaskModel{
-					FamilyID:     task.FamilyID,
-					IsRoot:       false,
-					ParentTaskID: task.ID,
-					LocationID:   b.LocationID,
-					Name:         todoName,
-					ScheduleType: "once",
-					ScheduleData: `{"time":"00:00"}`,
-					Enabled:      false,
-					Kind:         "simple",
-					CreatedBy:    task.CreatedBy,
-				}
-				if err := ops.Repo.CreateTask(child); err != nil {
-					return fmt.Errorf("create branch task: %w", err)
-				}
-				branchTaskID = child.ID
-			}
-			cb := &repository.CheckItemBranchModel{
-				CheckItemID:  item.ID,
+	extraData := &extraData{CheckItems: make([]tasktypes.CheckItemDTO, 0, len(checkItems))}
+	for _, ci := range checkItems {
+		branches := make([]tasktypes.CheckItemBranchDTO, 0, len(ci.Branches))
+		for _, b := range ci.Branches {
+			dto := tasktypes.CheckItemBranchDTO{
+				ID:           b.ID,
 				Name:         b.Name,
 				CreateTodo:   b.CreateTodo,
-				BranchTaskID: branchTaskID,
+				BranchTaskID: b.BranchTaskID,
 				SortOrder:    b.SortOrder,
 			}
-			if err := ops.Repo.CreateCheckItemBranch(cb); err != nil {
-				return fmt.Errorf("create check item branch: %w", err)
+			// FindTheTaskOfBranche
+			if b.BranchTaskID != "" {
+				branchTask, err := taskStorage.FindTaskByID(b.BranchTaskID)
+				if err == nil && branchTask != nil {
+					brachTaskWithExtra := &tasktypes.TaskWithExtra{
+						Task: &tasktypes.Task{ID: branchTask.ID,
+							FamilyID:       branchTask.FamilyID,
+							GroupID:        branchTask.GroupID,
+							LocationID:     branchTask.LocationID,
+							ParentTaskID:   branchTask.ParentTaskID,
+							IsRoot:         branchTask.IsRoot,
+							Name:           branchTask.Name,
+							ScheduleType:   branchTask.ScheduleType,
+							ScheduleData:   branchTask.ScheduleData,
+							Enabled:        branchTask.Enabled,
+							Kind:           branchTask.Kind,
+							DisplaySummary: branchTask.DisplaySummary,
+							LastTodoAt:     branchTask.LastTodoAt,
+							CreatedBy:      branchTask.CreatedBy,
+							CreatedAt:      branchTask.CreatedAt,
+							UpdatedAt:      branchTask.UpdatedAt},
+					}
+					dto.BranchTask = brachTaskWithExtra
+				}
+			}
+
+			branches = append(branches, dto)
+		}
+		extraData.CheckItems = append(extraData.CheckItems, tasktypes.CheckItemDTO{
+			ID: ci.ID, Name: ci.Name, SortOrder: ci.SortOrder,
+			Branches: branches,
+		})
+	}
+	return extraData, nil
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+func parseCheckItems(extra any) ([]tasktypes.CheckItemDTO, error) {
+	if extra == nil {
+		return nil, nil
+	}
+	data, err := json.Marshal(extra)
+	if err != nil {
+		return nil, err
+	}
+	var wrapper struct {
+		CheckItems []tasktypes.CheckItemDTO `json:"check_items"`
+	}
+	if err := json.Unmarshal(data, &wrapper); err != nil {
+		return nil, err
+	}
+	return wrapper.CheckItems, nil
+}
+
+func (h *handler) saveCheckItems(taskStorage taskkind.TaskStorage, task *repository.TaskModel, items []tasktypes.CheckItemDTO) error {
+	// Use the same DB (possibly transactional) as the task repo.
+	db := taskStorage.DB()
+	checkItemRepo := repository.NewCheckItemRepo(db)
+	checkItemBranchRepo := repository.NewCheckItemBranchRepo(db)
+
+	for i, item := range items {
+		ci := &repository.CheckItemModel{
+			TaskID:    task.ID,
+			Name:      item.Name,
+			SortOrder: i,
+		}
+		if err := checkItemRepo.CreateCheckItem(ci); err != nil {
+			return fmt.Errorf("create check item %s: %w", item.Name, err)
+		}
+		for j, b := range item.Branches {
+			branch := &repository.CheckItemBranchModel{
+				CheckItemID: ci.ID,
+				Name:        b.Name,
+				CreateTodo:  b.CreateTodo,
+				SortOrder:   j,
+			}
+			// Create child task if create_todo is set and task params provided.
+			if b.CreateTodo && b.BranchTask != nil && b.BranchTask.Task != nil && b.BranchTask.Task.Name != "" {
+				kind := b.BranchTask.Task.Kind
+				if kind == "" {
+					kind = "simple"
+				}
+				scheduleType := b.BranchTask.Task.ScheduleType
+				if scheduleType == "" {
+					scheduleType = "once"
+				}
+				childTask := &repository.TaskModel{
+					FamilyID:     task.FamilyID,
+					GroupID:      b.BranchTask.Task.GroupID,
+					LocationID:   b.BranchTask.Task.LocationID,
+					ParentTaskID: task.ID,
+					IsRoot:       false,
+					Name:         b.BranchTask.Task.Name,
+					ScheduleType: scheduleType,
+					Enabled:      true,
+					Kind:         kind,
+					CreatedBy:    task.CreatedBy,
+				}
+				if err := taskStorage.CreateNoRootTask(childTask); err != nil {
+					return fmt.Errorf("create branch task %s: %w", b.BranchTask.Task.Name, err)
+				}
+				branch.BranchTaskID = childTask.ID
+			}
+			if err := checkItemBranchRepo.CreateCheckItemBranch(branch); err != nil {
+				return fmt.Errorf("create branch %s: %w", b.Name, err)
 			}
 		}
 	}
 	return nil
 }
 
-// OnDelete cleans up check_items, branches, and child tasks when an inspection is deleted.
-func (Handler) OnDelete(ops *taskkind.Ops, task *repository.TaskModel) error {
-	if err := ops.Repo.DeleteChildren(task.ID); err != nil {
-		return fmt.Errorf("delete children: %w", err)
+func parseSelections(extra any) ([]taskkind.Selection, error) {
+	if extra == nil {
+		return nil, nil
 	}
-	if err := ops.Repo.DeleteCheckItemsByTask(task.ID); err != nil {
-		return fmt.Errorf("delete check items: %w", err)
+	data, err := json.Marshal(extra)
+	if err != nil {
+		return nil, err
+	}
+	var wrapper struct {
+		Selections []taskkind.Selection `json:"selections"`
+	}
+	if err := json.Unmarshal(data, &wrapper); err != nil {
+		return nil, err
+	}
+	return wrapper.Selections, nil
+}
+
+func findCheckItemByID(items []repository.CheckItemModel, id string) *repository.CheckItemModel {
+	for i := range items {
+		if items[i].ID == id {
+			return &items[i]
+		}
 	}
 	return nil
+}
+
+func findBranchByID(branches []repository.CheckItemBranchModel, id string) *repository.CheckItemBranchModel {
+	for i := range branches {
+		if branches[i].ID == id {
+			return &branches[i]
+		}
+	}
+	return nil
+}
+
+func findCheckItemByName(items []repository.CheckItemModel, name string) *repository.CheckItemModel {
+	for i := range items {
+		if items[i].Name == name {
+			return &items[i]
+		}
+	}
+	return nil
+}
+
+func findBranchByName(branches []repository.CheckItemBranchModel, name string) *repository.CheckItemBranchModel {
+	for i := range branches {
+		if branches[i].Name == name {
+			return &branches[i]
+		}
+	}
+	return nil
+}
+
+func (h *handler) ensureBranchTask(taskStorage taskkind.TaskStorage, todo *repository.TodoModel, branch *repository.CheckItemBranchModel) {
+	if branch.BranchTaskID == "" {
+		return
+	}
+	branchTask, err := taskStorage.FindTaskByID(branch.BranchTaskID)
+	if err != nil || branchTask == nil {
+		return
+	}
+	now := time.Now()
+	db := taskStorage.DB()
+	db.Create(&repository.TodoModel{
+		TaskID:     branchTask.ID,
+		FamilyID:   branchTask.FamilyID,
+		LocationID: branchTask.LocationID,
+		DueStart:   now,
+		DueDate:    now.Add(24 * time.Hour),
+		Status:     "pending",
+	})
 }

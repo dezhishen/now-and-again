@@ -212,10 +212,6 @@ type TaskModel struct {
 	DisplaySummary string           `gorm:"size:256"`                        // plugin-populated display text for list view
 	LastTodoAt     *time.Time
 	CreatedBy      string `gorm:"type:char(36);not null"`
-	// Relations
-	CheckItems  []CheckItemModel `gorm:"foreignKey:TaskID"`
-	Children    []TaskModel      `gorm:"foreignKey:ParentTaskID"`
-	CheckItems_ string           `gorm:"-"` // ignore old field in DB, kept for migration
 }
 
 func (TaskModel) TableName() string { return "tasks" }
@@ -227,7 +223,6 @@ type TodoModel struct {
 	LocationID  string    `gorm:"index;type:char(36)"`
 	AssignedTo  string    `gorm:"index;type:char(36)"`
 	Status      string    `gorm:"size:16;not null;default:pending"` // pending/done/skipped
-	BranchName  string    `gorm:"size:128"`                         // selected branch (only for kind=branched)
 	Remark      string    `gorm:"type:text"`                        // user note on completion
 	DueStart    time.Time `gorm:"not null"`
 	DueDate     time.Time `gorm:"not null"`

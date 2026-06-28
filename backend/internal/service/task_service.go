@@ -13,31 +13,62 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
 	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
 	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
+	"gorm.io/gorm"
 
 	// Blank imports trigger init() registration of task kind handlers.
 	_ "github.com/dezhishen/now-and-again/backend/pkg/taskkind/inspection"
 	_ "github.com/dezhishen/now-and-again/backend/pkg/taskkind/simple"
 
-	"github.com/dezhishen/now-and-again/backend/pkg/types"
+	tasktypes "github.com/dezhishen/now-and-again/backend/pkg/types/task"
 )
 
 type TaskService struct {
-	repo      *repository.TaskRepo
-	scheduler *scheduler.Scheduler
-	Ops       *taskkind.Ops
+	repo        *repository.TaskRepo
+	scheduler   *scheduler.Scheduler
+	taskManager *taskkind.TaskManager
+	taskStorage taskkind.TaskStorage
+}
+
+type _taskStorage struct {
+	repo *repository.TaskRepo
+}
+
+func (s *_taskStorage) FindTaskByID(taskID string) (*repository.TaskModel, error) {
+	return s.repo.FindTaskByID(taskID)
+}
+
+func (s *_taskStorage) FindTaskByParentId(parentID string) (*repository.TaskModel, error) {
+	return s.repo.FindTaskByParentId(parentID)
+}
+
+func (s *_taskStorage) UpdateNoRootTask(task *repository.TaskModel) error {
+	return s.repo.UpdateTask(task)
+}
+
+func (s *_taskStorage) CreateNoRootTask(task *repository.TaskModel) error {
+	return s.repo.CreateTask(task)
+}
+
+func (s *_taskStorage) DeleteNoRootTask(taskID string) error {
+	return s.repo.DeleteTask(taskID)
+}
+
+func (s *_taskStorage) DB() *gorm.DB {
+	return s.repo.DB()
 }
 
 func NewTaskService(repo *repository.TaskRepo, sched *scheduler.Scheduler) *TaskService {
 	svc := &TaskService{
-		repo:      repo,
-		scheduler: sched,
-		Ops:       &taskkind.Ops{Repo: repo, Scheduler: sched},
+		repo:        repo,
+		scheduler:   sched,
+		taskManager: taskkind.GetManager(),
+		taskStorage: &_taskStorage{repo: repo}, // TaskRepo implements taskkind.TaskStorage
 	}
-	svc.loadExistingTasks()
+	svc._init()
 	return svc
 }
 
-func (s *TaskService) loadExistingTasks() {
+func (s *TaskService) _init() {
 	tasks, err := s.repo.ListEnabledTasks()
 	if err != nil {
 		logger.Warnf("failed to load existing tasks: %v", err)
@@ -48,20 +79,29 @@ func (s *TaskService) loadExistingTasks() {
 	}
 }
 
+func (s *TaskService) ScheduleTasks(tasks []repository.TaskModel) {
+	if len(tasks) == 0 {
+		logger.Info("No tasks to schedule")
+	}
+	for _, t := range tasks {
+		s.registerToScheduler(&t)
+	}
+}
+
 // ─── TaskContract delegates ──────────────────────────────────────
 // These implement shared/contracts.TaskContract so the service plugs into
 // the compile-time-checked contract system used by both server and CLI.
 
-func (s *TaskService) CreateTask(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.Task, error) {
+func (s *TaskService) CreateTask(ctx context.Context, familyID uuid.UUID, req *tasktypes.CreateTaskRequest) (*tasktypes.Task, error) {
 	return s.Create(ctx, familyID, req)
 }
-func (s *TaskService) UpdateTask(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.Task, error) {
+func (s *TaskService) UpdateTask(ctx context.Context, taskID uuid.UUID, req *tasktypes.UpdateTaskRequest) (*tasktypes.Task, error) {
 	return s.Update(ctx, taskID, req)
 }
 func (s *TaskService) DeleteTask(ctx context.Context, taskID uuid.UUID) error {
 	return s.Delete(ctx, taskID)
 }
-func (s *TaskService) ListTasks(ctx context.Context, familyID uuid.UUID) ([]types.Task, error) {
+func (s *TaskService) ListTasks(ctx context.Context, familyID uuid.UUID) ([]tasktypes.Task, error) {
 	return s.List(ctx, familyID)
 }
 func (s *TaskService) TriggerTask(ctx context.Context, taskID uuid.UUID) error {
@@ -73,7 +113,6 @@ func (s *TaskService) registerToScheduler(task *repository.TaskModel) {
 		s.scheduler.RemoveJob(task.ID)
 		return
 	}
-
 	b := &scheduler.JobBuilder{
 		TaskID:       task.ID,
 		ScheduleType: task.ScheduleType,
@@ -99,42 +138,44 @@ func (s *TaskService) onTaskTriggered(taskID, familyID string) error {
 }
 
 func (s *TaskService) createTodo(taskID, familyID string, force bool) error {
+	return s.repo.Tx(func(tx *repository.TaskRepo) error {
+		return s.createTodoWithTx(tx, taskID, familyID, force)
+	})
+}
+
+func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID string, force bool) error {
 	now := timeutil.Now()
 
-	task, err := s.repo.FindTaskByID(taskID)
+	task, err := tx.FindTaskByID(taskID)
 	if err != nil {
 		return err
 	}
 	window := scheduleWindow(task.ScheduleType, task.ScheduleData)
 
-	// Atomic check-and-create inside a transaction: prevents duplicate todos
-	// when two requests (or scheduler + manual trigger) race.
-	return s.repo.Tx(func(tx *repository.TaskRepo) error {
-		if !force {
-			has, _ := tx.HasPendingTodoForTaskToday(taskID, now)
-			if has {
-				return nil // already created — idempotent
-			}
+	if !force {
+		has, _ := tx.HasPendingTodoForTaskToday(taskID, now)
+		if has {
+			return nil
 		}
+	}
 
-		todo := &repository.TodoModel{
-			TaskID:     taskID,
-			FamilyID:   familyID,
-			LocationID: task.LocationID,
-			DueStart:   now,
-			DueDate:    now.Add(window),
-			Status:     "pending",
-		}
-		if err := tx.CreateTodo(todo); err != nil {
-			return err
-		}
-		return tx.UpdateLastTodoAt(taskID, now)
-	})
+	todo := &repository.TodoModel{
+		TaskID:     taskID,
+		FamilyID:   familyID,
+		LocationID: task.LocationID,
+		DueStart:   now,
+		DueDate:    now.Add(window),
+		Status:     "pending",
+	}
+	if err := tx.CreateTodo(todo); err != nil {
+		return err
+	}
+	return tx.UpdateLastTodoAt(taskID, now)
 }
 
 // ─── Task Template ───────────────────────────────────────────────
 
-func (s *TaskService) GetTask(ctx context.Context, taskID uuid.UUID) (*types.Task, error) {
+func (s *TaskService) GetTask(ctx context.Context, taskID uuid.UUID) (*tasktypes.Task, error) {
 	t, err := s.repo.FindTaskByID(taskID.String())
 	if err != nil {
 		return nil, err
@@ -142,24 +183,19 @@ func (s *TaskService) GetTask(ctx context.Context, taskID uuid.UUID) (*types.Tas
 	return taskModelToType(t), nil
 }
 
-func (s *TaskService) GetTaskWithExtra(ctx context.Context, taskID uuid.UUID) (map[string]any, error) {
-	t, err := s.repo.FindTaskFull(taskID.String())
+func (s *TaskService) GetTaskWithExtra(ctx context.Context, taskID uuid.UUID) (*tasktypes.TaskWithExtra, error) {
+	t, err := s.repo.FindTaskByID(taskID.String())
 	if err != nil {
 		return nil, err
 	}
-	result := map[string]any{
-		"task": taskModelToType(t),
-	}
-	if h := taskkind.Get(t.Kind); h != nil {
-		extra, _ := h.GetExtra(s.Ops, t)
-		if extra != nil {
-			result["extra"] = extra
-		}
+	result := &tasktypes.TaskWithExtra{Task: taskModelToType(t)}
+	if h := s.taskManager.Get(t.Kind); h != nil {
+		result.Extra, _ = h.GetExtra(s.taskStorage, t)
 	}
 	return result, nil
 }
 
-func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.Task, error) {
+func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *tasktypes.CreateTaskRequest) (*tasktypes.Task, error) {
 	userID := ctx.Value("user_id").(string)
 	kind := req.Task.Kind
 	if kind == "" {
@@ -167,35 +203,36 @@ func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types
 	}
 	dataJSON, _ := json.Marshal(req.Task.ScheduleData)
 	t := &repository.TaskModel{
-		FamilyID:     familyID.String(),
-		GroupID:      req.Task.GroupID,
-		LocationID:   req.Task.LocationID,
-		IsRoot:       true,
-		Name:         req.Task.Name,
-		ScheduleType: req.Task.ScheduleType,
-		ScheduleData: string(dataJSON),
-		Enabled:      true,
-		Kind:         kind,
-		CreatedBy:    userID,
+		FamilyID:       familyID.String(),
+		GroupID:        req.Task.GroupID,
+		LocationID:     req.Task.LocationID,
+		IsRoot:         true,
+		Name:           req.Task.Name,
+		ScheduleType:   req.Task.ScheduleType,
+		ScheduleData:   string(dataJSON),
+		Enabled:        true,
+		Kind:           kind,
+		DisplaySummary: req.Task.DisplaySummary,
+		CreatedBy:      userID,
 	}
 	if err := s.repo.Tx(func(tx *repository.TaskRepo) error {
 		if err := tx.CreateTask(t); err != nil {
 			return err
 		}
-		if h := taskkind.Get(kind); h != nil {
-			txOps := &taskkind.Ops{Repo: tx, Scheduler: s.scheduler}
-			if err := h.OnCreate(txOps, t, req.Extra); err != nil {
+		if h := s.taskManager.Get(kind); h != nil {
+			if err := h.OnCreate(&_taskStorage{repo: tx}, t, req.Extra); err != nil {
 				return err
 			}
 		}
+		// Create initial todo inside the transaction to avoid SQLITE_BUSY.
+		s.createTodoWithTx(tx, t.ID, t.FamilyID, false)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 
 	s.registerToScheduler(t)
-	s.onTaskTriggered(t.ID, t.FamilyID)
-	t, _ = s.repo.FindTaskFull(t.ID)
+	t, _ = s.repo.FindTaskByID(t.ID)
 	return taskModelToType(t), nil
 }
 
@@ -215,55 +252,55 @@ func (s *TaskService) Trigger(ctx context.Context, taskID uuid.UUID) error {
 	return s.createTodo(task.ID, task.FamilyID, true)
 }
 
-func (s *TaskService) List(ctx context.Context, familyID uuid.UUID) ([]types.Task, error) {
+func (s *TaskService) List(ctx context.Context, familyID uuid.UUID) ([]tasktypes.Task, error) {
 	tasks, err := s.repo.ListTasksByFamily(familyID.String())
 	if err != nil {
 		return nil, err
 	}
-	result := make([]types.Task, len(tasks))
+	result := make([]tasktypes.Task, len(tasks))
 	for i, t := range tasks {
 		result[i] = *taskModelToType(&t)
 	}
 	return result, nil
 }
 
-func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.Task, error) {
+func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *tasktypes.UpdateTaskRequest) (*tasktypes.Task, error) {
 	t, err := s.repo.FindTaskByID(taskID.String())
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 	if req.Task != nil {
 		f := req.Task
-		if f.Name != nil {
-			t.Name = *f.Name
+		if f.Name != "" {
+			t.Name = f.Name
 		}
-		if f.ScheduleType != nil {
-			t.ScheduleType = *f.ScheduleType
+		if f.ScheduleType != "" {
+			t.ScheduleType = f.ScheduleType
 		}
 		if f.ScheduleData != nil {
 			dataJSON, _ := json.Marshal(f.ScheduleData)
 			t.ScheduleData = string(dataJSON)
 		}
-		if f.Enabled != nil {
-			t.Enabled = *f.Enabled
+		t.Enabled = f.Enabled
+		if f.GroupID != "" {
+			t.GroupID = f.GroupID
 		}
-		if f.GroupID != nil {
-			t.GroupID = *f.GroupID
+		if f.LocationID != "" {
+			t.LocationID = f.LocationID
 		}
-		if f.LocationID != nil {
-			t.LocationID = *f.LocationID
+		if f.Kind != "" {
+			t.Kind = f.Kind
 		}
-		if f.Kind != nil {
-			t.Kind = *f.Kind
+		if f.DisplaySummary != "" {
+			t.DisplaySummary = f.DisplaySummary
 		}
 	}
 	if err := s.repo.Tx(func(tx *repository.TaskRepo) error {
 		if err := tx.UpdateTask(t); err != nil {
 			return err
 		}
-		if h := taskkind.Get(t.Kind); h != nil {
-			txOps := &taskkind.Ops{Repo: tx, Scheduler: s.scheduler}
-			if err := h.OnUpdate(txOps, t, req.Extra); err != nil {
+		if h := s.taskManager.Get(t.Kind); h != nil {
+			if err := h.OnUpdate(&_taskStorage{repo: tx}, t, req.Extra); err != nil {
 				return err
 			}
 		}
@@ -273,7 +310,7 @@ func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.U
 	}
 
 	s.registerToScheduler(t)
-	t, _ = s.repo.FindTaskFull(taskID.String())
+	t, _ = s.repo.FindTaskByID(taskID.String())
 	return taskModelToType(t), nil
 }
 
@@ -281,9 +318,8 @@ func (s *TaskService) Delete(ctx context.Context, taskID uuid.UUID) error {
 	task, _ := s.repo.FindTaskByID(taskID.String())
 	if task != nil {
 		if err := s.repo.Tx(func(tx *repository.TaskRepo) error {
-			if h := taskkind.Get(task.Kind); h != nil {
-				txOps := &taskkind.Ops{Repo: tx, Scheduler: s.scheduler}
-				if err := h.OnDelete(txOps, task); err != nil {
+			if h := s.taskManager.Get(task.Kind); h != nil {
+				if err := h.OnDelete(&_taskStorage{repo: tx}, task); err != nil {
 					return err
 				}
 			}
@@ -545,11 +581,11 @@ func marshalJSON(v any) string {
 	return string(b)
 }
 
-func taskModelToType(t *repository.TaskModel) *types.Task {
+func taskModelToType(t *repository.TaskModel) *tasktypes.Task {
 	var data any
 	json.Unmarshal([]byte(t.ScheduleData), &data)
 
-	return &types.Task{
+	return &tasktypes.Task{
 		ID: t.ID, FamilyID: t.FamilyID, GroupID: t.GroupID,
 		ParentTaskID: t.ParentTaskID, IsRoot: t.IsRoot,
 		LocationID: t.LocationID,

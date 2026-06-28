@@ -1,5 +1,8 @@
 import type { Component } from 'vue'
-import type { CheckItem } from '@/types'
+
+// ── Plugin kinds MUST NOT leak internal types to the main flow. ──
+// All plugin-specific data is typed as `any` / `any[]` here.
+// Concrete types (e.g. CheckItem) belong inside the plugin's own files.
 
 export interface TaskKindDef {
   card: Component
@@ -10,7 +13,11 @@ export interface TaskKindDef {
   todoBadgeKey?: string
   labelKey: string
   createLabelKey: string
-  defaultCheckItems?: CheckItem[]
+  defaultCheckItems?: any[]
+  /** 从 { task, extra } 生成 display_summary。插件自行解析 extra。 */
+  buildDisplaySummary?: (taskWithExtra: { task: any; extra: any }) => string
+  serializeExtra?: (formData: any[]) => any
+  parseExtra?: (extra: any) => any[]
 }
 
 const kinds: Record<string, TaskKindDef> = {}
@@ -51,8 +58,20 @@ export function getCreateLabelKey(kind: string): string {
   return kinds[kind]?.createLabelKey || 'taskKind.create'
 }
 
-export function getDefaultCheckItems(kind: string): CheckItem[] | undefined {
+export function getDefaultCheckItems(kind: string): any[] | undefined {
   return kinds[kind]?.defaultCheckItems
+}
+
+export function buildDisplaySummary(kind: string, taskWithExtra: { task: any; extra: any }): string {
+  return kinds[kind]?.buildDisplaySummary?.(taskWithExtra) || ''
+}
+
+export function serializeExtra(kind: string, formData: any[]): any {
+  return kinds[kind]?.serializeExtra?.(formData)
+}
+
+export function parseExtra(kind: string, extra: any): any[] {
+  return kinds[kind]?.parseExtra?.(extra) || []
 }
 
 export function getTaskKinds(): { kind: string; labelKey: string }[] {

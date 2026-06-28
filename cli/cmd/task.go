@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/dezhishen/now-and-again/backend/pkg/types"
+	"github.com/dezhishen/now-and-again/backend/pkg/types/task"
 	"github.com/spf13/cobra"
 )
 
@@ -51,8 +51,8 @@ Schedule types:
 			return fmt.Errorf("invalid --data JSON: %w", err)
 		}
 
-		t, err := allClients.Task.Create(familyID, &types.CreateTaskRequest{
-			Task: types.TaskFields{
+		t, err := allClients.Task.Create(familyID, &task.CreateTaskRequest{
+			Task: task.Task{
 				Name:         name,
 				ScheduleType: schedule,
 				ScheduleData: data,
@@ -160,8 +160,8 @@ var taskToggleCmd = &cobra.Command{
 			return fmt.Errorf("--id and --enable (true|false) are required")
 		}
 		enable, _ := strconv.ParseBool(enableStr)
-		t, err := allClients.Task.Update(taskID, &types.UpdateTaskRequest{
-			Task: &types.UpdateTaskFields{Enabled: &enable},
+		t, err := allClients.Task.Update(taskID, &task.UpdateTaskRequest{
+			Task: &task.Task{Enabled: enable},
 		})
 		if err != nil {
 			return err

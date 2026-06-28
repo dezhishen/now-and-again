@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/dezhishen/now-and-again/backend/internal/service"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
+	"github.com/dezhishen/now-and-again/backend/pkg/types/task"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,7 +19,7 @@ func (h *TaskHandlers) Create(c *gin.Context) {
 		badRequest(c, "invalid family_id")
 		return
 	}
-	req, err := bindJSON[types.CreateTaskRequest](c)
+	req, err := bindJSON[task.CreateTaskRequest](c)
 	if err != nil {
 		badRequest(c, err.Error())
 		return
@@ -75,7 +76,7 @@ func (h *TaskHandlers) Update(c *gin.Context) {
 		badRequest(c, "invalid task_id")
 		return
 	}
-	req, err := bindJSON[types.UpdateTaskRequest](c)
+	req, err := bindJSON[task.UpdateTaskRequest](c)
 	if err != nil {
 		badRequest(c, err.Error())
 		return
@@ -208,4 +209,3 @@ func (h *TaskHandlers) GetCalendar(c *gin.Context) {
 	}
 	ok(c, days)
 }
-

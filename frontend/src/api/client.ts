@@ -41,7 +41,9 @@ function saveStoredToken(t: StoredToken | null) {
 function getJWTExpiry(token: string): number {
   try {
     const payload = token.split('.')[1]
-    const claims = JSON.parse(atob(payload))
+    // Convert base64url → base64 (Go's jwt lib uses RawURLEncoding)
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const claims = JSON.parse(atob(base64))
     return claims?.exp || 0
   } catch { return 0 }
 }

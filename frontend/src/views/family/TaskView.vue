@@ -7,10 +7,10 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import TaskCard from '@/components/tasks/TaskCard.vue'
 import { useToast } from '@/composables/useToast'
 import { useLoading } from '@/composables/useLoading'
-import { getCreateLabelKey, getDefaultCheckItems, getTaskKinds, getFormComponent } from '@/composables/useTaskKinds'
+import { getCreateLabelKey, getDefaultCheckItems, getTaskKinds, getFormComponent, buildDisplaySummary, serializeExtra, parseExtra } from '@/composables/useTaskKinds'
 import { useConfirm } from '@/composables/useConfirm'
 import { initTaskKinds } from '@/components/tasks/init'
-import type { Task, FamilyGroup, CheckItem } from '@/types'
+import type { Task, FamilyGroup } from '@/types'
 
 // Initialize plugin task kinds
 initTaskKinds()
@@ -55,7 +55,7 @@ const taskDays = ref<number[]>([])
 const taskGroupID = ref('')
 const taskLocationID = ref('')
 const taskKind = ref('simple')
-const checkItems = ref<CheckItem[]>([])
+const checkItems = ref<any[]>([])
 const editingTask = ref<Task | null>(null)
 const saving = ref(false)
 
@@ -130,11 +130,11 @@ async function openEdit(task: Task) {
   taskKind.value = task.kind || 'simple'
   checkItems.value = []
 
-  // Always load kind-specific extra data for kinds that have a form component
+  // Load kind-specific form data through plugin
   if (getFormComponent(task.kind || 'simple')) {
     try {
-      const res = await api.get<{ extra: { check_items: CheckItem[] } }>('/tasks/' + task.id + '?with_extra=true')
-      if (res.extra?.check_items) checkItems.value = [...res.extra.check_items]
+      const res = await api.get<{ extra: any }>('/tasks/' + task.id + '?with_extra=true')
+      checkItems.value = parseExtra(task.kind || 'simple', res.extra)
     } catch { /* non-critical */ }
   }
 
@@ -159,9 +159,13 @@ async function saveTask() {
   if (taskLocationID.value) taskFields.location_id = taskLocationID.value
 
   const body: any = { task: taskFields }
-  // Wrap kind-specific data into extra (plugin-friendly)
-  if (getFormComponent(taskKind.value)) {
-    body.extra = { check_items: checkItems.value }
+  const extra = serializeExtra(taskKind.value, checkItems.value)
+  if (extra !== undefined) {
+    body.extra = extra
+  }
+  const displaySummary = buildDisplaySummary(taskKind.value, { task: taskFields, extra })
+  if (displaySummary) {
+    taskFields.display_summary = displaySummary
   }
 
   try {

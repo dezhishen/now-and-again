@@ -20,10 +20,10 @@ function switchLang(lang: string) {
   showLangMenu.value = false
 }
 
-function logout() {
+async function logout() {
   showUserMenu.value = false
-  auth.logout()
-  router.push('/login')
+  await auth.logout()
+  window.location.href = '/login'
 }
 
 const LANGS = [

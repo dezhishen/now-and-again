@@ -102,8 +102,6 @@ export interface Location {
   updated_at: string
 }
 
-// ─── Task ────────────────────────────────────────────────────────
-
 export interface Task {
   id: string
   family_id: string
@@ -115,14 +113,12 @@ export interface Task {
   schedule_type: string
   schedule_data: any
   enabled: boolean
-  kind: 'simple' | 'inspection'
-  display_summary?: string     // plugin-populated for list view
+  kind: string
+  display_summary?: string
   last_todo_at?: string
   created_by: string
   created_at: string
   updated_at: string
-  // Kind-specific extras loaded via GET /tasks/:id?with_extra=true
-  extra?: any
 }
 
 export interface CheckItem {
@@ -136,11 +132,23 @@ export interface BranchItem {
   id?: string
   name: string
   create_todo: boolean
-  todo_name?: string
-  group_id?: string
-  location_id?: string
   branch_task_id?: string
   sort_order?: number
+  /** 创建参数（输入）/ 已创建的子任务（输出）。复用 TaskWithExtra。 */
+  branch_task?: TaskWithExtra
+}
+
+export interface TaskWithExtra {
+  task: Task
+  extra?: any
+}
+
+export interface CompleteTodoRequest {
+  todo?: {
+    status: 'done' | 'skipped'
+    remark?: string
+  }
+  extra?: any
 }
 
 export interface Todo {
@@ -150,7 +158,6 @@ export interface Todo {
   location_id?: string
   assigned_to?: string
   status: 'pending' | 'done' | 'skipped'
-  branch_name?: string
   remark?: string
   due_start: string
   due_date: string

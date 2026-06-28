@@ -33,26 +33,27 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore()
 
-  // Token is persisted to localStorage by ApiClient constructor.
-  // hasValidToken() checks both memory and localStorage — no network call.
-  // Only call /auth/refresh when token is truly missing or expired.
-  if (!auth.sessionChecked && !api.hasValidToken()) {
+  // ── Silent token restore (only for protected routes) ─────
+  if (to.meta.requiresAuth && !api.hasValidToken()) {
     await auth.initSession()
-  } else {
-    auth.sessionChecked = true
   }
-
-  // Token is valid but user object was lost (page refresh) — restore it lazily
+  // Lazy-load user profile (token valid but user lost on refresh).
+  // fetchUser clears the token on 401 (stale token after db-reset).
   if (auth.isLoggedIn && !auth.user) {
-    auth.fetchUser()
+    await auth.fetchUser()
   }
 
+  // ── Auth guard ────────────────────────────────────────────
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     if (to.name === 'calendar-full' && to.query.key) return next()
-    return next('/login')
+    return next({ path: '/login', query: { redirect: to.fullPath } })
   }
   if (to.meta.requiresAdmin && !auth.isAdmin) return next('/')
-  if (auth.isLoggedIn && (to.name === 'login' || to.name === 'register')) return next('/')
+
+  // Already logged in — don't show login/register
+  if (auth.isLoggedIn && (to.name === 'login' || to.name === 'register')) {
+    return next('/')
+  }
 
   next()
 })

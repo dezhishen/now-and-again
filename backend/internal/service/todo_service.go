@@ -10,19 +10,22 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
 	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
+	tasktypes "github.com/dezhishen/now-and-again/backend/pkg/types/task"
 )
 
 type TodoService struct {
-	repo      *repository.TaskRepo
-	scheduler *scheduler.Scheduler
-	Ops       *taskkind.Ops
+	repo        *repository.TaskRepo
+	scheduler   *scheduler.Scheduler
+	taskStorage taskkind.TaskStorage
+	taskManager *taskkind.TaskManager
 }
 
 func NewTodoService(repo *repository.TaskRepo, sched *scheduler.Scheduler) *TodoService {
 	return &TodoService{
-		repo:      repo,
-		scheduler: sched,
-		Ops:       &taskkind.Ops{Repo: repo, Scheduler: sched},
+		repo:        repo,
+		scheduler:   sched,
+		taskManager: taskkind.GetManager(),
+		taskStorage: &_taskStorage{repo: repo},
 	}
 }
 
@@ -51,19 +54,14 @@ func (s *TodoService) GetTodo(ctx context.Context, todoID uuid.UUID) (*types.Tod
 	return todoModelToType(t), nil
 }
 
-func (s *TodoService) GetTodoWithExtra(ctx context.Context, todoID uuid.UUID) (map[string]any, error) {
+func (s *TodoService) GetTodoWithExtra(ctx context.Context, todoID uuid.UUID) (*types.TodoWithExtra, error) {
 	t, err := s.repo.FindTodoFull(todoID.String())
 	if err != nil {
 		return nil, err
 	}
-	result := map[string]any{
-		"todo": todoModelToType(t),
-	}
-	if h := taskkind.Get(t.Task.Kind); h != nil {
-		extra, _ := h.GetExtra(s.Ops, &t.Task)
-		if extra != nil {
-			result["extra"] = extra
-		}
+	result := &types.TodoWithExtra{Todo: todoModelToType(t)}
+	if h := s.taskManager.Get(t.Task.Kind); h != nil {
+		result.Extra, _ = h.GetExtra(s.taskStorage, &t.Task)
 	}
 	return result, nil
 }
@@ -74,11 +72,10 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 	if err != nil {
 		return nil, err
 	}
+	todoFields := req.Todo
+	status := todoFields.Status
 
-	status := req.Status
-	branchName := req.BranchName
-
-	updated, err := s.repo.CompleteTodo(todoID.String(), userID, status, req.Remark)
+	updated, err := s.repo.CompleteTodo(todoID.String(), userID, status, todoFields.Remark)
 	if err != nil {
 		return nil, err
 	}
@@ -87,13 +84,13 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 	// Duplicate completions are silently ignored (idempotent).
 	if updated {
 		msg := fmt.Sprintf("完成待办: %s", todo.Task.Name)
-		if req.Remark != "" {
-			msg += fmt.Sprintf(" | 备注: %s", req.Remark)
+		if todoFields.Remark != "" {
+			msg += fmt.Sprintf(" | 备注: %s", todoFields.Remark)
 		}
 		s.repo.CreateUserLog(todo.TaskID, todoID.String(), userID, status, msg)
-
-		if h := taskkind.Get(todo.Task.Kind); h != nil {
-			h.OnComplete(s.Ops, todo, req.Selections, branchName, userID)
+		todo.CompletedBy = userID
+		if h := s.taskManager.Get(todo.Task.Kind); h != nil {
+			h.OnComplete(s.taskStorage, todo, req.Extra)
 		}
 
 		s.disableCompletedOnceTask(todo)
@@ -115,7 +112,7 @@ func (s *TodoService) disableCompletedOnceTask(todo *repository.TodoModel) {
 }
 
 func todoModelToType(t *repository.TodoModel) *types.Todo {
-	var task *types.Task
+	var task *tasktypes.Task
 	if t.Task.ID != "" {
 		task = taskModelToType(&t.Task)
 	}
@@ -126,7 +123,7 @@ func todoModelToType(t *repository.TodoModel) *types.Todo {
 	return &types.Todo{
 		ID: t.ID, TaskID: t.TaskID, FamilyID: t.FamilyID,
 		LocationID: t.LocationID,
-		AssignedTo: t.AssignedTo, Status: t.Status, BranchName: t.BranchName, Remark: t.Remark,
+		AssignedTo: t.AssignedTo, Status: t.Status, Remark: t.Remark,
 		DueStart:    t.DueStart,
 		DueDate:     t.DueDate,
 		CompletedAt: t.CompletedAt, CompletedBy: t.CompletedBy,

@@ -2,57 +2,77 @@ package taskkind
 
 import (
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
-	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
+	"gorm.io/gorm"
 )
 
 // ─── Operations ──────────────────────────────────────────────────
-
-// Ops bundles the dependencies handlers need from the service layer.
-// Handlers use this to read/write tasks, todos, logs, and the scheduler.
-type Ops struct {
-	Repo      *repository.TaskRepo
-	Scheduler *scheduler.Scheduler
+// Read and display-summary methods may operate on any task.
+// Write methods (Create/Update/Delete) are suffixed NoRoot because they
+// must only be used for plugin-owned sub-tasks, never the root task.
+type TaskStorage interface {
+	FindTaskByID(taskID string) (*repository.TaskModel, error)
+	FindTaskByParentId(parentID string) (*repository.TaskModel, error)
+	CreateNoRootTask(task *repository.TaskModel) error
+	UpdateNoRootTask(task *repository.TaskModel) error
+	DeleteNoRootTask(taskID string) error
+	DB() *gorm.DB
 }
 
 // ─── Handler Interface ───────────────────────────────────────────
 
 // Handler defines task-kind-specific behavior. All methods are mandatory.
+// Use taskStorage.DB() to obtain the *gorm.DB for kind-specific DB operations.
 type Handler interface {
 	Kind() string
 
-	// Lifecycle — called by taskService for every task
-	OnCreate(ops *Ops, task *repository.TaskModel, extra any) error
-	OnUpdate(ops *Ops, task *repository.TaskModel, extra any) error
-	OnDelete(ops *Ops, task *repository.TaskModel) error
-
+	// Lifecycle — called by taskService for every task.
+	OnCreate(taskStorage TaskStorage, task *repository.TaskModel, extra any) error
+	OnUpdate(taskStorage TaskStorage, task *repository.TaskModel, extra any) error
+	OnDelete(taskStorage TaskStorage, task *repository.TaskModel) error
 	// OnComplete is called when a todo of this kind is completed.
 	// extra carries the kind-specific payload from CompleteTodoRequest.
-	OnComplete(ops *Ops, todo *repository.TodoModel, extra any, branchName, userID string) error
-
+	OnComplete(taskStorage TaskStorage, todo *repository.TodoModel, extra any) error
 	// GetExtra returns kind-specific data for the task detail page.
 	// e.g. for inspection: check_items + children
-	GetExtra(ops *Ops, task *repository.TaskModel) (any, error)
+	GetExtra(taskStorage TaskStorage, task *repository.TaskModel) (any, error)
 }
 
 // Selection represents one checked item in an inspection.
 type Selection struct {
-	Item   string
-	Branch string
+	ItemID     string `json:"item_id"`
+	BranchID   string `json:"branch_id"`
+	ItemName   string `json:"item_name"`
+	BranchName string `json:"branch_name"`
 }
 
-// ─── Registry ────────────────────────────────────────────────────
+type TaskManager struct {
+	registry map[string]Handler
+}
 
-var registry = map[string]Handler{}
+func NewTaskManager() *TaskManager {
+	return &TaskManager{registry: make(map[string]Handler)}
+}
 
-func Register(h Handler) { registry[h.Kind()] = h }
+func (tm *TaskManager) Register(h Handler) { tm.registry[h.Kind()] = h }
 
-func Get(kind string) Handler { return registry[kind] }
+func (tm *TaskManager) Get(kind string) Handler { return tm.registry[kind] }
 
-// All returns all registered handlers.
-func All() []Handler {
-	result := make([]Handler, 0, len(registry))
-	for _, h := range registry {
+func (tm *TaskManager) All() []Handler {
+	result := make([]Handler, 0, len(tm.registry))
+	for _, h := range tm.registry {
 		result = append(result, h)
 	}
 	return result
+}
+
+var defaultTaskManager = NewTaskManager()
+
+// ─── Registry ────────────────────────────────────────────────────
+
+func Register(h Handler) {
+	defaultTaskManager.Register(h)
+}
+
+func GetManager() *TaskManager {
+	return defaultTaskManager
 }

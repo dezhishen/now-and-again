@@ -111,7 +111,7 @@ now-and-again/
 │   │   ├── taskkind/           #     任务类型插件 (simple, inspection)
 │   │   ├── locationkind/       #     地点类型插件 (indoor)
 │   │   ├── scopes/             #     权限范围
-│   │   └── types/              #     共享 DTO
+│   │   └── types/         #     共享 DTO (todo.go, log.go, task/{task,inspection}.go)
 │   └── internal/
 │       ├── config/             #   配置
 │       ├── handler/            #   HTTP 路由 + 请求处理

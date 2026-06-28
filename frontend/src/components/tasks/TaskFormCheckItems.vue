@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CheckItem, FamilyGroup } from '@/types'
+import type { CheckItem, BranchItem, FamilyGroup } from '@/types'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -14,12 +14,18 @@ function addBranch(item: CheckItem) {
   item.branches.push({ name: '', create_todo: false })
 }
 
+function onToggleCreateTodo(b: BranchItem) {
+  if (b.create_todo && !b.branch_task) {
+    b.branch_task = { task: { name: '', kind: 'simple', schedule_type: 'once' } as any }
+  }
+}
+
 function addItem() {
   checkItems.value.unshift({
     name: '',
     branches: [
       { name: '正常', create_todo: false },
-      { name: '异常', create_todo: true, todo_name: '修复{name}' },
+      { name: '异常', create_todo: true, branch_task: { task: { name: '', kind: 'simple', schedule_type: 'once' } as any } },
     ],
   })
 }
@@ -46,16 +52,16 @@ function addItem() {
         <div v-for="(b, j) in item.branches" :key="j" class="flex flex-wrap items-center gap-1 ml-2">
           <input v-model="b.name" class="input text-xs w-24" :placeholder="t('taskForm.branchName')" />
           <label class="flex items-center gap-0.5 text-xs cursor-pointer">
-            <input type="checkbox" v-model="b.create_todo" class="accent-purple-500" />
+            <input type="checkbox" v-model="b.create_todo" class="accent-purple-500" @change="onToggleCreateTodo(b)" />
             <span class="text-gray-400">{{ t('taskForm.createTask') }}</span>
           </label>
-          <template v-if="b.create_todo">
-            <input v-model="b.todo_name" class="input text-xs flex-1 min-w-[120px]" :placeholder="t('taskForm.taskName')" />
-            <select v-model="b.group_id" class="input text-xs w-20">
+          <template v-if="b.create_todo && b.branch_task?.task">
+            <input v-model="b.branch_task.task.name" class="input text-xs flex-1 min-w-[120px]" :placeholder="t('taskForm.taskName')" />
+            <select v-model="b.branch_task.task.group_id" class="input text-xs w-20">
               <option value="">{{ t('taskForm.group') }}</option>
               <option v-for="g in props.groups" :key="g.id" :value="g.id">{{ g.name }}</option>
             </select>
-            <select v-model="b.location_id" class="input text-xs w-20">
+            <select v-model="b.branch_task.task.location_id" class="input text-xs w-20">
               <option value="">{{ t('taskForm.location') }}</option>
               <option v-for="loc in props.locations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
             </select>

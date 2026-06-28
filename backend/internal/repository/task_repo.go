@@ -9,6 +9,9 @@ import (
 
 // ─── Transaction ─────────────────────────────────────────────────
 
+// DB returns the underlying *gorm.DB.
+func (r *TaskRepo) DB() *gorm.DB { return r.db }
+
 // Tx runs fn in a transaction, creating a new TaskRepo with the tx DB.
 // All operations inside fn use the same transaction.
 func (r *TaskRepo) Tx(fn func(tx *TaskRepo) error) error {
@@ -29,17 +32,16 @@ func (r *TaskRepo) FindTaskByID(id string) (*TaskModel, error) {
 	return &t, err
 }
 
+func (r *TaskRepo) FindTaskByParentId(parentID string) (*TaskModel, error) {
+	var t TaskModel
+	err := r.db.Preload("Group").Where("parent_task_id = ?", parentID).First(&t).Error
+	return &t, err
+}
+
 func (r *TaskRepo) ListTasksByFamily(familyID string) ([]TaskModel, error) {
 	var tasks []TaskModel
 	err := r.db.Preload("Group").Where("family_id = ? AND is_root = ?", familyID, true).Order("created_at ASC").Find(&tasks).Error
 	return tasks, err
-}
-
-// FindTaskFull loads a task with all sub-tables for detail view / plugin actions.
-func (r *TaskRepo) FindTaskFull(id string) (*TaskModel, error) {
-	var t TaskModel
-	err := r.db.Preload("Group").Preload("CheckItems.Branches.BranchTask").Preload("Children").Where("id = ?", id).First(&t).Error
-	return &t, err
 }
 
 func (r *TaskRepo) ListEnabledTasks() ([]TaskModel, error) {
@@ -65,10 +67,6 @@ func (r *TaskRepo) UpdateLastTodoAt(taskID string, t time.Time) error {
 	return r.db.Model(&TaskModel{}).Where("id = ?", taskID).Update("last_todo_at", t).Error
 }
 
-func (r *TaskRepo) UpdateDisplaySummary(taskID, summary string) error {
-	return r.db.Model(&TaskModel{}).Where("id = ?", taskID).Update("display_summary", summary).Error
-}
-
 // ─── Todo ────────────────────────────────────────────────────────
 
 func (r *TaskRepo) CreateTodo(todo *TodoModel) error {
@@ -81,10 +79,11 @@ func (r *TaskRepo) FindTodoByID(id string) (*TodoModel, error) {
 	return &t, err
 }
 
-// FindTodoFull loads a todo with full task detail (check items, children).
+// FindTodoFull loads a todo with its Task and User. Kind-specific extra data
+// (e.g. check items) is loaded by the plugin via GetExtra — never joined here.
 func (r *TaskRepo) FindTodoFull(id string) (*TodoModel, error) {
 	var t TodoModel
-	err := r.db.Preload("Task.CheckItems.Branches").Preload("Task.Children").Preload("User").Where("id = ?", id).First(&t).Error
+	err := r.db.Preload("Task").Preload("User").Where("id = ?", id).First(&t).Error
 	return &t, err
 }
 
@@ -119,21 +118,6 @@ func (r *TaskRepo) CompleteTodo(id, userID, status, remark string) (bool, error)
 			"remark":       remark,
 			"completed_at": now,
 			"completed_by": userID,
-		})
-	return result.RowsAffected > 0, result.Error
-}
-
-// CompleteInspection marks an inspection todo as done. Only updates if currently 'pending'.
-// Returns true if a row was actually updated.
-func (r *TaskRepo) CompleteInspection(id, userID, inspectionResult string) (bool, error) {
-	now := timeutil.Now()
-	result := r.db.Model(&TodoModel{}).
-		Where("id = ? AND status = ?", id, "pending").
-		Updates(map[string]interface{}{
-			"status":            "done",
-			"inspection_result": inspectionResult,
-			"completed_at":      now,
-			"completed_by":      userID,
 		})
 	return result.RowsAffected > 0, result.Error
 }
@@ -219,44 +203,7 @@ func (r *TaskRepo) ListLogsByFamilyAndTask(familyID, taskID, since, until string
 	return logs, err
 }
 
-// ─── Inspection Result ───────────────────────────────────────────
-
-func (r *TaskRepo) CreateInspectionResult(ir *InspectionResultModel) error {
-	return r.db.Create(ir).Error
-}
-
-// ─── Check Items ─────────────────────────────────────────────────
-
-func (r *TaskRepo) CreateCheckItem(item *CheckItemModel) error {
-	return r.db.Create(item).Error
-}
-
-func (r *TaskRepo) CreateCheckItemBranch(branch *CheckItemBranchModel) error {
-	return r.db.Create(branch).Error
-}
-
-func (r *TaskRepo) DeleteCheckItemsByTask(taskID string) error {
-	// Delete branches first, then items
-	r.db.Where("check_item_id IN (SELECT id FROM check_items WHERE task_id = ?)", taskID).Delete(&CheckItemBranchModel{})
-	return r.db.Where("task_id = ?", taskID).Delete(&CheckItemModel{}).Error
-}
-
 // DeleteChildren removes child tasks (is_root=false) for a given parent.
 func (r *TaskRepo) DeleteChildren(parentTaskID string) error {
 	return r.db.Where("parent_task_id = ? AND is_root = ?", parentTaskID, false).Delete(&TaskModel{}).Error
-}
-
-// FindBranchTask looks up the branch task for a given inspection selection,
-// using GORM model-driven JOINs through CheckItemBranchModel → CheckItem → Task.
-func (r *TaskRepo) FindBranchTask(taskID, itemName, branchName string) (*TaskModel, error) {
-	var cb CheckItemBranchModel
-	err := r.db.
-		Joins("CheckItem").
-		Joins("BranchTask").
-		Where("CheckItem.task_id = ? AND CheckItem.name = ? AND check_item_branches.name = ?", taskID, itemName, branchName).
-		First(&cb).Error
-	if err != nil {
-		return nil, err
-	}
-	return cb.BranchTask, nil
 }

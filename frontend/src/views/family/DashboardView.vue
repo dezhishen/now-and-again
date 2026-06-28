@@ -62,7 +62,7 @@ async function submitRemark() {
   if (!todo || remarkSubmitting.value) return
   remarkSubmitting.value = true
   try {
-    await api.put('/todos/' + todo.id, { status: 'done', remark: remarkText.value })
+    await api.put('/todos/' + todo.id, { todo: { status: 'done', remark: remarkText.value } })
     await withLoading(loadTodos)
     toast.success(t('dashboard.completed'))
     showRemark.value = false
@@ -76,7 +76,7 @@ async function completeTodoDirect(todo: Todo, status: string) {
   if (processingTodos.value.has(todo.id)) return
   processingTodos.value = new Set([...processingTodos.value, todo.id])
   try {
-    await api.put('/todos/' + todo.id, { status })
+    await api.put('/todos/' + todo.id, { todo: { status: status as 'done' | 'skipped' } })
     await withLoading(loadTodos)
     toast.success(status === 'done' ? t('dashboard.completed') : t('dashboard.skipped'))
   } catch (e: any) { toast.error(e.message) }
