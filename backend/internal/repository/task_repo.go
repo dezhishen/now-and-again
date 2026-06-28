@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
-	tasktypes "github.com/dezhishen/now-and-again/backend/pkg/types/task"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"gorm.io/gorm"
 )
 
@@ -207,17 +207,17 @@ func (r *TaskRepo) DeleteChildren(parentTaskID string) error {
 	return r.db.Where("parent_task_id = ? AND is_root = ?", parentTaskID, false).Delete(&TaskModel{}).Error
 }
 
-// TaskModelToType converts a TaskModel to the public task.Task DTO.
-func TaskModelToType(t *TaskModel) *tasktypes.Task {
+// TaskModelToType converts a TaskModel to the public types.Task DTO.
+func TaskModelToType(t *TaskModel) *types.Task {
 	var data any
 	json.Unmarshal([]byte(t.ScheduleData), &data)
-	return &tasktypes.Task{
+	return &types.Task{
 		ID: t.ID, FamilyID: t.FamilyID, GroupID: t.GroupID,
 		ParentTaskID: t.ParentTaskID, IsRoot: t.IsRoot,
 		LocationID: t.LocationID,
-		Name: t.Name, ScheduleType: t.ScheduleType, ScheduleData: data,
+		Name:       t.Name, ScheduleType: t.ScheduleType, ScheduleData: data,
 		Enabled: t.Enabled, Kind: t.Kind, DisplaySummary: t.DisplaySummary,
 		LastTodoAt: t.LastTodoAt,
-		CreatedBy: t.CreatedBy, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+		CreatedBy:  t.CreatedBy, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}
 }

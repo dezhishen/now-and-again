@@ -1,4 +1,4 @@
-package task
+package types
 
 // ─── Check Items (inspection task kind) ─────────────────────────
 

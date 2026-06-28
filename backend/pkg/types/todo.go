@@ -2,8 +2,6 @@ package types
 
 import (
 	"time"
-
-	"github.com/dezhishen/now-and-again/backend/pkg/types/task"
 )
 
 // ─── Todo ────────────────────────────────────────────────────────
@@ -20,7 +18,7 @@ type Todo struct {
 	DueDate     time.Time  `json:"due_date"`
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
 	CompletedBy string     `json:"completed_by,omitempty"`
-	Task        *task.Task `json:"task,omitempty"`
+	Task        *Task      `json:"task,omitempty"`
 	User        *User      `json:"user,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`

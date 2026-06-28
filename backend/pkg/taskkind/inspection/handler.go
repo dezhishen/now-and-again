@@ -7,7 +7,7 @@ import (
 
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
-	tasktypes "github.com/dezhishen/now-and-again/backend/pkg/types/task"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 )
 
 // handler implements taskkind.Handler for inspection tasks.
@@ -20,7 +20,7 @@ func init() {
 func (handler) Kind() string { return "inspection" }
 
 type extraData struct {
-	CheckItems []tasktypes.CheckItemDTO `json:"check_items"`
+	CheckItems []types.CheckItemDTO `json:"check_items"`
 }
 
 // Lifecycle — called by taskService for every task.
@@ -146,11 +146,11 @@ func (h *handler) getExtraData(taskStorage taskkind.TaskStorage, task *repositor
 	if error != nil {
 		return nil, fmt.Errorf("load check items: %w", error)
 	}
-	extraData := &extraData{CheckItems: make([]tasktypes.CheckItemDTO, 0, len(checkItems))}
+	extraData := &extraData{CheckItems: make([]types.CheckItemDTO, 0, len(checkItems))}
 	for _, ci := range checkItems {
-		branches := make([]tasktypes.CheckItemBranchDTO, 0, len(ci.Branches))
+		branches := make([]types.CheckItemBranchDTO, 0, len(ci.Branches))
 		for _, b := range ci.Branches {
-			dto := tasktypes.CheckItemBranchDTO{
+			dto := types.CheckItemBranchDTO{
 				ID:           b.ID,
 				Name:         b.Name,
 				CreateTodo:   b.CreateTodo,
@@ -161,7 +161,7 @@ func (h *handler) getExtraData(taskStorage taskkind.TaskStorage, task *repositor
 			if b.BranchTaskID != "" {
 				branchTask, err := taskStorage.FindTaskByID(b.BranchTaskID)
 				if err == nil && branchTask != nil {
-					dto.BranchTask = &tasktypes.TaskWithExtra{
+					dto.BranchTask = &types.TaskWithExtra{
 						Task: repository.TaskModelToType(branchTask),
 					}
 				}
@@ -169,7 +169,7 @@ func (h *handler) getExtraData(taskStorage taskkind.TaskStorage, task *repositor
 
 			branches = append(branches, dto)
 		}
-		extraData.CheckItems = append(extraData.CheckItems, tasktypes.CheckItemDTO{
+		extraData.CheckItems = append(extraData.CheckItems, types.CheckItemDTO{
 			ID: ci.ID, Name: ci.Name, SortOrder: ci.SortOrder,
 			Branches: branches,
 		})
@@ -179,7 +179,7 @@ func (h *handler) getExtraData(taskStorage taskkind.TaskStorage, task *repositor
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
-func parseCheckItems(extra any) ([]tasktypes.CheckItemDTO, error) {
+func parseCheckItems(extra any) ([]types.CheckItemDTO, error) {
 	if extra == nil {
 		return nil, nil
 	}
@@ -188,7 +188,7 @@ func parseCheckItems(extra any) ([]tasktypes.CheckItemDTO, error) {
 		return nil, err
 	}
 	var wrapper struct {
-		CheckItems []tasktypes.CheckItemDTO `json:"check_items"`
+		CheckItems []types.CheckItemDTO `json:"check_items"`
 	}
 	if err := json.Unmarshal(data, &wrapper); err != nil {
 		return nil, err
@@ -196,7 +196,7 @@ func parseCheckItems(extra any) ([]tasktypes.CheckItemDTO, error) {
 	return wrapper.CheckItems, nil
 }
 
-func (h *handler) saveCheckItems(taskStorage taskkind.TaskStorage, task *repository.TaskModel, items []tasktypes.CheckItemDTO) error {
+func (h *handler) saveCheckItems(taskStorage taskkind.TaskStorage, task *repository.TaskModel, items []types.CheckItemDTO) error {
 	// Use the same DB (possibly transactional) as the task repo.
 	db := taskStorage.DB()
 	checkItemRepo := repository.NewCheckItemRepo(db)

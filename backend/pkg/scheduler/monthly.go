@@ -9,7 +9,8 @@ import (
 
 type monthlyHandler struct{}
 
-func (monthlyHandler) Code() string { return "monthly" }
+func (monthlyHandler) Code() string    { return "monthly" }
+func (monthlyHandler) IsOneShot() bool { return false }
 
 func (monthlyHandler) BuildJob(data map[string]any) *JobDef {
 	t := str(data, "time", "09:00")

@@ -5,7 +5,6 @@ import (
 	"mime/multipart"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
-	"github.com/dezhishen/now-and-again/backend/pkg/types/task"
 	"github.com/google/uuid"
 )
 
@@ -82,12 +81,12 @@ type FloorPlanContract interface {
 
 // TaskContract defines the core task/todo operations that both server and CLI must implement.
 type TaskContract interface {
-	CreateTask(ctx context.Context, familyID uuid.UUID, req *task.CreateTaskRequest) (*task.Task, error)
-	GetTask(ctx context.Context, taskID uuid.UUID) (*task.Task, error)
-	GetTaskWithExtra(ctx context.Context, taskID uuid.UUID) (*task.TaskWithExtra, error)
-	UpdateTask(ctx context.Context, taskID uuid.UUID, req *task.UpdateTaskRequest) (*task.Task, error)
+	CreateTask(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.Task, error)
+	GetTask(ctx context.Context, taskID uuid.UUID) (*types.Task, error)
+	GetTaskWithExtra(ctx context.Context, taskID uuid.UUID) (*types.TaskWithExtra, error)
+	UpdateTask(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.Task, error)
 	DeleteTask(ctx context.Context, taskID uuid.UUID) error
-	ListTasks(ctx context.Context, familyID uuid.UUID) ([]task.Task, error)
+	ListTasks(ctx context.Context, familyID uuid.UUID) ([]types.Task, error)
 	TriggerTask(ctx context.Context, taskID uuid.UUID) error
 	GetCalendar(ctx context.Context, familyID string, year, month int, groupID string) (any, error)
 }

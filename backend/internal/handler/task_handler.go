@@ -3,7 +3,6 @@ package handler
 import (
 	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
-	"github.com/dezhishen/now-and-again/backend/pkg/types/task"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,7 +18,7 @@ func (h *TaskHandlers) Create(c *gin.Context) {
 		badRequest(c, "invalid family_id")
 		return
 	}
-	req, err := bindJSON[task.CreateTaskRequest](c)
+	req, err := bindJSON[types.CreateTaskRequest](c)
 	if err != nil {
 		badRequest(c, err.Error())
 		return
@@ -76,7 +75,7 @@ func (h *TaskHandlers) Update(c *gin.Context) {
 		badRequest(c, "invalid task_id")
 		return
 	}
-	req, err := bindJSON[task.UpdateTaskRequest](c)
+	req, err := bindJSON[types.UpdateTaskRequest](c)
 	if err != nil {
 		badRequest(c, err.Error())
 		return

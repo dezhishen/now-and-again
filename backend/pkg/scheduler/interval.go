@@ -6,7 +6,8 @@ import "time"
 
 type intervalHandler struct{}
 
-func (intervalHandler) Code() string { return "interval" }
+func (intervalHandler) Code() string    { return "interval" }
+func (intervalHandler) IsOneShot() bool { return false }
 
 func (intervalHandler) BuildJob(data map[string]any) *JobDef {
 	days := 1

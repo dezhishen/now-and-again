@@ -9,7 +9,6 @@ import (
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
-	tasktypes "github.com/dezhishen/now-and-again/backend/pkg/types/task"
 )
 
 type TodoService struct {
@@ -103,7 +102,7 @@ func (s *TodoService) disableCompletedOnceTask(todo *repository.TodoModel) {
 }
 
 func todoModelToType(t *repository.TodoModel) *types.Todo {
-	var task *tasktypes.Task
+	var task *types.Task
 	if t.Task.ID != "" {
 		task = taskModelToType(&t.Task)
 	}

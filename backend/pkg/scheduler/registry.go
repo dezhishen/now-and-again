@@ -10,6 +10,7 @@ import (
 type Handler interface {
 	Code() string
 	BuildJob(data map[string]any) *JobDef
+	IsOneShot() bool
 }
 
 var registry = map[string]Handler{}

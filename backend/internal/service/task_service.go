@@ -13,13 +13,12 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
 	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
 	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"gorm.io/gorm"
 
 	// Blank imports trigger init() registration of task kind handlers.
 	_ "github.com/dezhishen/now-and-again/backend/pkg/taskkind/inspection"
 	_ "github.com/dezhishen/now-and-again/backend/pkg/taskkind/simple"
-
-	tasktypes "github.com/dezhishen/now-and-again/backend/pkg/types/task"
 )
 
 type TaskService struct {
@@ -101,16 +100,16 @@ func (s *TaskService) ScheduleTasks(tasks []repository.TaskModel) {
 // These implement shared/contracts.TaskContract so the service plugs into
 // the compile-time-checked contract system used by both server and CLI.
 
-func (s *TaskService) CreateTask(ctx context.Context, familyID uuid.UUID, req *tasktypes.CreateTaskRequest) (*tasktypes.Task, error) {
+func (s *TaskService) CreateTask(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.Task, error) {
 	return s.Create(ctx, familyID, req)
 }
-func (s *TaskService) UpdateTask(ctx context.Context, taskID uuid.UUID, req *tasktypes.UpdateTaskRequest) (*tasktypes.Task, error) {
+func (s *TaskService) UpdateTask(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.Task, error) {
 	return s.Update(ctx, taskID, req)
 }
 func (s *TaskService) DeleteTask(ctx context.Context, taskID uuid.UUID) error {
 	return s.Delete(ctx, taskID)
 }
-func (s *TaskService) ListTasks(ctx context.Context, familyID uuid.UUID) ([]tasktypes.Task, error) {
+func (s *TaskService) ListTasks(ctx context.Context, familyID uuid.UUID) ([]types.Task, error) {
 	return s.List(ctx, familyID)
 }
 func (s *TaskService) TriggerTask(ctx context.Context, taskID uuid.UUID) error {
@@ -131,8 +130,9 @@ func (s *TaskService) registerToScheduler(task *repository.TaskModel) {
 		},
 	}
 
-	// One-shot tasks auto-disable after firing (no recurrence).
-	if task.ScheduleType == "once" {
+	// One-shot tasks auto-disable after firing. Determined by the handler,
+	// not by hardcoded schedule-type string comparison.
+	if h := scheduler.HandlerByCode(task.ScheduleType); h != nil && h.IsOneShot() {
 		taskID := task.ID
 		b.AfterFire = func(_ string) {
 			s.repo.DisableTask(taskID)
@@ -184,7 +184,7 @@ func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID
 
 // ─── Task Template ───────────────────────────────────────────────
 
-func (s *TaskService) GetTask(ctx context.Context, taskID uuid.UUID) (*tasktypes.Task, error) {
+func (s *TaskService) GetTask(ctx context.Context, taskID uuid.UUID) (*types.Task, error) {
 	t, err := s.repo.FindTaskByID(taskID.String())
 	if err != nil {
 		return nil, err
@@ -192,19 +192,19 @@ func (s *TaskService) GetTask(ctx context.Context, taskID uuid.UUID) (*tasktypes
 	return taskModelToType(t), nil
 }
 
-func (s *TaskService) GetTaskWithExtra(ctx context.Context, taskID uuid.UUID) (*tasktypes.TaskWithExtra, error) {
+func (s *TaskService) GetTaskWithExtra(ctx context.Context, taskID uuid.UUID) (*types.TaskWithExtra, error) {
 	t, err := s.repo.FindTaskByID(taskID.String())
 	if err != nil {
 		return nil, err
 	}
-	result := &tasktypes.TaskWithExtra{Task: taskModelToType(t)}
+	result := &types.TaskWithExtra{Task: taskModelToType(t)}
 	if h := s.taskManager.Get(t.Kind); h != nil {
 		result.Extra, _ = h.GetExtra(s.taskStorage, t)
 	}
 	return result, nil
 }
 
-func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *tasktypes.CreateTaskRequest) (*tasktypes.Task, error) {
+func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.Task, error) {
 	userID := ctx.Value("user_id").(string)
 	kind := req.Task.Kind
 	if kind == "" {
@@ -261,19 +261,19 @@ func (s *TaskService) Trigger(ctx context.Context, taskID uuid.UUID) error {
 	return s.createTodo(task.ID, task.FamilyID, true)
 }
 
-func (s *TaskService) List(ctx context.Context, familyID uuid.UUID) ([]tasktypes.Task, error) {
+func (s *TaskService) List(ctx context.Context, familyID uuid.UUID) ([]types.Task, error) {
 	tasks, err := s.repo.ListTasksByFamily(familyID.String())
 	if err != nil {
 		return nil, err
 	}
-	result := make([]tasktypes.Task, len(tasks))
+	result := make([]types.Task, len(tasks))
 	for i, t := range tasks {
 		result[i] = *taskModelToType(&t)
 	}
 	return result, nil
 }
 
-func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *tasktypes.UpdateTaskRequest) (*tasktypes.Task, error) {
+func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.Task, error) {
 	t, err := s.repo.FindTaskByID(taskID.String())
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
@@ -590,7 +590,6 @@ func marshalJSON(v any) string {
 	return string(b)
 }
 
-func taskModelToType(t *repository.TaskModel) *tasktypes.Task {
+func taskModelToType(t *repository.TaskModel) *types.Task {
 	return repository.TaskModelToType(t)
 }
-

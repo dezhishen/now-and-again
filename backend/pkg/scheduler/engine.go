@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-co-op/gocron/v2"
 
-	"github.com/dezhishen/now-and-again/backend/internal/logger"
 	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 )
 
@@ -121,7 +120,7 @@ func (s *Scheduler) removeByTag(tag string) {
 // Start begins the scheduler (non-blocking).
 func (s *Scheduler) Start() {
 	s.gs.Start()
-	logger.Infof("scheduler started")
+	s.log("started", "", "")
 }
 
 // Stop gracefully shuts down the scheduler.

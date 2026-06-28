@@ -1,8 +1,8 @@
-package task
+package types
 
-import (
-	"time"
-)
+import "time"
+
+// ─── Task ────────────────────────────────────────────────────────
 
 type Task struct {
 	ID             string     `json:"id"`
@@ -16,7 +16,7 @@ type Task struct {
 	ScheduleData   any        `json:"schedule_data"`
 	Enabled        bool       `json:"enabled"`
 	Kind           string     `json:"kind"`
-	DisplaySummary string     `json:"display_summary,omitempty"` // plugin-populated for list view
+	DisplaySummary string     `json:"display_summary,omitempty"`
 	LastTodoAt     *time.Time `json:"last_todo_at,omitempty"`
 	CreatedBy      string     `json:"created_by"`
 	CreatedAt      time.Time  `json:"created_at"`

@@ -12,6 +12,8 @@ type onceHandler struct{}
 
 func (onceHandler) Code() string { return "once" }
 
+func (onceHandler) IsOneShot() bool { return true }
+
 func (onceHandler) BuildJob(data map[string]any) *JobDef {
 	dateStr := str(data, "date", "")
 	timeStr := str(data, "time", "00:00")
