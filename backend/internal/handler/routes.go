@@ -18,12 +18,12 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, familyAuth *gin.R
 	public.POST("/api/auth/register", h.User.Register)
 	public.POST("/api/auth/login", h.User.Login)
 	public.POST("/api/auth/refresh", h.User.Refresh)
-	public.POST("/api/auth/logout", h.User.Logout)
 
 	// Image serving (public)
 	public.GET("/api/images/:id", imgHandler.Serve)
 
 	// ── Protected (no family required) ──────────────────────────
+	auth.POST("/api/auth/logout", h.User.Logout)
 	auth.GET("/api/admin/users", h.User.ListUsers)
 	auth.GET("/api/admin/settings", settingsHandler.GetAll)
 	auth.PUT("/api/admin/settings", settingsHandler.Update)
