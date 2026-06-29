@@ -22,7 +22,7 @@ func CORS() gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Credentials", "true")
 		}
 		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
+		c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key,X-Family-Id")
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
@@ -34,6 +34,14 @@ func CORS() gin.HandlerFunc {
 // ApiKeyValidator validates API keys and returns scopes.
 type ApiKeyValidator interface {
 	ValidateApiKey(raw string) (userID string, scopes []string, err error)
+}
+
+// FamilyValidator checks family membership and returns the user's default family.
+type FamilyValidator interface {
+	// ValidateMembership returns nil if the user is a member of the family.
+	ValidateMembership(userID, familyID string) error
+	// GetDefaultFamily returns the user's default family ID, or empty string.
+	GetDefaultFamily(userID string) (string, error)
 }
 
 // JWTAuth validates the Bearer token (JWT or API Key).
@@ -130,6 +138,40 @@ func ScopeGuard() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient scope, need: " + required})
 			return
 		}
+		c.Next()
+	}
+}
+
+// FamilyGuard extracts the active family from the X-Family-Id header,
+// validates membership, and sets "family_id" in the Gin context.
+// Falls back to the user's default family if no header is provided.
+func FamilyGuard(fv FamilyValidator) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, _ := c.Get("user_id")
+		uid, _ := userID.(string)
+		if uid == "" {
+			c.Next()
+			return
+		}
+
+		familyID := c.GetHeader("X-Family-Id")
+
+		if familyID != "" {
+			if err := fv.ValidateMembership(uid, familyID); err != nil {
+				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "family not found or not a member"})
+				return
+			}
+		} else {
+			// Fall back to default family
+			defaultID, err := fv.GetDefaultFamily(uid)
+			if err != nil || defaultID == "" {
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "no family selected"})
+				return
+			}
+			familyID = defaultID
+		}
+
+		c.Set("family_id", familyID)
 		c.Next()
 	}
 }

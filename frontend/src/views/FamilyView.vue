@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, markRaw, provide, watch } from 'vue'
+import {markRaw, onMounted, provide, ref, watch} from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -23,6 +23,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const showMenu = ref(false)
 const isFamilyAdmin = ref(false)
+
 
 interface Tab {
   id: string
@@ -62,7 +63,7 @@ function openTab(id: string) {
   if (!nav) return
 
   if (id === 'calendar') {
-    window.open(`/calendar/${route.params.familyId}`, '_blank')
+    window.open('/calendar', '_blank')
     return
   }
 
@@ -99,7 +100,7 @@ function closeTab(id: string) {
 
 onMounted(async () => {
   try {
-    const members = await api.get<{ user_id: string; role: string }[]>('/families/' + route.params.familyId + '/members')
+    const members = await api.get<{ user_id: string; role: string }[]>('/families/' + auth.activeFamilyId + '/members')
     const me = members.find(m => m.user_id === auth.user?.id)
     isFamilyAdmin.value = me?.role === 'owner' || me?.role === 'admin'
   } catch { /* */ }
@@ -120,7 +121,7 @@ onMounted(async () => {
 async function leaveFamily() {
   if (!await useConfirm(t('family.leaveConfirm'))) return
   try {
-    await api.post('/families/' + route.params.familyId + '/leave')
+    await api.post('/families/' + auth.activeFamilyId + '/leave')
     window.location.href = '/'
   } catch (e: any) { toast.error(e.message) }
 }

@@ -134,3 +134,19 @@ func (r *FamilyRepo) UpdateGroupMember(m *FamilyGroupMemberModel) error {
 func (r *FamilyRepo) DeleteGroupMember(groupID, userID string) error {
 	return r.db.Where("group_id = ? AND user_id = ?", groupID, userID).Delete(&FamilyGroupMemberModel{}).Error
 }
+
+// ─── Validation ──────────────────────────────────────────────────
+
+func (r *FamilyRepo) ValidateMembership(userID, familyID string) error {
+	var count int64
+	err := r.db.Model(&FamilyMemberModel{}).
+		Where("user_id = ? AND family_id = ? AND status = ?", userID, familyID, "active").
+		Count(&count).Error
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("not a member of this family")
+	}
+	return nil
+}

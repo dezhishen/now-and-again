@@ -60,16 +60,17 @@ func main() {
 	floorPlanSvc := service.NewFloorPlanService(floorPlanRepo, userRepo, imageSvc, imageRepo)
 
 	// Scheduler with DB log
-	sched, err := scheduler.New(func(taskID, status, message string) {
+	if err := scheduler.Init(); err != nil {
+		logger.Fatalf("failed to init scheduler engine: %v", err)
+	}
+	scheduler.SetLogger(func(taskID, status, message string) {
 		taskRepo.CreateLog(taskID, status, message)
 	})
-	if err != nil {
-		logger.Fatalf("failed to create scheduler: %v", err)
-	}
-	taskSvc := service.NewTaskService(taskRepo, sched)
-	todoSvc := service.NewTodoService(taskRepo, sched)
+	taskSvc := service.NewTaskService(taskRepo)
+	todoSvc := service.NewTodoService(taskRepo)
 	logSvc := service.NewLogService(taskRepo)
 	icsSvc := service.NewIcsService(icsRepo, taskRepo, apiKeyRepo, userRepo)
+	calendarSvc := service.NewCalendarService(taskRepo)
 
 	// ── Seed admin ──────────────────────────────────────────────
 	if _, err := repository.SeedAdmin(db); err != nil {
@@ -77,7 +78,7 @@ func main() {
 	}
 
 	// ── Bundle contracts ────────────────────────────────────────
-	allContracts := service.NewAllContracts(userSvc, familySvc, apiKeySvc, floorPlanSvc, taskSvc, todoSvc, logSvc)
+	allContracts := service.NewAllContracts(userSvc, familySvc, apiKeySvc, floorPlanSvc, taskSvc, todoSvc, logSvc, calendarSvc)
 
 	// ── HTTP Router ─────────────────────────────────────────────
 	router := gin.Default()
@@ -88,19 +89,30 @@ func main() {
 
 	imageHandler := handler.NewImageHandlers(imageRepo)
 	settingsHandler := handler.NewSettingsHandlers(settingsRepo)
-	taskHandler := &handler.TaskHandlers{TaskSvc: taskSvc, TodoSvc: todoSvc, LogSvc: logSvc}
+	taskHandler := &handler.TaskHandlers{Svc: taskSvc}
+	todoHandler := &handler.TodoHandlers{Svc: todoSvc}
+	logHandler := &handler.LogHandlers{Svc: logSvc}
 	icsHandler := &handler.IcsHandlers{Svc: icsSvc}
+	calendarHandler := &handler.CalendarHandlers{Svc: calendarSvc}
+	locationHandler := &handler.LocationHandlers{C: floorPlanSvc}
 	auth := router.Group("")
 	auth.Use(middleware.JWTAuth(cfg.JWTSecret, apiKeyRepo))
 	auth.Use(middleware.ScopeGuard())
-	handler.RegisterRoutes(router, auth, allContracts, imageHandler, settingsHandler, taskHandler, icsHandler)
+
+	// Family-scoped routes: X-Family-Id header required (falls back to default)
+	familyAuth := router.Group("")
+	familyAuth.Use(middleware.JWTAuth(cfg.JWTSecret, apiKeyRepo))
+	familyAuth.Use(middleware.ScopeGuard())
+	familyAuth.Use(middleware.FamilyGuard(familySvc))
+
+	handler.RegisterRoutes(router, auth, familyAuth, allContracts, imageHandler, settingsHandler, taskHandler, todoHandler, logHandler, icsHandler, calendarHandler, locationHandler)
 
 	// ── Frontend SPA ───────────────────────────────────────────
 	webui.Serve(router)
 
 	// ── Scheduler ──────────────────────────────────────────────
-	sched.Start()
-	defer sched.Stop()
+	scheduler.Start()
+	defer scheduler.Stop()
 
 	// ── Graceful Shutdown ───────────────────────────────────────
 	quit := make(chan os.Signal, 1)

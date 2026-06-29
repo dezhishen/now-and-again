@@ -15,10 +15,23 @@ import (
 
 func userCtx(c *gin.Context) context.Context {
 	uid, _ := c.Get("user_id")
+	ctx := c.Request.Context()
 	if uid != nil {
-		return context.WithValue(c.Request.Context(), "user_id", uid.(string))
+		ctx = context.WithValue(ctx, "user_id", uid.(string))
 	}
-	return c.Request.Context()
+	fid, _ := c.Get("family_id")
+	if fid != nil {
+		ctx = context.WithValue(ctx, "family_id", fid.(string))
+	}
+	return ctx
+}
+
+func familyID(c *gin.Context) string {
+	fid, _ := c.Get("family_id")
+	if fid != nil {
+		return fid.(string)
+	}
+	return ""
 }
 
 // ─── Response helpers ─────────────────────────────────────────────

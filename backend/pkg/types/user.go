@@ -5,14 +5,15 @@ import "time"
 // ─── User ─────────────────────────────────────────────────────────
 
 type User struct {
-	ID          string    `json:"id"`
-	DisplayName string    `json:"display_name"`
-	Email       string    `json:"email"`
-	Phone       string    `json:"phone"`
-	AvatarURL   string    `json:"avatar_url"`
-	Roles       []string  `json:"roles"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID              string    `json:"id"`
+	DisplayName     string    `json:"display_name"`
+	Email           string    `json:"email"`
+	Phone           string    `json:"phone"`
+	AvatarURL       string    `json:"avatar_url"`
+	DefaultFamilyID *string   `json:"default_family_id,omitempty"`
+	Roles           []string  `json:"roles"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 // ─── Account ──────────────────────────────────────────────────────
@@ -49,10 +50,11 @@ type TokenPair struct {
 }
 
 type UpdateUserRequest struct {
-	DisplayName *string `json:"display_name,omitempty"`
-	Email       *string `json:"email,omitempty"`
-	Phone       *string `json:"phone,omitempty"`
-	AvatarURL   *string `json:"avatar_url,omitempty"`
+	DisplayName     *string `json:"display_name,omitempty"`
+	Email           *string `json:"email,omitempty"`
+	Phone           *string `json:"phone,omitempty"`
+	AvatarURL       *string `json:"avatar_url,omitempty"`
+	DefaultFamilyID *string `json:"default_family_id,omitempty"`
 }
 
 // ─── API Key ──────────────────────────────────────────────────────

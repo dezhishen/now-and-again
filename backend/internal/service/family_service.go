@@ -367,3 +367,20 @@ func (s *FamilyService) ReviewGroupJoinRequest(ctx context.Context, groupID uuid
 	}
 	return s.repo.UpdateGroupMember(m)
 }
+
+// ─── FamilyValidator (middleware) ─────────────────────────────────
+
+func (s *FamilyService) ValidateMembership(userID, familyID string) error {
+	return s.repo.ValidateMembership(userID, familyID)
+}
+
+func (s *FamilyService) GetDefaultFamily(userID string) (string, error) {
+	user, err := s.userRepo.FindUserByID(userID)
+	if err != nil {
+		return "", err
+	}
+	if user.DefaultFamilyID != nil && *user.DefaultFamilyID != "" {
+		return *user.DefaultFamilyID, nil
+	}
+	return "", nil
+}

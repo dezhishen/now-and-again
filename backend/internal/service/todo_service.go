@@ -15,8 +15,8 @@ type TodoService struct {
 	*taskOrchestrator
 }
 
-func NewTodoService(repo *repository.TaskRepo, sched *scheduler.Scheduler) *TodoService {
-	return &TodoService{taskOrchestrator: newTaskOrchestrator(repo, sched)}
+func NewTodoService(repo *repository.TaskRepo) *TodoService {
+	return &TodoService{taskOrchestrator: newTaskOrchestrator(repo)}
 }
 
 // ─── Todo ────────────────────────────────────────────────────────
@@ -83,7 +83,9 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 			h.OnComplete(s.taskStorage, todo, req.Extra)
 		}
 
-		s.disableCompletedOnceTask(todo)
+		// Notify scheduler: handler decides if this is a terminal event
+		// (one-shot handlers unschedule, recurring handlers ignore).
+		scheduler.MarkCompleted(todo.TaskID)
 	}
 
 	t, err := s.repo.FindTodoByID(todoID.String())
@@ -91,10 +93,6 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 		return nil, err
 	}
 	return todoModelToType(t), nil
-}
-
-func (s *TodoService) disableCompletedOnceTask(todo *repository.TodoModel) {
-	s.scheduler.MarkCompleted(todo.TaskID)
 }
 
 func todoModelToType(t *repository.TodoModel) *types.Todo {

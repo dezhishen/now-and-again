@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, inject, watch, type Ref } from 'vue'
-import { useRoute } from 'vue-router'
+import {computed, inject, onMounted, ref, type Ref, watch} from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
 import { useConfirm } from '@/composables/useConfirm'
 import { api } from '@/api/client'
@@ -10,6 +10,7 @@ import { useLoading } from '@/composables/useLoading'
 import type { FamilyGroup, ApiKey } from '@/types'
 
 const { t } = useI18n()
+  const auth = useAuthStore()
 
 interface IcsFeed {
   id: string; family_id: string; name: string; description?: string
@@ -18,8 +19,7 @@ interface IcsFeed {
   ics_url: string; enabled: boolean; created_at: string
 }
 
-const route = useRoute()
-const familyId = route.params.familyId as string
+const familyId = () => auth.activeFamilyId || ''
 
 // Reload data when this tab becomes active
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
@@ -80,10 +80,10 @@ onMounted(() => {
 })
 
 async function loadFeeds() {
-  try { feeds.value = await api.get<IcsFeed[]>('/families/' + familyId + '/ics-feeds') } catch { feeds.value = [] }
+  try { feeds.value = await api.get<IcsFeed[]>('/ics-feeds') } catch { feeds.value = [] }
 }
 async function loadGroups() {
-  try { groups.value = await api.get<FamilyGroup[]>('/families/' + familyId + '/groups') } catch { groups.value = [] }
+  try { groups.value = await api.get<FamilyGroup[]>('/families/' + familyId() + '/groups') } catch { groups.value = [] }
 }
 async function loadApiKeys() {
   try { apiKeys.value = await api.get<ApiKey[]>('/users/me/api-keys') } catch { apiKeys.value = [] }
@@ -130,7 +130,7 @@ async function saveFeed() {
       await api.put('/ics-feeds/' + editingFeed.value.id, body)
       toast.success(t('ics.updated'))
     } else {
-      await api.post('/families/' + familyId + '/ics-feeds', body)
+      await api.post('/ics-feeds', body)
       toast.success(t('ics.created'))
     }
     showForm.value = false

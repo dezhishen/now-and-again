@@ -14,6 +14,12 @@ const { cycle: cycleTheme, label: themeLabel, title: themeTitle } = useDark()
 const showUserMenu = ref(false)
 const showLangMenu = ref(false)
 
+const currentFamilyName = computed(() => {
+  if (!auth.activeFamilyId) return ''
+  const f = auth.families.find(f => f.id === auth.activeFamilyId)
+  return f?.name || ''
+})
+
 function switchLang(lang: string) {
   locale.value = lang
   localStorage.setItem('na_lang', lang)
@@ -39,11 +45,17 @@ window.addEventListener('click', onWindowClick)
 <template>
   <header class="sticky top-0 z-40 bg-white/90 dark:bg-gray-800/90 backdrop-blur border-b dark:border-gray-700">
     <div class="px-4 h-12 flex items-center justify-between">
-      <!-- Left: Logo -->
-      <button class="flex items-center gap-2 font-bold text-primary hover:opacity-80 transition-opacity" @click="router.push('/')">
-        <span class="text-lg">🏠</span>
-        <span class="hidden sm:inline">{{ t('app.title') }}</span>
-      </button>
+      <!-- Left: Logo + Family -->
+      <div class="flex items-center gap-3">
+        <button class="flex items-center gap-2 font-bold text-primary hover:opacity-80 transition-opacity" @click="router.push('/')">
+          <span class="text-lg">🏠</span>
+          <span class="hidden sm:inline">{{ t('app.title') }}</span>
+        </button>
+        <span v-if="currentFamilyName" class="hidden sm:flex items-center gap-1 text-sm text-gray-400">
+          <span class="text-gray-300">/</span>
+          <span class="text-gray-700 dark:text-gray-300 font-medium truncate max-w-[160px]">{{ currentFamilyName }}</span>
+        </span>
+      </div>
 
       <!-- Right: Actions -->
       <div class="flex items-center gap-1">
@@ -83,6 +95,7 @@ window.addEventListener('click', onWindowClick)
               </p>
             </div>
             <button class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors dark:text-gray-300" @click="router.push('/profile'); showUserMenu = false">👤 {{ t('user.profile') }}</button>
+            <button class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors dark:text-gray-300" @click="router.push('/families'); showUserMenu = false">🏠 {{ t('user.familyManage') }}</button>
             <button class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors dark:text-gray-300" @click="router.push('/api-keys'); showUserMenu = false">🔑 API Keys</button>
             <button v-if="auth.isAdmin" class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors dark:text-gray-300" @click="router.push('/admin'); showUserMenu = false">⚙️ {{ t('user.adminPanel') }}</button>
             <button class="flex items-center gap-2 px-3 py-2 text-sm w-full text-left text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="logout">🚪 {{ t('user.logout') }}</button>

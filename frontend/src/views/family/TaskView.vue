@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, inject, watch, type Ref } from 'vue'
-import { useRoute } from 'vue-router'
+import {computed, inject, onMounted, ref, type Ref, watch} from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import TaskCard from '@/components/tasks/TaskCard.vue'
@@ -16,8 +16,8 @@ import type { Task, FamilyGroup } from '@/types'
 initTaskKinds()
 
 const toast = useToast()
-const route = useRoute()
-const familyId = route.params.familyId as string
+const auth = useAuthStore()
+const familyId = () => auth.activeFamilyId || ''
 
 // Reload on tab activation
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
@@ -80,8 +80,18 @@ onMounted(() => {
   })
 })
 
-// Active tasks: exclude disabled one-shot tasks (already completed).
-const activeTasks = computed(() => tasks.value.filter(t => t.enabled || t.schedule_type !== 'once'))
+// Active tasks: non-archived tasks returned by the API.
+const activeTasks = computed(() => tasks.value)
+
+// Filters — default: enabled + not archived.
+const filterArchived = ref(false)
+const filterDisabled = ref(false)
+const filteredTasks = computed(() =>
+  activeTasks.value.filter(t =>
+    (filterArchived.value || !t.archived) &&
+    (filterDisabled.value || t.enabled)
+  )
+)
 const MAX_VISIBLE_KINDS = 3
 const allKinds = computed(() => getTaskKinds())
 const visibleKinds = computed(() => allKinds.value.slice(0, MAX_VISIBLE_KINDS))
@@ -89,17 +99,21 @@ const hiddenKinds = computed(() => allKinds.value.slice(MAX_VISIBLE_KINDS))
 
 async function loadLocations() {
   try {
-    locations.value = await api.get<any[]>('/families/' + familyId + '/locations')
+    locations.value = await api.get<any[]>('/locations')
   } catch { locations.value = [] }
 }
 
 async function loadGroups() {
-  try { groups.value = await api.get<FamilyGroup[]>('/families/' + familyId + '/groups') } catch { groups.value = [] }
+  try { groups.value = await api.get<FamilyGroup[]>('/families/' + familyId() + '/groups') } catch { groups.value = [] }
 }
 
 async function loadTasks() {
-  try { tasks.value = await api.get<Task[]>('/families/' + familyId + '/tasks') } catch { tasks.value = [] }
+  try { tasks.value = await api.get<Task[]>('/tasks') } catch { tasks.value = [] }
 }
+
+// ── Timezone: API layer handles UTC ↔ local conversion ─────────
+// `buildScheduleData` sends local times; `api/client.ts` converts to UTC.
+// Response `schedule_data` is already local by the time we read it.
 
 function buildScheduleData(): any {
   switch (taskSchedule.value) {
@@ -154,6 +168,7 @@ async function saveTask() {
     schedule_type: taskSchedule.value,
     schedule_data: data,
     kind: taskKind.value,
+    enabled: editingTask.value?.enabled ?? true,
   }
   if (taskGroupID.value) taskFields.group_id = taskGroupID.value
   if (taskLocationID.value) taskFields.location_id = taskLocationID.value
@@ -173,7 +188,7 @@ async function saveTask() {
       await api.put('/tasks/' + editingTask.value.id, body)
       toast.success('任务已更新')
     } else {
-      await api.post('/families/' + familyId + '/tasks', body)
+      await api.post('/tasks', body)
       toast.success('任务已创建')
     }
     showTaskForm.value = false
@@ -302,12 +317,23 @@ function scheduleSummary(task: Task): string {
             </button>
           </div>
         </div>
+        <span class="flex-1" />
+        <button
+          class="text-xs px-2 py-1 rounded border transition-colors"
+          :class="filterArchived ? 'bg-primary/10 border-primary text-primary' : 'border-gray-200 dark:border-gray-600 text-gray-400'"
+          @click="filterArchived = !filterArchived"
+        >📦 {{ t('taskCard.showArchived') }}</button>
+        <button
+          class="text-xs px-2 py-1 rounded border transition-colors"
+          :class="filterDisabled ? 'bg-primary/10 border-primary text-primary' : 'border-gray-200 dark:border-gray-600 text-gray-400'"
+          @click="filterDisabled = !filterDisabled"
+        >🚫 {{ t('taskCard.showDisabled') }}</button>
       </div>
 
-      <div v-if="activeTasks.length === 0" class="text-center text-gray-400 py-8">{{ t('taskCard.noTasks') }}</div>
+      <div v-if="filteredTasks.length === 0" class="text-center text-gray-400 py-8">{{ t('taskCard.noTasks') }}</div>
       <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-2 items-start">
         <TaskCard
-          v-for="task in activeTasks" :key="task.id"
+          v-for="task in filteredTasks" :key="task.id"
           :task="task"
           :loc-name="getLocName"
           :loc-color="getLocColor"

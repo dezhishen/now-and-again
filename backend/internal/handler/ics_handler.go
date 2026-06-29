@@ -18,7 +18,7 @@ func (h *IcsHandlers) Create(c *gin.Context) {
 		badRequest(c, "invalid request")
 		return
 	}
-	familyID := c.Param("family_id")
+	familyID := familyID(c)
 	userID := c.GetString("user_id")
 
 	input := service.CreateIcsFeedInput{
@@ -42,7 +42,7 @@ func (h *IcsHandlers) Create(c *gin.Context) {
 }
 
 func (h *IcsHandlers) List(c *gin.Context) {
-	familyID := c.Param("family_id")
+	familyID := familyID(c)
 	feeds, err := h.Svc.List(familyID)
 	if err != nil {
 		serverError(c, err)

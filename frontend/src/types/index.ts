@@ -8,6 +8,7 @@ export interface User {
   email: string
   phone?: string
   avatar_url?: string
+  default_family_id?: string
   roles: string[]
   created_at: string
   updated_at: string
@@ -115,6 +116,7 @@ export interface Task {
   enabled: boolean
   kind: string
   display_summary?: string
+  archived: boolean
   last_todo_at?: string
   created_by: string
   created_at: string

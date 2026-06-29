@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, inject, type Ref } from 'vue'
-import { useRoute } from 'vue-router'
+import {computed, inject, onMounted, ref, type Ref, watch} from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -13,10 +13,10 @@ import type { Family, Todo } from '@/types'
 initTaskKinds()
 
 const { t, locale } = useI18n()
+const auth = useAuthStore()
 const localeCode = computed(() => locale.value)
 const toast = useToast()
-const route = useRoute()
-const familyId = route.params.familyId as string
+const familyId = () => auth.activeFamilyId || ''
 
 // Reload on tab activation — loading spinner shown automatically
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
@@ -88,7 +88,7 @@ async function completeTodoDirect(todo: Todo, status: string) {
 }
 
 async function loadTodos() {
-  todos.value = await api.get<Todo[]>('/families/' + familyId + '/todos?status=pending')
+  todos.value = await api.get<Todo[]>('/todos?status=pending')
 }
 
 async function loadAll() {
@@ -96,9 +96,9 @@ async function loadAll() {
     await Promise.all([
       loadTodos(),
       loadLocations(),
-      (async () => { try { family.value = await api.get<Family>('/families/' + familyId) } catch { /* */ } })(),
-      (async () => { try { memberCount.value = (await api.get<any[]>('/families/' + familyId + '/members')).length } catch { /* */ } })(),
-      (async () => { try { groupCount.value = (await api.get<any[]>('/families/' + familyId + '/groups')).length } catch { /* */ } })(),
+      (async () => { try { family.value = await api.get<Family>('/families/' + familyId()) } catch { /* */ } })(),
+      (async () => { try { memberCount.value = (await api.get<any[]>('/families/' + familyId() + '/members')).length } catch { /* */ } })(),
+      (async () => { try { groupCount.value = (await api.get<any[]>('/families/' + familyId() + '/groups')).length } catch { /* */ } })(),
     ])
   })
 }
@@ -114,7 +114,7 @@ function fmtRange(start: string, end: string): string {
 function getLocName(id: string) { return locations.value.find(l => l.id === id)?.name || '' }
 
 async function loadLocations() {
-  locations.value = await api.get<any[]>('/families/' + familyId + '/locations')
+  locations.value = await api.get<any[]>('/locations')
 }
 
 // Reload on tab activation — loading spinner shown automatically

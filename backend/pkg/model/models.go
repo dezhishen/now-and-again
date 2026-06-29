@@ -47,11 +47,12 @@ func (AccountModel) TableName() string { return "accounts" }
 
 type UserModel struct {
 	BaseModel
-	DisplayName string `gorm:"size:128;not null"`
-	Email       string `gorm:"uniqueIndex;size:255"`
-	Phone       string `gorm:"size:20"`
-	AvatarURL   string `gorm:"type:text"`
-	Timezone    string `gorm:"size:64;not null;default:Asia/Shanghai"` // IANA timezone
+	DisplayName     string  `gorm:"size:128;not null"`
+	Email           string  `gorm:"uniqueIndex;size:255"`
+	Phone           string  `gorm:"size:20"`
+	AvatarURL       string  `gorm:"type:text"`
+	Timezone        string  `gorm:"size:64;not null;default:Asia/Shanghai"`
+	DefaultFamilyID *string `gorm:"type:char(36)"`
 
 	Accounts []AccountModel  `gorm:"foreignKey:UserID"`
 	Roles    []UserRoleModel `gorm:"foreignKey:UserID"`
@@ -210,6 +211,7 @@ type TaskModel struct {
 	Enabled        bool             `gorm:"not null;default:true"`
 	Kind           string           `gorm:"size:16;not null;default:simple"` // simple | inspection (future: chain)
 	DisplaySummary string           `gorm:"size:256"`                        // plugin-populated display text for list view
+	Archived       bool             `gorm:"not null;default:false"`
 	LastTodoAt     *time.Time
 	CreatedBy      string `gorm:"type:char(36);not null"`
 }

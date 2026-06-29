@@ -32,15 +32,13 @@ type _taskStorage struct {
 // taskOrchestrator bundles the shared dependencies for TaskService and TodoService.
 type taskOrchestrator struct {
 	repo        *repository.TaskRepo
-	scheduler   *scheduler.Scheduler
 	taskManager *taskkind.TaskManager
 	taskStorage taskkind.TaskStorage
 }
 
-func newTaskOrchestrator(repo *repository.TaskRepo, sched *scheduler.Scheduler) *taskOrchestrator {
+func newTaskOrchestrator(repo *repository.TaskRepo) *taskOrchestrator {
 	return &taskOrchestrator{
 		repo:        repo,
-		scheduler:   sched,
 		taskManager: taskkind.GetManager(),
 		taskStorage: &_taskStorage{repo: repo},
 	}
@@ -70,8 +68,8 @@ func (s *_taskStorage) DB() *gorm.DB {
 	return s.repo.DB()
 }
 
-func NewTaskService(repo *repository.TaskRepo, sched *scheduler.Scheduler) *TaskService {
-	svc := &TaskService{taskOrchestrator: newTaskOrchestrator(repo, sched)}
+func NewTaskService(repo *repository.TaskRepo) *TaskService {
+	svc := &TaskService{taskOrchestrator: newTaskOrchestrator(repo)}
 	svc._init()
 	return svc
 }
@@ -121,20 +119,19 @@ func (s *TaskService) TriggerTask(ctx context.Context, taskID uuid.UUID) error {
 
 func (s *TaskService) registerToScheduler(task *repository.TaskModel) {
 	if !task.Enabled {
-		s.scheduler.Unschedule(task.ID)
+		scheduler.Unschedule(task.ID)
 		return
 	}
-	s.scheduler.Schedule(scheduler.TaskInfo{
+	if err := scheduler.Schedule(scheduler.TaskInfo{
 		TaskID:       task.ID,
 		ScheduleType: task.ScheduleType,
 		ScheduleData: task.ScheduleData,
 		OnFire: func(taskID string, triggeredAt time.Time) error {
 			return s.onTaskTriggered(taskID, task.FamilyID)
 		},
-		OnDone: func(taskID string) {
-			s.repo.DisableTask(taskID)
-		},
-	})
+	}); err != nil {
+		logger.Warnf("scheduler: register task %s (%s) failed: %v", task.ID, task.ScheduleType, err)
+	}
 }
 
 func (s *TaskService) onTaskTriggered(taskID, familyID string) error {
@@ -143,7 +140,14 @@ func (s *TaskService) onTaskTriggered(taskID, familyID string) error {
 	if err != nil || task == nil || !task.Enabled {
 		return nil
 	}
-	return s.createTodo(taskID, familyID, false)
+	if err := s.createTodo(taskID, familyID, false); err != nil {
+		return err
+	}
+	// One-shot tasks are archived after their single fire.
+	if task.ScheduleType == "once" {
+		_ = s.repo.ArchiveTask(taskID)
+	}
+	return nil
 }
 
 func (s *TaskService) createTodo(taskID, familyID string, force bool) error {
@@ -235,8 +239,6 @@ func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types
 				return err
 			}
 		}
-		// Create initial todo inside the transaction to avoid SQLITE_BUSY.
-		s.createTodoWithTx(tx, t.ID, t.FamilyID, false)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -298,7 +300,6 @@ func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.U
 			dataJSON, _ := json.Marshal(f.ScheduleData)
 			t.ScheduleData = string(dataJSON)
 		}
-		t.Enabled = f.Enabled
 		if f.GroupID != "" {
 			t.GroupID = f.GroupID
 		}
@@ -365,220 +366,8 @@ func (s *TaskService) Delete(ctx context.Context, taskID uuid.UUID) error {
 			return err
 		}
 	}
-	s.scheduler.Unschedule(taskID.String())
+	scheduler.Unschedule(taskID.String())
 	return nil
-}
-
-// ─── Calendar ──────────────────────────────────────────────────────
-
-type CalendarDay struct {
-	Date           string          `json:"date"`
-	Weekday        int             `json:"weekday"`
-	IsCurrentMonth bool            `json:"isCurrentMonth"`
-	Events         []CalendarEvent `json:"events"`
-}
-
-type CalendarEvent struct {
-	TaskID       string `json:"task_id"`
-	Name         string `json:"name"`
-	Kind         string `json:"kind"`
-	Time         string `json:"time"`
-	ScheduleType string `json:"schedule_type"`
-	GroupName    string `json:"group_name,omitempty"`
-}
-
-func (s *TaskService) GetCalendar(ctx context.Context, familyID string, year, month int, groupID string) (any, error) {
-	tasks, err := s.repo.ListTasksByFamily(familyID)
-	if err != nil {
-		return nil, err
-	}
-
-	loc := time.UTC
-	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, loc)
-	lastDay := firstDay.AddDate(0, 1, -1)
-
-	// Build a map of day -> events
-	dayEvents := make(map[int][]CalendarEvent)
-
-	for _, task := range tasks {
-		if !task.Enabled {
-			continue
-		}
-		if groupID != "" && task.GroupID != "" && task.GroupID != groupID {
-			continue
-		}
-
-		eventTime := parseEventTime(task.ScheduleData)
-		days := expandSchedule(task.ScheduleType, task.ScheduleData, task.CreatedAt, year, month)
-		for _, d := range days {
-			dayEvents[d] = append(dayEvents[d], CalendarEvent{
-				TaskID:       task.ID,
-				Name:         task.Name,
-				Kind:         task.Kind,
-				Time:         eventTime,
-				ScheduleType: task.ScheduleType,
-				GroupName:    task.Group.Name,
-			})
-		}
-	}
-
-	// Build calendar grid: pad leading/trailing days from adjacent months
-	var result []CalendarDay
-	startWeekday := int(firstDay.Weekday()) // 0=Sun
-
-	// Leading days from previous month (no events - just padding)
-	prevMonth := firstDay.AddDate(0, 0, -1)
-	prevLast := prevMonth.Day()
-	for i := startWeekday - 1; i >= 0; i-- {
-		d := prevLast - i
-		date := time.Date(year, time.Month(month)-1, d, 0, 0, 0, 0, loc)
-		result = append(result, CalendarDay{
-			Date:           date.Format("2006-01-02"),
-			Weekday:        int(date.Weekday()),
-			IsCurrentMonth: false,
-			Events:         []CalendarEvent{},
-		})
-	}
-
-	// Current month days
-	for d := 1; d <= lastDay.Day(); d++ {
-		date := time.Date(year, time.Month(month), d, 0, 0, 0, 0, loc)
-		events := dayEvents[d]
-		if events == nil {
-			events = []CalendarEvent{}
-		}
-		result = append(result, CalendarDay{
-			Date:           date.Format("2006-01-02"),
-			Weekday:        int(date.Weekday()),
-			IsCurrentMonth: true,
-			Events:         events,
-		})
-	}
-
-	// Trailing days from next month
-	remaining := 42 - len(result) // 6 rows × 7 cols
-	for d := 1; d <= remaining; d++ {
-		date := time.Date(year, time.Month(month)+1, d, 0, 0, 0, 0, loc)
-		result = append(result, CalendarDay{
-			Date:           date.Format("2006-01-02"),
-			Weekday:        int(date.Weekday()),
-			IsCurrentMonth: false,
-			Events:         []CalendarEvent{},
-		})
-	}
-
-	return result, nil
-}
-
-// expandSchedule returns the days of the month (1-31) that a task occurs on.
-func expandSchedule(scheduleType, scheduleData string, createdAt time.Time, year, month int) []int {
-	loc := time.UTC
-	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, loc)
-	lastDay := firstDay.AddDate(0, 1, -1)
-
-	switch scheduleType {
-	case "daily":
-		days := make([]int, lastDay.Day())
-		for i := 1; i <= lastDay.Day(); i++ {
-			days[i-1] = i
-		}
-		return days
-
-	case "weekly":
-		var data struct {
-			Days []int `json:"days"`
-		}
-		json.Unmarshal([]byte(scheduleData), &data)
-		daySet := make(map[int]bool)
-		for _, wd := range data.Days {
-			daySet[wd] = true // 1=Mon..7=Sun
-		}
-		if len(daySet) == 0 {
-			// Default: every day of week (same as daily)
-			days := make([]int, lastDay.Day())
-			for i := 1; i <= lastDay.Day(); i++ {
-				days[i-1] = i
-			}
-			return days
-		}
-		var result []int
-		for d := 1; d <= lastDay.Day(); d++ {
-			date := time.Date(year, time.Month(month), d, 0, 0, 0, 0, loc)
-			wd := int(date.Weekday()) // 0=Sun
-			iso := (wd+6)%7 + 1       // convert to 1=Mon..7=Sun
-			if daySet[iso] {
-				result = append(result, d)
-			}
-		}
-		return result
-
-	case "monthly":
-		var data struct {
-			Days []int `json:"days"`
-		}
-		json.Unmarshal([]byte(scheduleData), &data)
-		if len(data.Days) == 0 {
-			// Default: first day of month
-			return []int{1}
-		}
-		var result []int
-		for _, md := range data.Days {
-			if md >= 1 && md <= lastDay.Day() {
-				result = append(result, md)
-			}
-		}
-		return result
-
-	case "interval":
-		var data struct {
-			Days int `json:"days"`
-		}
-		json.Unmarshal([]byte(scheduleData), &data)
-		interval := data.Days
-		if interval <= 0 {
-			interval = 1
-		}
-		// Walk forward from createdAt by interval, collect days in this month
-		var result []int
-		cursor := createdAt
-		for cursor.Before(lastDay.AddDate(0, 0, 1)) {
-			if cursor.Year() == year && int(cursor.Month()) == month {
-				result = append(result, cursor.Day())
-			}
-			cursor = cursor.AddDate(0, 0, interval)
-		}
-		return result
-
-	case "once":
-		var data struct {
-			Date string `json:"date"`
-		}
-		json.Unmarshal([]byte(scheduleData), &data)
-		if data.Date == "" {
-			return nil
-		}
-		parsed, err := time.ParseInLocation("2006-01-02", data.Date, time.UTC)
-		if err != nil {
-			return nil
-		}
-		if parsed.Year() == year && int(parsed.Month()) == month {
-			return []int{parsed.Day()}
-		}
-		return nil
-	}
-	return nil
-}
-
-// parseEventTime extracts "HH:MM" from schedule data, defaulting to "09:00".
-func parseEventTime(scheduleData string) string {
-	var data struct {
-		Time string `json:"time"`
-	}
-	json.Unmarshal([]byte(scheduleData), &data)
-	if data.Time == "" {
-		return "09:00"
-	}
-	return data.Time
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, inject, watch, type Ref } from 'vue'
-import { useRoute } from 'vue-router'
+import {inject, onMounted, ref, type Ref, watch} from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import { useToast } from '@/composables/useToast'
@@ -15,8 +14,6 @@ initLocationKinds()
 
 const { t } = useI18n()
 const toast = useToast()
-const route = useRoute()
-const familyId = route.params.familyId as string
 
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
 watch(refreshKey, (newVal) => { if (newVal === 'locations') withLoading(async () => { await loadLocations(); await loadPlans() }) })
@@ -40,13 +37,13 @@ onMounted(() => { withLoading(async () => { await loadLocations(); await loadPla
 
 async function loadLocations() {
   try {
-    locations.value = await api.get<Location[]>('/families/' + familyId + '/locations')
+    locations.value = await api.get<Location[]>('/locations')
   } catch { locations.value = [] }
 }
 
 async function loadPlans() {
   try {
-    floorPlans.value = await api.get<FloorPlan[]>('/families/' + familyId + '/floor-plans')
+    floorPlans.value = await api.get<FloorPlan[]>('/floor-plans')
   } catch { floorPlans.value = [] }
 }
 
@@ -87,7 +84,7 @@ async function saveLocation() {
       if (idx >= 0) locations.value[idx] = updated
       toast.success(t('locations.updated'))
     } else {
-      const created = await api.post<Location>('/families/' + familyId + '/locations', body)
+      const created = await api.post<Location>('/locations', body)
       locations.value.push(created)
       toast.success(t('locations.created'))
     }

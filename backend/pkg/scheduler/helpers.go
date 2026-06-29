@@ -37,11 +37,10 @@ func parseTime(t string) (h, m int) {
 }
 
 // durationTo computes the duration until next HH:MM (in UTC).
-// Callers needing timezone-aware scheduling should use DurationToInLocation.
 func durationTo(h, m int) time.Duration {
 	now := timeutil.Now()
 	target := time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, time.UTC)
-	if target.Before(now) {
+	if !target.After(now) {
 		target = target.Add(24 * time.Hour)
 	}
 	return target.Sub(now)

@@ -67,7 +67,7 @@ export default {
     removeConfirm: 'Remove this member?',
   },
   lang: { switch: 'Switch Language', zhCN: '中文', en: 'English' },
-  user: { admin: 'Admin', member: 'Member', profile: 'Profile', adminPanel: 'Admin Panel', logout: 'Logout' },
+  user: { admin: 'Admin', member: 'Member', profile: 'Profile', familyManage: 'Families', adminPanel: 'Admin Panel', logout: 'Logout' },
   dashboard: {
     heading: 'Home',
     overview: 'Overview',
@@ -233,6 +233,8 @@ export default {
     delete: 'Delete',
     more: 'More',
     noTasks: 'No tasks',
+    showArchived: 'Archived',
+    showDisabled: 'Disabled',
   },
   taskKind: {
     simple: 'Task',
@@ -275,6 +277,9 @@ export default {
     join: 'Join', noFamily: 'No families yet', favorite: 'Favorite',
     unfavorite: 'Unfavorite', inviteCodePrefix: 'Invite code: ',
   },
+  familyManage: {
+    heading: 'Family Management', enter: 'Enter',
+  },
   profile: {
     heading: 'Profile', displayName: 'Display Name', displayNamePlaceholder: 'Your display name',
     email: 'Email', phone: 'Phone', phoneOptional: 'Optional',
@@ -299,5 +304,5 @@ export default {
     storageLocalActive: '✓ Local storage active. Images stored in the server uploads directory.',
   },
   confirm: { cancel: 'Cancel', ok: 'OK' },
-  family: { leaveConfirm: 'Leave this family?', leaveFamily: 'Leave Family' },
+  family: { leaveConfirm: 'Leave this family?', leaveFamily: 'Leave Family', created: 'Family created', joined: 'Joined family', left: 'Left family' },
 }

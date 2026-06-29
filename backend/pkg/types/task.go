@@ -17,6 +17,7 @@ type Task struct {
 	Enabled        bool       `json:"enabled"`
 	Kind           string     `json:"kind"`
 	DisplaySummary string     `json:"display_summary,omitempty"`
+	Archived       bool       `json:"archived"`
 	LastTodoAt     *time.Time `json:"last_todo_at,omitempty"`
 	CreatedBy      string     `json:"created_by"`
 	CreatedAt      time.Time  `json:"created_at"`

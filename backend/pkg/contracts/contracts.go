@@ -68,8 +68,11 @@ type FloorPlanContract interface {
 	GetByID(ctx context.Context, planID uuid.UUID) (*types.FloorPlan, error)
 	SetCover(ctx context.Context, planID uuid.UUID) error
 	Delete(ctx context.Context, planID uuid.UUID) error
+}
 
-	// Locations (first-class, independent entity)
+// ─── Location ────────────────────────────────────────────────────
+
+type LocationContract interface {
 	CreateLocation(ctx context.Context, familyID uuid.UUID, req *types.CreateLocationRequest) (*types.Location, error)
 	ListFamilyLocations(ctx context.Context, familyID uuid.UUID) ([]types.Location, error)
 	ListFloorPlanLocations(ctx context.Context, floorPlanID uuid.UUID) ([]types.Location, error)
@@ -89,7 +92,6 @@ type TaskContract interface {
 	DeleteTask(ctx context.Context, taskID uuid.UUID) error
 	ListTasks(ctx context.Context, familyID uuid.UUID) ([]types.Task, error)
 	TriggerTask(ctx context.Context, taskID uuid.UUID) error
-	GetCalendar(ctx context.Context, familyID string, year, month int, groupID string) (any, error)
 }
 
 type TodoContract interface {
@@ -103,12 +105,18 @@ type LogContract interface {
 	ListLogs(ctx context.Context, taskID uuid.UUID, limit, offset int, userOnly bool) ([]types.TaskLog, error)
 }
 
+type CalendarContract interface {
+	GetCalendar(ctx context.Context, year, month int, groupID string) (any, error)
+}
+
 type AllContracts struct {
 	User      UserContract
 	Family    FamilyContract
 	ApiKey    ApiKeyContract
 	FloorPlan FloorPlanContract
+	Location  LocationContract
 	Task      TaskContract
 	Todo      TodoContract
 	Log       LogContract
+	Calendar  CalendarContract
 }

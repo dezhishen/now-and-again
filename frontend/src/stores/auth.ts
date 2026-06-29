@@ -1,14 +1,32 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { User, Family } from '@/types'
 import { api } from '@/api/client'
 
+const FAMILY_KEY = 'na_active_family'
+
+function loadFamilyId(): string | null {
+  try { return localStorage.getItem(FAMILY_KEY) } catch { return null }
+}
+function saveFamilyId(id: string | null) {
+  try {
+    if (id) localStorage.setItem(FAMILY_KEY, id)
+    else localStorage.removeItem(FAMILY_KEY)
+  } catch { /* */ }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const families = ref<Family[]>([])
-  const activeFamilyId = ref<string | null>(null)
+  const activeFamilyId = ref<string | null>(loadFamilyId())
   const sessionChecked = ref(false)
+
+  // Sync family ID to API header
+  watch(activeFamilyId, (id) => {
+    api.setFamilyId(id)
+    saveFamilyId(id)
+  }, { immediate: true })
 
   const isLoggedIn = computed(() => api.hasValidToken())
   const isAdmin = computed(() => user.value?.roles?.includes('admin') ?? false)
@@ -60,6 +78,16 @@ export const useAuthStore = defineStore('auth', () => {
     sessionChecked.value = true
   }
 
+  // ── family ────────────────────────────────────────────────
+
+  async function loadFamilies() {
+    try { families.value = await api.get<Family[]>('/users/me/families') } catch { /* */ }
+  }
+
+  function switchFamily(id: string) {
+    activeFamilyId.value = id
+  }
+
   // ── logout ─────────────────────────────────────────────────
 
   /** Clear local state immediately, then invalidate server-side (best-effort). */
@@ -76,5 +104,6 @@ export const useAuthStore = defineStore('auth', () => {
     user, families, activeFamilyId, sessionChecked,
     isLoggedIn, isAdmin,
     initSession, fetchUser, register, login, logout,
+    loadFamilies, switchFamily,
   }
 })

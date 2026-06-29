@@ -11,9 +11,10 @@ const router = createRouter({
     { path: '/admin', name: 'admin', component: () => import('@/views/AdminView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/api-keys', name: 'api-keys', component: () => import('@/views/ApiKeyView.vue'), meta: { requiresAuth: true } },
     { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true } },
+    { path: '/families', name: 'family-manage', component: () => import('@/views/FamilyManageView.vue'), meta: { requiresAuth: true } },
     {
-      path: '/family/:familyId', name: 'family',
-      component: () => import('@/views/FamilyView.vue'), meta: { requiresAuth: true },
+      path: '/family', name: 'family',
+      component: () => import('@/views/FamilyView.vue'), meta: { requiresAuth: true, requiresFamily: true },
       children: [
         { path: '', name: 'family-dashboard', component: () => import('@/views/family/DashboardView.vue') },
         { path: 'groups', name: 'family-groups', component: () => import('@/views/family/GroupListView.vue') },
@@ -26,7 +27,7 @@ const router = createRouter({
       ],
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
-    { path: '/calendar/:familyId', name: 'calendar-full', component: () => import('@/views/family/CalendarView.vue'), meta: { requiresAuth: true, fullscreen: true } },
+    { path: '/calendar', name: 'calendar-full', component: () => import('@/views/family/CalendarView.vue'), meta: { requiresAuth: true, requiresFamily: true, fullscreen: true } },
   ],
 })
 
@@ -43,12 +44,38 @@ router.beforeEach(async (to, _from, next) => {
     await auth.fetchUser()
   }
 
+  // Lazy-load families list (needed for header display)
+  if (auth.isLoggedIn && auth.families.length === 0) {
+    auth.loadFamilies()
+  }
+
   // ── Auth guard ────────────────────────────────────────────
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     if (to.name === 'calendar-full' && to.query.key) return next()
     return next({ path: '/login', query: { redirect: to.fullPath } })
   }
   if (to.meta.requiresAdmin && !auth.isAdmin) return next('/')
+
+  // ── Family guard ──────────────────────────────────────────
+  if (to.meta.requiresFamily && !auth.activeFamilyId) {
+    return next('/families')
+  }
+
+  // ── Home redirect: skip family selection if a family is already active ──
+  if (to.name === 'home' && auth.isLoggedIn) {
+    // Ensure user profile is loaded (contains default_family_id)
+    if (!auth.user) await auth.fetchUser()
+
+    if (auth.activeFamilyId) {
+      // Local storage has a family → go straight in
+      return next('/family')
+    }
+    if (auth.user?.default_family_id) {
+      // User has a default family → activate and enter
+      auth.switchFamily(auth.user.default_family_id)
+      return next('/family')
+    }
+  }
 
   // Already logged in — don't show login/register
   if (auth.isLoggedIn && (to.name === 'login' || to.name === 'register')) {

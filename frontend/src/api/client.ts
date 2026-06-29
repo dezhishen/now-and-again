@@ -1,4 +1,5 @@
 import type { APIResponse, User } from '@/types'
+import { requestToUTC, responseToLocal } from '@/composables/timezone'
 
 const BASE_URL = '/api'
 const TOKEN_KEY = 'na_access_token'
@@ -56,6 +57,7 @@ class ApiClient {
   private refreshPromise: Promise<boolean> | null = null
   private onSessionExpired: (() => void) | null = null
   private sessionExpiredFired = false
+  private familyId: string | null = null
 
   constructor() {
     const stored = loadStoredToken()
@@ -85,6 +87,9 @@ class ApiClient {
     }
   }
   getAccessToken() { return this.accessToken }
+
+  /** Set the active family ID, sent via X-Family-Id header on every request. */
+  setFamilyId(id: string | null) { this.familyId = id }
 
   /** True if we hold a non-expired access token (no JWT decode needed). */
   hasValidToken(): boolean {
@@ -189,10 +194,11 @@ class ApiClient {
         'Content-Type': 'application/json', Accept: 'application/json',
       }
       if (this.accessToken) headers['Authorization'] = `Bearer ${this.accessToken}`
+      if (this.familyId) headers['X-Family-Id'] = this.familyId
 
       return fetch(`${BASE_URL}${path}`, {
         method, headers, credentials: 'include',
-        body: body ? JSON.stringify(body) : undefined,
+        body: body ? JSON.stringify(requestToUTC(body)) : undefined,
       })
     }
 
@@ -224,7 +230,7 @@ class ApiClient {
 
     const json: APIResponse<T> = await res.json()
     if (!json.success) throw new Error(json.error || 'Unknown error')
-    return json.data
+    return responseToLocal(json.data) as T
   }
 
   get<T>(path: string) { return this.request<T>('GET', path) }

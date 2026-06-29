@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, inject, watch, type Ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import {inject, onMounted, ref, type Ref, watch} from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -8,10 +9,10 @@ import { useLoading } from '@/composables/useLoading'
 import { useConfirm } from '@/composables/useConfirm'
 import type { Family } from '@/types'
 
-const { t } = useI18n()
-const route = useRoute()
 const router = useRouter()
-const familyId = route.params.familyId as string
+  const { t } = useI18n()
+  const auth = useAuthStore()
+const familyId = () => auth.activeFamilyId || ''
 
 // Reload data when this tab becomes active
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
@@ -26,7 +27,7 @@ const error = ref('')
 
 async function loadFamily() {
   try {
-    family.value = await api.get<Family>('/families/' + familyId)
+    family.value = await api.get<Family>('/families/' + familyId())
     editName.value = family.value.name
   } catch { /* */ }
 }
@@ -42,7 +43,7 @@ async function saveName() {
   error.value = ''
   saved.value = false
   try {
-    await api.patch('/families/' + familyId, { name: editName.value })
+    await api.patch('/families/' + familyId(), { name: editName.value })
     if (family.value) family.value.name = editName.value
     saved.value = true
     setTimeout(() => { saved.value = false }, 2000)
@@ -55,7 +56,7 @@ async function saveName() {
 async function deleteFamily() {
   if (!await useConfirm(t('settingsPage.deleteConfirm'))) return
   try {
-    await api.delete('/families/' + familyId)
+    await api.delete('/families/' + familyId())
     router.push('/')
   } catch (e: any) { error.value = e.message }
 }

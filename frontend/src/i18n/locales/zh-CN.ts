@@ -67,7 +67,7 @@ export default {
     removeConfirm: '确定要移除此成员吗？',
   },
   lang: { switch: '切换语言', zhCN: '中文', en: 'English' },
-  user: { admin: '管理员', member: '成员', profile: '个人中心', adminPanel: '管理面板', logout: '退出登录' },
+  user: { admin: '管理员', member: '成员', profile: '个人中心', familyManage: '家庭管理', adminPanel: '管理面板', logout: '退出登录' },
   dashboard: {
     heading: '首页',
     overview: '概览',
@@ -242,6 +242,8 @@ export default {
     delete: '删除',
     more: '更多',
     noTasks: '暂无任务',
+    showArchived: '已归档',
+    showDisabled: '已禁用',
   },
   taskKind: {
     simple: '任务',
@@ -284,6 +286,9 @@ export default {
     join: '加入', noFamily: '还没有家庭', favorite: '收藏',
     unfavorite: '取消收藏', inviteCodePrefix: '邀请码: ',
   },
+  familyManage: {
+    heading: '家庭管理', enter: '进入',
+  },
   profile: {
     heading: '个人中心', displayName: '显示名称', displayNamePlaceholder: '你的显示名称',
     email: '邮箱', phone: '手机号', phoneOptional: '可选',
@@ -308,5 +313,5 @@ export default {
     storageLocalActive: '✓ 本地存储已激活，图片保存在服务器的 uploads 目录下。',
   },
   confirm: { cancel: '取消', ok: '确认' },
-  family: { leaveConfirm: '确定要离开这个家庭吗？', leaveFamily: '离开家庭' },
+  family: { leaveConfirm: '确定要离开这个家庭吗？', leaveFamily: '离开家庭', created: '家庭已创建', joined: '已加入家庭', left: '已离开家庭' },
 }

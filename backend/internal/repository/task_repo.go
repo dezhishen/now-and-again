@@ -46,7 +46,7 @@ func (r *TaskRepo) ListTasksByFamily(familyID string) ([]TaskModel, error) {
 
 func (r *TaskRepo) ListEnabledTasks() ([]TaskModel, error) {
 	var tasks []TaskModel
-	err := r.db.Where("enabled = ?", true).Find(&tasks).Error
+	err := r.db.Where("enabled = ? AND archived = ?", true, false).Find(&tasks).Error
 	return tasks, err
 }
 
@@ -57,6 +57,11 @@ func (r *TaskRepo) UpdateTask(t *TaskModel) error {
 // DisableTask sets enabled=false on a single task without touching other columns.
 func (r *TaskRepo) DisableTask(id string) error {
 	return r.db.Model(&TaskModel{}).Where("id = ?", id).Update("enabled", false).Error
+}
+
+// ArchiveTask sets archived=true on a single task.
+func (r *TaskRepo) ArchiveTask(id string) error {
+	return r.db.Model(&TaskModel{}).Where("id = ?", id).Update("archived", true).Error
 }
 
 func (r *TaskRepo) DeleteTask(id string) error {

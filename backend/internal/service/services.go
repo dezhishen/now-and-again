@@ -12,9 +12,11 @@ var (
 	_ contracts.FamilyContract    = (*FamilyService)(nil)
 	_ contracts.ApiKeyContract    = (*ApiKeyService)(nil)
 	_ contracts.FloorPlanContract = (*FloorPlanService)(nil)
+	_ contracts.LocationContract  = (*FloorPlanService)(nil)
 	_ contracts.TaskContract      = (*TaskService)(nil)
 	_ contracts.TodoContract      = (*TodoService)(nil)
 	_ contracts.LogContract       = (*LogService)(nil)
+	_ contracts.CalendarContract  = (*CalendarService)(nil)
 )
 
 // ─── User ─────────────────────────────────────────────────────────
@@ -64,14 +66,16 @@ func NewFloorPlanService(repo *repository.FloorPlanRepo, userRepo *repository.Us
 
 // ─── All Contracts ────────────────────────────────────────────────
 
-func NewAllContracts(user *UserService, family *FamilyService, apiKey *ApiKeyService, floorPlan *FloorPlanService, task *TaskService, todo *TodoService, log *LogService) *contracts.AllContracts {
+func NewAllContracts(user *UserService, family *FamilyService, apiKey *ApiKeyService, floorPlan *FloorPlanService, task *TaskService, todo *TodoService, log *LogService, calendar *CalendarService) *contracts.AllContracts {
 	return &contracts.AllContracts{
 		User:      user,
 		Family:    family,
 		ApiKey:    apiKey,
 		FloorPlan: floorPlan,
+		Location:  floorPlan, // FloorPlanService also implements LocationContract
 		Task:      task,
 		Todo:      todo,
 		Log:       log,
+		Calendar:  calendar,
 	}
 }

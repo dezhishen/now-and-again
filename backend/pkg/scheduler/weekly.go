@@ -1,18 +1,36 @@
 package scheduler
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/go-co-op/gocron/v2"
+
+	"github.com/dezhishen/now-and-again/backend/pkg/scheduler/engine"
 )
 
 // ─── Weekly ──────────────────────────────────────────────────────
 
 type weeklyHandler struct{}
 
-func (weeklyHandler) Code() string    { return "weekly" }
-func (weeklyHandler) IsOneShot() bool { return false }
+func (weeklyHandler) Code() string { return "weekly" }
 
-func (weeklyHandler) BuildJob(data map[string]any) *JobDef {
+func (h weeklyHandler) Schedule(t TaskInfo) error {
+	var data map[string]any
+	json.Unmarshal([]byte(t.ScheduleData), &data)
+	def := h.buildJob(data)
+	taskFn := gocron.NewTask(defaultTaskFn(t))
+	return engine.Get().AddJob(t.TaskID, def, taskFn)
+}
+
+func (weeklyHandler) Unschedule(taskID string) {
+	engine.Get().RemoveJob(taskID)
+}
+
+func (weeklyHandler) OnManualComplete(string, func(string)) {}
+
+func (weeklyHandler) buildJob(data map[string]any) gocron.JobDefinition {
 	t := str(data, "time", "09:00")
 	h, m := parseTime(t)
 	days := ints(data, "days")
@@ -29,7 +47,7 @@ func (weeklyHandler) BuildJob(data map[string]any) *JobDef {
 		dayStrs[i] = fmt.Sprintf("%d", d)
 	}
 	expr := fmt.Sprintf("%d %d * * %s", m, h, strings.Join(dayStrs, ","))
-	return CronJobDef(expr)
+	return engine.CronJobDef(expr)
 }
 
 func init() { Register(weeklyHandler{}) }

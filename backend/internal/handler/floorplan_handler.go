@@ -1,14 +1,15 @@
 package handler
 
 import (
-	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // ─── Floor Plan ──────────────────────────────────────────────────
 
 func (h *FloorPlanHandlers) Upload(c *gin.Context) {
-	familyID, err := paramUUID(c, "family_id")
+	fid := familyID(c)
+	familyID, err := uuid.Parse(fid)
 	if err != nil {
 		badRequest(c, "invalid family_id")
 		return
@@ -36,7 +37,8 @@ func (h *FloorPlanHandlers) Upload(c *gin.Context) {
 }
 
 func (h *FloorPlanHandlers) ListByFamily(c *gin.Context) {
-	familyID, err := paramUUID(c, "family_id")
+	fid := familyID(c)
+	familyID, err := uuid.Parse(fid)
 	if err != nil {
 		badRequest(c, "invalid family_id")
 		return
@@ -87,85 +89,4 @@ func (h *FloorPlanHandlers) Delete(c *gin.Context) {
 		return
 	}
 	ok(c, gin.H{"message": "floor plan deleted"})
-}
-
-// ─── Locations ───────────────────────────────────────────────────
-
-func (h *FloorPlanHandlers) CreateLocation(c *gin.Context) {
-	familyID, err := paramUUID(c, "family_id")
-	if err != nil {
-		badRequest(c, "invalid family_id")
-		return
-	}
-	req, err := bindJSON[types.CreateLocationRequest](c)
-	if err != nil {
-		badRequest(c, err.Error())
-		return
-	}
-	loc, err := h.C.CreateLocation(userCtx(c), familyID, req)
-	if err != nil {
-		serverError(c, err)
-		return
-	}
-	created(c, loc)
-}
-
-func (h *FloorPlanHandlers) ListFamilyLocations(c *gin.Context) {
-	familyID, err := paramUUID(c, "family_id")
-	if err != nil {
-		badRequest(c, "invalid family_id")
-		return
-	}
-	locs, err := h.C.ListFamilyLocations(userCtx(c), familyID)
-	if err != nil {
-		serverError(c, err)
-		return
-	}
-	ok(c, locs)
-}
-
-func (h *FloorPlanHandlers) ListFloorPlanLocations(c *gin.Context) {
-	planID, err := paramUUID(c, "plan_id")
-	if err != nil {
-		badRequest(c, "invalid plan_id")
-		return
-	}
-	locs, err := h.C.ListFloorPlanLocations(userCtx(c), planID)
-	if err != nil {
-		serverError(c, err)
-		return
-	}
-	ok(c, locs)
-}
-
-func (h *FloorPlanHandlers) UpdateLocation(c *gin.Context) {
-	locationID, err := paramUUID(c, "location_id")
-	if err != nil {
-		badRequest(c, "invalid location_id")
-		return
-	}
-	req, err := bindJSON[types.UpdateLocationRequest](c)
-	if err != nil {
-		badRequest(c, err.Error())
-		return
-	}
-	loc, err := h.C.UpdateLocation(userCtx(c), locationID, req)
-	if err != nil {
-		serverError(c, err)
-		return
-	}
-	ok(c, loc)
-}
-
-func (h *FloorPlanHandlers) DeleteLocation(c *gin.Context) {
-	locationID, err := paramUUID(c, "location_id")
-	if err != nil {
-		badRequest(c, "invalid location_id")
-		return
-	}
-	if err := h.C.DeleteLocation(userCtx(c), locationID); err != nil {
-		serverError(c, err)
-		return
-	}
-	ok(c, gin.H{"message": "location deleted"})
 }

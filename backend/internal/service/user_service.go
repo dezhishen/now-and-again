@@ -198,6 +198,9 @@ func (s *UserService) UpdateMe(ctx context.Context, req *types.UpdateUserRequest
 	if req.AvatarURL != nil {
 		user.AvatarURL = *req.AvatarURL
 	}
+	if req.DefaultFamilyID != nil {
+		user.DefaultFamilyID = req.DefaultFamilyID
+	}
 
 	if err := s.repo.UpdateUser(user); err != nil {
 		return nil, fmt.Errorf("update user: %w", err)

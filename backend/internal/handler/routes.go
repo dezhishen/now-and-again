@@ -6,7 +6,7 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
 )
 
-func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers, taskHandler *TaskHandlers, icsHandler *IcsHandlers) {
+func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, familyAuth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers, taskHandler *TaskHandlers, todoHandler *TodoHandlers, logHandler *LogHandlers, icsHandler *IcsHandlers, calendarHandler *CalendarHandlers, locationHandler *LocationHandlers) {
 	h := NewHandlers(c)
 
 	// ── Public ──────────────────────────────────────────────────
@@ -18,8 +18,7 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 	// Image serving (public)
 	public.GET("/api/images/:id", imgHandler.Serve)
 
-	// ── Protected ───────────────────────────────────────────────
-	// Admin
+	// ── Protected (no family required) ──────────────────────────
 	auth.GET("/api/admin/users", h.User.ListUsers)
 	auth.GET("/api/admin/settings", settingsHandler.GetAll)
 	auth.PUT("/api/admin/settings", settingsHandler.Update)
@@ -29,7 +28,7 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 	auth.PUT("/api/users/me", h.User.UpdateMe)
 	auth.GET("/api/users/me/families", h.Family.ListMyFamilies)
 
-	// Family
+	// Family CRUD (no active family needed)
 	auth.POST("/api/families", h.Family.Create)
 	auth.POST("/api/families/join", h.Family.Join)
 	auth.GET("/api/families/:family_id", h.Family.Get)
@@ -39,64 +38,66 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, c *contracts.AllC
 	auth.PUT("/api/families/:family_id/members/:user_id/role", h.Family.UpdateMemberRole)
 	auth.DELETE("/api/families/:family_id/members/:user_id", h.Family.RemoveMember)
 	auth.POST("/api/families/:family_id/leave", h.Family.LeaveFamily)
-
-	// Family Join Requests
 	auth.GET("/api/families/:family_id/join-requests", h.Family.ListJoinRequests)
 	auth.PUT("/api/families/:family_id/join-requests", h.Family.ReviewJoinRequest)
-
-	// Family Groups
-	auth.POST("/api/families/:family_id/groups", h.Family.CreateGroup)
-	auth.GET("/api/families/:family_id/groups", h.Family.ListGroups)
-	auth.POST("/api/groups/:group_id/join", h.Family.JoinGroup)
-	auth.POST("/api/groups/:group_id/leave", h.Family.LeaveGroup)
-	auth.GET("/api/groups/:group_id/members", h.Family.ListGroupMembers)
-	auth.DELETE("/api/groups/:group_id/members/:user_id", h.Family.RemoveGroupMember)
-	auth.GET("/api/groups/:group_id/join-requests", h.Family.ListGroupJoinRequests)
-	auth.PUT("/api/groups/:group_id/join-requests", h.Family.ReviewGroupJoinRequest)
 
 	// API Keys
 	auth.POST("/api/users/me/api-keys", h.ApiKey.Create)
 	auth.GET("/api/users/me/api-keys", h.ApiKey.List)
 	auth.DELETE("/api/users/me/api-keys/:key_id", h.ApiKey.Revoke)
 
-	// Floor Plans
-	auth.POST("/api/families/:family_id/floor-plans", h.FloorPlan.Upload)
-	auth.GET("/api/families/:family_id/floor-plans", h.FloorPlan.ListByFamily)
-	auth.GET("/api/floor-plans/:plan_id", h.FloorPlan.GetByID)
-	auth.PUT("/api/floor-plans/:plan_id/cover", h.FloorPlan.SetCover)
-	auth.DELETE("/api/floor-plans/:plan_id", h.FloorPlan.Delete)
+	// ── Family-scoped (requires X-Family-Id header) ─────────────
 
-	// Locations (first-class entity)
-	auth.GET("/api/families/:family_id/locations", h.FloorPlan.ListFamilyLocations)
-	auth.POST("/api/families/:family_id/locations", h.FloorPlan.CreateLocation)
-	auth.GET("/api/floor-plans/:plan_id/locations", h.FloorPlan.ListFloorPlanLocations)
-	auth.PUT("/api/locations/:location_id", h.FloorPlan.UpdateLocation)
-	auth.DELETE("/api/locations/:location_id", h.FloorPlan.DeleteLocation)
+	// Family Groups
+	familyAuth.POST("/api/families/:family_id/groups", h.Family.CreateGroup)
+	familyAuth.GET("/api/families/:family_id/groups", h.Family.ListGroups)
+	familyAuth.POST("/api/groups/:group_id/join", h.Family.JoinGroup)
+	familyAuth.POST("/api/groups/:group_id/leave", h.Family.LeaveGroup)
+	familyAuth.GET("/api/groups/:group_id/members", h.Family.ListGroupMembers)
+	familyAuth.DELETE("/api/groups/:group_id/members/:user_id", h.Family.RemoveGroupMember)
+	familyAuth.GET("/api/groups/:group_id/join-requests", h.Family.ListGroupJoinRequests)
+	familyAuth.PUT("/api/groups/:group_id/join-requests", h.Family.ReviewGroupJoinRequest)
+
+	// Floor Plans
+	familyAuth.POST("/api/floor-plans", h.FloorPlan.Upload)
+	familyAuth.GET("/api/floor-plans", h.FloorPlan.ListByFamily)
+	familyAuth.GET("/api/floor-plans/:plan_id", h.FloorPlan.GetByID)
+	familyAuth.PUT("/api/floor-plans/:plan_id/cover", h.FloorPlan.SetCover)
+	familyAuth.DELETE("/api/floor-plans/:plan_id", h.FloorPlan.Delete)
+
+	// Locations
+	familyAuth.GET("/api/locations", locationHandler.ListFamilyLocations)
+	familyAuth.POST("/api/locations", locationHandler.CreateLocation)
+	familyAuth.GET("/api/floor-plans/:plan_id/locations", locationHandler.ListFloorPlanLocations)
+	familyAuth.PUT("/api/locations/:location_id", locationHandler.UpdateLocation)
+	familyAuth.DELETE("/api/locations/:location_id", locationHandler.DeleteLocation)
 
 	// Tasks
-	auth.POST("/api/families/:family_id/tasks", taskHandler.Create)
-	auth.GET("/api/families/:family_id/tasks", taskHandler.List)
-	auth.GET("/api/tasks/:task_id", taskHandler.Get)
-	auth.PUT("/api/tasks/:task_id", taskHandler.Update)
-	auth.PUT("/api/tasks/:task_id/enabled", taskHandler.SetEnabled)
-	auth.DELETE("/api/tasks/:task_id", taskHandler.Delete)
-	auth.GET("/api/tasks/:task_id/logs", taskHandler.ListLogs)
-	auth.POST("/api/tasks/:task_id/trigger", taskHandler.Trigger)
+	familyAuth.POST("/api/tasks", taskHandler.Create)
+	familyAuth.GET("/api/tasks", taskHandler.List)
+	familyAuth.GET("/api/tasks/:task_id", taskHandler.Get)
+	familyAuth.PUT("/api/tasks/:task_id", taskHandler.Update)
+	familyAuth.PUT("/api/tasks/:task_id/enabled", taskHandler.SetEnabled)
+	familyAuth.DELETE("/api/tasks/:task_id", taskHandler.Delete)
+	familyAuth.POST("/api/tasks/:task_id/trigger", taskHandler.Trigger)
+
+	// Task Logs
+	familyAuth.GET("/api/tasks/:task_id/logs", logHandler.ListLogs)
 
 	// Todos
-	auth.GET("/api/families/:family_id/todos", taskHandler.ListTodos)
-	auth.GET("/api/todos/:todo_id", taskHandler.GetTodo)
-	auth.PUT("/api/todos/:todo_id", taskHandler.CompleteTodo)
+	familyAuth.GET("/api/todos", todoHandler.ListTodos)
+	familyAuth.GET("/api/todos/:todo_id", todoHandler.GetTodo)
+	familyAuth.PUT("/api/todos/:todo_id", todoHandler.CompleteTodo)
 
 	// Calendar
-	auth.GET("/api/families/:family_id/calendar", taskHandler.GetCalendar)
+	familyAuth.GET("/api/calendar", calendarHandler.GetCalendar)
 
-	// ICS Feeds (authenticated management)
-	auth.POST("/api/families/:family_id/ics-feeds", icsHandler.Create)
-	auth.GET("/api/families/:family_id/ics-feeds", icsHandler.List)
-	auth.GET("/api/ics-feeds/:feed_id", icsHandler.Get)
-	auth.PUT("/api/ics-feeds/:feed_id", icsHandler.Update)
-	auth.DELETE("/api/ics-feeds/:feed_id", icsHandler.Delete)
+	// ICS Feeds
+	familyAuth.POST("/api/ics-feeds", icsHandler.Create)
+	familyAuth.GET("/api/ics-feeds", icsHandler.List)
+	familyAuth.GET("/api/ics-feeds/:feed_id", icsHandler.Get)
+	familyAuth.PUT("/api/ics-feeds/:feed_id", icsHandler.Update)
+	familyAuth.DELETE("/api/ics-feeds/:feed_id", icsHandler.Delete)
 
 	// ICS public endpoint (no JWT - custom auth)
 	public.GET("/api/ics/:token", icsHandler.ServeICS)

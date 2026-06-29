@@ -20,6 +20,7 @@ func TaskFromModel(m *model.TaskModel) *Task {
 		LocationID: m.LocationID,
 		Name:       m.Name, ScheduleType: m.ScheduleType, ScheduleData: data,
 		Enabled: m.Enabled, Kind: m.Kind, DisplaySummary: m.DisplaySummary,
+		Archived:   m.Archived,
 		LastTodoAt: m.LastTodoAt,
 		CreatedBy:  m.CreatedBy, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}
@@ -54,13 +55,14 @@ func UserFromModel(m *model.UserModel) *User {
 		roles = append(roles, ur.Role.Name)
 	}
 	return &User{
-		ID:          m.ID,
-		DisplayName: m.DisplayName,
-		Email:       m.Email,
-		Phone:       m.Phone,
-		AvatarURL:   m.AvatarURL,
-		Roles:       roles,
-		CreatedAt:   m.CreatedAt,
-		UpdatedAt:   m.UpdatedAt,
+		ID:              m.ID,
+		DisplayName:     m.DisplayName,
+		Email:           m.Email,
+		Phone:           m.Phone,
+		AvatarURL:       m.AvatarURL,
+		DefaultFamilyID: m.DefaultFamilyID,
+		Roles:           roles,
+		CreatedAt:       m.CreatedAt,
+		UpdatedAt:       m.UpdatedAt,
 	}
 }

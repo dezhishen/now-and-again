@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, onUnmounted, inject, watch, type Ref } from 'vue'
-import { useRoute } from 'vue-router'
+import {inject, nextTick, onMounted, onUnmounted, ref, type Ref, watch} from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useLoading } from '@/composables/useLoading'
@@ -9,8 +9,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import type { FloorPlan, Location, Point } from '@/types'
 
 const { t } = useI18n()
-const route = useRoute()
-const familyId = route.params.familyId as string
+const auth = useAuthStore()
 
 // Reload data when this tab becomes active
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
@@ -29,7 +28,7 @@ const showLocations = ref(true)
 onMounted(() => { withLoading(loadPlans) })
 
 async function loadPlans() {
-  try { floorPlans.value = await api.get<FloorPlan[]>('/families/' + familyId + '/floor-plans') } catch { floorPlans.value = [] }
+  try { floorPlans.value = await api.get<FloorPlan[]>('/floor-plans') } catch { floorPlans.value = [] }
 }
 
 async function loadPlanDetail(planId: string) {
@@ -68,8 +67,11 @@ async function doUpload(file: File, label?: string, isCover?: boolean) {
     if (label) form.append('label', label)
     if (isCover) form.append('is_cover', 'true')
     const token = api.getAccessToken()
-    const res = await fetch('/api/families/' + familyId + '/floor-plans', {
-      method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form,
+    const headers: Record<string, string> = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    if (auth.activeFamilyId) headers['X-Family-Id'] = auth.activeFamilyId
+    const res = await fetch('/api/floor-plans', {
+      method: 'POST', headers, body: form,
     })
     if (!res.ok) { const text = await res.text().catch(() => ''); throw new Error(text || `HTTP ${res.status}`) }
     const json = await res.json()

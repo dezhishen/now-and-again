@@ -6,12 +6,22 @@ import (
 	"sync"
 )
 
-// Handler defines a schedule type. Implementations map schedule_data
-// to gocron job definitions. Register in init().
+// Handler defines a schedule type. Each handler encapsulates its own
+// lifecycle logic (job definition, task function, one-shot auto-remove,
+// recurring keep-alive, etc.). The scheduler itself is agnostic to the
+// specific strategy and only calls Schedule/Unschedule/OnManualComplete.
 type Handler interface {
 	Code() string
-	BuildJob(data map[string]any) *JobDef
-	IsOneShot() bool
+	// Schedule registers the task with the engine. The handler is
+	// responsible for parsing schedule data, building the job definition,
+	// creating the task function, and adding it to the engine.
+	Schedule(t TaskInfo) error
+	// Unschedule removes the task from the engine.
+	Unschedule(taskID string)
+	// OnManualComplete handles a user-initiated todo completion.
+	// One-shot handlers unschedule themselves; recurring handlers
+	// are typically no-ops.
+	OnManualComplete(taskID string, onDone func(taskID string))
 }
 
 // Registry holds registered schedule handlers, keyed by Code().

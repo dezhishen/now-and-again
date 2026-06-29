@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
 
 const route = useRoute()
-const familyId = computed(() => route.params.familyId as string)
+const auth = useAuthStore()
+const familyId = () => auth.activeFamilyId || ''
 const isFullscreen = computed(() => route.name === 'calendar-full')
 const apiKey = computed(() => (route.query.key as string) || '')
 const refreshParam = computed(() => {
@@ -86,7 +88,7 @@ async function loadCalendar() {
     if (groupID.value) params.set('group_id', groupID.value)
 
     days.value = await fetchApi<CalendarDay[]>(
-      `/families/${familyId.value}/calendar?${params}`
+      `/families/${familyId()}/calendar?${params}`
     )
   } catch {
     days.value = []
@@ -98,7 +100,7 @@ async function loadCalendar() {
 async function loadGroups() {
   try {
     groups.value = await fetchApi<{ id: string; name: string }[]>(
-      `/families/${familyId.value}/groups`
+      `/families/${familyId()}/groups`
     )
   } catch { /* ignore */ }
 }

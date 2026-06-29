@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 
 const { t } = useI18n()
-const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 
@@ -26,14 +25,9 @@ async function handleLogin() {
   submitting.value = true
   try {
     await auth.login(username.value, password.value)
-    await router.replace(redirect)
+    // Use hard navigation — Vue Router guards may conflict with auth state changes.
+    window.location.href = redirect
   } catch (e: any) {
-    // router.replace may reject with NavigationFailure on duplicate/aborted
-    // navigation. Fall back to a hard redirect if the route guard blocked it.
-    if (auth.isLoggedIn) {
-      window.location.href = redirect
-      return
-    }
     error.value = e.message || t('login.error')
   } finally {
     submitting.value = false

@@ -17,23 +17,22 @@ const familyName = ref('')
 const inviteCode = ref('')
 const error = ref('')
 
-const FAV_KEY = 'na_favorite_family'
-const favId = ref<string | null>(localStorage.getItem(FAV_KEY))
+function favId(): string | null {
+  return auth.user?.default_family_id || null
+}
 
-function toggleFav(familyId: string) {
-  if (favId.value === familyId) {
-    favId.value = null
-    localStorage.removeItem(FAV_KEY)
-  } else {
-    favId.value = familyId
-    localStorage.setItem(FAV_KEY, familyId)
-  }
+async function toggleFav(familyId: string) {
+  const newId = favId() === familyId ? null : familyId
+  try {
+    await api.put('/users/me', { default_family_id: newId })
+    if (auth.user) auth.user.default_family_id = newId || undefined
+  } catch { /* */ }
 }
 
 const sortedFamilies = computed(() => {
   return [...families.value].sort((a, b) => {
-    if (a.id === favId.value) return -1
-    if (b.id === favId.value) return 1
+    if (a.id === favId()) return -1
+    if (b.id === favId()) return 1
     return 0
   })
 })
@@ -98,7 +97,7 @@ async function joinFamily() {
           v-for="f in sortedFamilies"
           :key="f.id"
           class="card cursor-pointer hover:shadow-lg transition-shadow dark:hover:bg-gray-700 relative overflow-hidden group"
-          @click="router.push(`/family/${f.id}`)"
+          @click="auth.switchFamily(f.id); router.push('/family')"
         >
           <span v-if="f.created_by === auth.user?.id" class="absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-xs bg-primary/90 text-white font-medium">Owner</span>
 
@@ -106,9 +105,9 @@ async function joinFamily() {
           <button
             class="absolute top-2 right-2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/80 dark:bg-gray-900/80 hover:bg-yellow-100 transition-colors"
             @click.stop="toggleFav(f.id)"
-            :title="favId === f.id ? t('home.unfavorite') : t('home.favorite')"
+            :title="favId() === f.id ? t('home.unfavorite') : t('home.favorite')"
           >
-            <span v-if="favId === f.id" class="text-yellow-500 text-lg">★</span>
+            <span v-if="favId() === f.id" class="text-yellow-500 text-lg">★</span>
             <span v-else class="text-gray-300 dark:text-gray-600 text-lg group-hover:text-yellow-400 transition-colors">☆</span>
           </button>
 
