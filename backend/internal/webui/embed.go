@@ -3,6 +3,7 @@ package webui
 import (
 	"embed"
 	"io/fs"
+	"log"
 	"net/http"
 	"os"
 
@@ -29,6 +30,7 @@ func Serve(r *gin.Engine) {
 	// Fallback: use embedded dist (Docker build)
 	sub, err := fs.Sub(dist, "dist")
 	if err != nil {
+		log.Printf("[webui] embedded dist not available: %v", err)
 		return
 	}
 	fileServer := http.FileServer(http.FS(sub))

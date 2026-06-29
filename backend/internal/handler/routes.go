@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
@@ -10,6 +12,9 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, familyAuth *gin.R
 	h := NewHandlers(c)
 
 	// ── Public ──────────────────────────────────────────────────
+	public.GET("/api/system/status", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
 	public.POST("/api/auth/register", h.User.Register)
 	public.POST("/api/auth/login", h.User.Login)
 	public.POST("/api/auth/refresh", h.User.Refresh)

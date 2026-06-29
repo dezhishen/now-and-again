@@ -42,12 +42,15 @@ jobs:
 
       - name: Build backend (amd64)
         run: |
+          rm -rf backend/internal/webui/dist
           cp -r frontend/dist backend/internal/webui/dist
           cd backend
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../dist/now-and-again-amd64 ./cmd/server/
 
       - name: Build backend (arm64)
         run: |
+          rm -rf backend/internal/webui/dist
+          cp -r frontend/dist backend/internal/webui/dist
           cd backend
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o ../dist/now-and-again-arm64 ./cmd/server/
 
