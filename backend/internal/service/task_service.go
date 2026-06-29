@@ -26,7 +26,8 @@ type TaskService struct {
 }
 
 type _taskStorage struct {
-	repo *repository.TaskRepo
+	repo        *repository.TaskRepo
+	taskManager *taskkind.TaskManager
 }
 
 // taskOrchestrator bundles the shared dependencies for TaskService and TodoService.
@@ -37,11 +38,12 @@ type taskOrchestrator struct {
 }
 
 func newTaskOrchestrator(repo *repository.TaskRepo) *taskOrchestrator {
-	return &taskOrchestrator{
+	o := &taskOrchestrator{
 		repo:        repo,
 		taskManager: taskkind.GetManager(),
-		taskStorage: &_taskStorage{repo: repo},
 	}
+	o.taskStorage = &_taskStorage{repo: repo, taskManager: o.taskManager}
+	return o
 }
 
 func (s *_taskStorage) FindTaskByID(taskID string) (*repository.TaskModel, error) {
@@ -56,11 +58,37 @@ func (s *_taskStorage) UpdateNoRootTask(task *repository.TaskModel) error {
 	return s.repo.UpdateTask(task)
 }
 
-func (s *_taskStorage) CreateNoRootTask(task *repository.TaskModel) error {
-	return s.repo.CreateTask(task)
+// CreateNoRootTask creates a non-root task and triggers its kind's SaveExtra handler.
+func (s *_taskStorage) CreateNoRootTask(task *repository.TaskModel, extra any) error {
+	task.IsRoot = false
+	if err := s.repo.CreateTask(task); err != nil {
+		return err
+	}
+	if h := s.taskManager.Get(task.Kind); h != nil {
+		return h.SaveExtra(s, task, extra)
+	}
+	return nil
 }
 
-func (s *_taskStorage) DeleteNoRootTask(taskID string) error {
+// DeleteNonRootTask deletes a non-root task and all descendants, triggering DeleteExtra for each.
+func (s *_taskStorage) DeleteNonRootTask(taskID string) error {
+	task, err := s.repo.FindTaskByID(taskID)
+	if err != nil || task == nil {
+		return nil
+	}
+	// Recursively delete children first
+	children, _ := s.repo.FindChildren(task.ID)
+	for _, child := range children {
+		if err := s.DeleteNonRootTask(child.ID); err != nil {
+			return err
+		}
+	}
+	// Plugin cleanup + task record
+	if h := s.taskManager.Get(task.Kind); h != nil {
+		if err := h.DeleteExtra(s, task); err != nil {
+			return err
+		}
+	}
 	return s.repo.DeleteTask(taskID)
 }
 
@@ -239,7 +267,7 @@ func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types
 			return err
 		}
 		if h := s.taskManager.Get(kind); h != nil {
-			if err := h.OnCreate(&_taskStorage{repo: tx}, t, req.Extra); err != nil {
+			if err := h.SaveExtra(&_taskStorage{repo: tx, taskManager: s.taskManager}, t, req.Extra); err != nil {
 				return err
 			}
 		}
@@ -325,7 +353,7 @@ func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.U
 		// Toggling enabled or changing schedule fields should not delete/recreate plugin data.
 		if req.Extra != nil {
 			if h := s.taskManager.Get(t.Kind); h != nil {
-				if err := h.OnUpdate(&_taskStorage{repo: tx}, t, req.Extra); err != nil {
+				if err := h.UpdateExtra(&_taskStorage{repo: tx, taskManager: s.taskManager}, t, req.Extra); err != nil {
 					return err
 				}
 			}
@@ -361,7 +389,7 @@ func (s *TaskService) Delete(ctx context.Context, taskID uuid.UUID) error {
 	if task != nil {
 		if err := s.repo.Tx(func(tx *repository.TaskRepo) error {
 			if h := s.taskManager.Get(task.Kind); h != nil {
-				if err := h.OnDelete(&_taskStorage{repo: tx}, task); err != nil {
+				if err := h.DeleteExtra(&_taskStorage{repo: tx, taskManager: s.taskManager}, task); err != nil {
 					return err
 				}
 			}

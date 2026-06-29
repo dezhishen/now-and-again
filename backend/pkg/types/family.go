@@ -16,15 +16,15 @@ type Family struct {
 }
 
 type CreateFamilyRequest struct {
-	Name string `json:"name" binding:"required"`
+	Name string `json:"name" binding:"required,max=128"`
 }
 
 type JoinFamilyRequest struct {
-	InviteCode string `json:"invite_code" binding:"required"`
+	InviteCode string `json:"invite_code" binding:"required,max=32"`
 }
 
 type UpdateFamilyRequest struct {
-	Name string `json:"name" binding:"required"`
+	Name string `json:"name" binding:"required,max=128"`
 }
 
 type FamilyMember struct {
@@ -59,8 +59,8 @@ type FamilyGroup struct {
 }
 
 type CreateFamilyGroupRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description,omitempty"`
+	Name        string `json:"name" binding:"required,max=128"`
+	Description string `json:"description,omitempty" binding:"max=512"`
 }
 
 type FamilyGroupMember struct {

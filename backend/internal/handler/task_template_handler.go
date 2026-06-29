@@ -78,7 +78,7 @@ func (h *TaskTemplateHandlers) CreateFamily(c *gin.Context) {
 	}
 	req, err := bindJSON[types.CreateTaskTemplateRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	tmpl, err := h.Svc.CreateFamily(userCtx(c), fid, req)
@@ -99,7 +99,7 @@ func (h *TaskTemplateHandlers) UpdateFamily(c *gin.Context) {
 	code := c.Param("code")
 	req, err := bindJSON[types.UpdateTaskTemplateRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	tmpl, err := h.Svc.UpdateFamily(userCtx(c), fid, code, req)
@@ -180,7 +180,7 @@ func (h *TaskTemplateHandlers) AdminListSubscriptions(c *gin.Context) {
 func (h *TaskTemplateHandlers) AdminCreateSubscription(c *gin.Context) {
 	req, err := bindJSON[types.CreateSubscriptionRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	sub, err := h.Svc.CreateSubscription(userCtx(c), nil, req)
@@ -196,7 +196,7 @@ func (h *TaskTemplateHandlers) AdminUpdateSubscription(c *gin.Context) {
 	id := c.Param("id")
 	req, err := bindJSON[types.UpdateSubscriptionRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	sub, err := h.Svc.UpdateSubscription(userCtx(c), id, req)
@@ -241,7 +241,7 @@ func (h *TaskTemplateHandlers) FamilyCreateSubscription(c *gin.Context) {
 	}
 	req, err := bindJSON[types.CreateSubscriptionRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	sub, err := h.Svc.CreateSubscription(userCtx(c), &fid, req)
@@ -257,7 +257,7 @@ func (h *TaskTemplateHandlers) FamilyUpdateSubscription(c *gin.Context) {
 	id := c.Param("id")
 	req, err := bindJSON[types.UpdateSubscriptionRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	sub, err := h.Svc.UpdateSubscription(userCtx(c), id, req)

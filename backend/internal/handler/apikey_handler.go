@@ -8,7 +8,7 @@ import (
 func (h *ApiKeyHandlers) Create(c *gin.Context) {
 	req, err := bindJSON[types.CreateApiKeyRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	resp, err := h.C.Create(userCtx(c), req)

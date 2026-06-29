@@ -219,6 +219,13 @@ func (r *TaskRepo) ListLogsByFamilyAndTask(familyID, taskID, since, until string
 	return logs, err
 }
 
+// FindChildren returns all child tasks (is_root=false) for a given parent.
+func (r *TaskRepo) FindChildren(parentTaskID string) ([]TaskModel, error) {
+	var children []TaskModel
+	err := r.db.Where("parent_task_id = ? AND is_root = ?", parentTaskID, false).Find(&children).Error
+	return children, err
+}
+
 // DeleteChildren removes child tasks (is_root=false) for a given parent.
 func (r *TaskRepo) DeleteChildren(parentTaskID string) error {
 	return r.db.Where("parent_task_id = ? AND is_root = ?", parentTaskID, false).Delete(&TaskModel{}).Error

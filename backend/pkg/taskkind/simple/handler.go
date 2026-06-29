@@ -14,15 +14,15 @@ func init() {
 
 func (Handler) Kind() string { return "simple" }
 
-func (Handler) OnCreate(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
+func (Handler) SaveExtra(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
 	return nil
 }
 
-func (Handler) OnUpdate(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
+func (Handler) UpdateExtra(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
 	return nil
 }
 
-func (Handler) OnDelete(taskStorage taskkind.TaskStorage, task *model.TaskModel) error {
+func (Handler) DeleteExtra(taskStorage taskkind.TaskStorage, task *model.TaskModel) error {
 	return nil
 }
 

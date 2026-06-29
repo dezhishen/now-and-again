@@ -13,7 +13,7 @@ type rtKey struct{}
 func (h *UserHandlers) Register(c *gin.Context) {
 	req, err := bindJSON[types.CreateUserRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	user, err := h.C.Register(c.Request.Context(), req)
@@ -27,7 +27,7 @@ func (h *UserHandlers) Register(c *gin.Context) {
 func (h *UserHandlers) Login(c *gin.Context) {
 	req, err := bindJSON[types.LoginRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	pair, err := h.C.Login(c.Request.Context(), req)
@@ -86,7 +86,7 @@ func (h *UserHandlers) GetMe(c *gin.Context) {
 func (h *UserHandlers) UpdateMe(c *gin.Context) {
 	req, err := bindJSON[types.UpdateUserRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	user, err := h.C.UpdateMe(userCtx(c), req)

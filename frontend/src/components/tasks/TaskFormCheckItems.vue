@@ -36,7 +36,6 @@ function addItem() {
       {
         name: '异常',
         create_todo: true,
-        _autoExpand: true,
         branch_task: {
           task: { name: '', kind: 'simple', schedule_type: 'once', schedule_data: { time: '09:00' } } as any,
         },
@@ -81,7 +80,6 @@ function addItem() {
               v-model="b.branch_task"
               :groups="props.groups"
               :locations="props.locations"
-              :start-expanded="(b as any)._autoExpand === true"
             />
           </template>
         </div>

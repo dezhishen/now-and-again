@@ -20,7 +20,7 @@ func (h *TaskHandlers) Create(c *gin.Context) {
 	}
 	req, err := bindJSON[types.CreateTaskRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	t, err := h.Svc.CreateTask(userCtx(c), familyID, req)
@@ -78,7 +78,7 @@ func (h *TaskHandlers) Update(c *gin.Context) {
 	}
 	req, err := bindJSON[types.UpdateTaskRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	t, err := h.Svc.UpdateTask(userCtx(c), taskID, req)
@@ -112,7 +112,7 @@ func (h *TaskHandlers) SetEnabled(c *gin.Context) {
 		Enabled bool `json:"enabled"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	t, err := h.Svc.SetTaskEnabled(userCtx(c), taskID, body.Enabled)

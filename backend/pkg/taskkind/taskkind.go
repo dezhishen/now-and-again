@@ -7,14 +7,17 @@ import (
 
 // ─── Operations ──────────────────────────────────────────────────
 // Read and display-summary methods may operate on any task.
-// Write methods (Create/Update/Delete) are suffixed NoRoot because they
-// must only be used for plugin-owned sub-tasks, never the root task.
+// Write methods go through the full lifecycle (triggering kind handlers).
 type TaskStorage interface {
 	FindTaskByID(taskID string) (*model.TaskModel, error)
 	FindTaskByParentId(parentID string) (*model.TaskModel, error)
-	CreateNoRootTask(task *model.TaskModel) error
+	// CreateNoRootTask creates a non-root task AND triggers its SaveExtra handler.
+	// The caller does NOT need to look up the kind handler or call SaveExtra manually.
+	CreateNoRootTask(task *model.TaskModel, extra any) error
 	UpdateNoRootTask(task *model.TaskModel) error
-	DeleteNoRootTask(taskID string) error
+	// DeleteNonRootTask deletes a non-root task AND all its descendants,
+	// triggering DeleteExtra for each task in the subtree.
+	DeleteNonRootTask(taskID string) error
 	DB() *gorm.DB
 }
 
@@ -25,10 +28,10 @@ type TaskStorage interface {
 type Handler interface {
 	Kind() string
 
-	// Lifecycle — called by taskService for every task.
-	OnCreate(taskStorage TaskStorage, task *model.TaskModel, extra any) error
-	OnUpdate(taskStorage TaskStorage, task *model.TaskModel, extra any) error
-	OnDelete(taskStorage TaskStorage, task *model.TaskModel) error
+	// Extra data lifecycle — called by taskService for plugin-specific data persistence.
+	SaveExtra(taskStorage TaskStorage, task *model.TaskModel, extra any) error
+	UpdateExtra(taskStorage TaskStorage, task *model.TaskModel, extra any) error
+	DeleteExtra(taskStorage TaskStorage, task *model.TaskModel) error
 	// OnComplete is called when a todo of this kind is completed.
 	// extra carries the kind-specific payload from CompleteTodoRequest.
 	OnComplete(taskStorage TaskStorage, todo *model.TodoModel, extra any) error

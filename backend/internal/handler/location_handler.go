@@ -20,7 +20,7 @@ func (h *LocationHandlers) CreateLocation(c *gin.Context) {
 	}
 	req, err := bindJSON[types.CreateLocationRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	loc, err := h.C.CreateLocation(userCtx(c), familyID, req)
@@ -68,7 +68,7 @@ func (h *LocationHandlers) UpdateLocation(c *gin.Context) {
 	}
 	req, err := bindJSON[types.UpdateLocationRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	loc, err := h.C.UpdateLocation(userCtx(c), locationID, req)

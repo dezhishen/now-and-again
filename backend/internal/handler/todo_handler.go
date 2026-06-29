@@ -55,7 +55,7 @@ func (h *TodoHandlers) CompleteTodo(c *gin.Context) {
 	}
 	req, err := bindJSON[types.CompleteTodoRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	todo, err := h.Svc.CompleteTodo(userCtx(c), todoID, req)

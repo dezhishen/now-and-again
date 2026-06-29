@@ -9,6 +9,7 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/model"
 	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
+	"gorm.io/gorm"
 )
 
 // handler implements taskkind.Handler for inspection tasks.
@@ -27,7 +28,7 @@ type extraData struct {
 // Lifecycle — called by taskService for every task.
 // Only handles extra CRUD; task fields (e.g. display_summary) are the
 // caller's responsibility.
-func (h *handler) OnCreate(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
+func (h *handler) SaveExtra(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
 	items, err := parseCheckItems(extra)
 	if err != nil {
 		return fmt.Errorf("parse check items: %w", err)
@@ -35,38 +36,229 @@ func (h *handler) OnCreate(taskStorage taskkind.TaskStorage, task *model.TaskMod
 	return h.saveCheckItems(taskStorage, task, items)
 }
 
-func (h *handler) OnUpdate(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
-	db := taskStorage.DB()
-	// Delete child tasks referenced by branch_task_id
-	db.Where("id IN (?)",
-		db.Model(&CheckItemBranchModel{}).Select("branch_task_id").
-			Where("branch_task_id != '' AND check_item_id IN (?)",
-				db.Model(&CheckItemModel{}).Select("id").Where("task_id = ?", task.ID),
-			),
-	).Delete(&model.TaskModel{})
-	// Delete old branches and check items
-	if err := NewCheckItemBranchRepo(db).DeleteCheckItemBranchesByTask(task.ID); err != nil {
-		return fmt.Errorf("delete old branches: %w", err)
-	}
-	if err := NewCheckItemRepo(db).DeleteCheckItemsByTask(task.ID); err != nil {
-		return fmt.Errorf("delete old check items: %w", err)
-	}
+func (h *handler) UpdateExtra(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
 	items, err := parseCheckItems(extra)
 	if err != nil {
 		return fmt.Errorf("parse check items: %w", err)
 	}
-	return h.saveCheckItems(taskStorage, task, items)
+
+	db := taskStorage.DB()
+	checkItemRepo := NewCheckItemRepo(db)
+	checkItemBranchRepo := NewCheckItemBranchRepo(db)
+
+	// Load existing items with branches
+	oldItems, err := checkItemRepo.FindCheckItemsByTask(task.ID)
+	if err != nil {
+		return fmt.Errorf("load existing items: %w", err)
+	}
+
+	// Build maps of old data by ID
+	oldItemMap := make(map[string]CheckItemModel, len(oldItems))
+	oldBranchMap := make(map[string]CheckItemBranchModel)
+	for _, oi := range oldItems {
+		oldItemMap[oi.ID] = oi
+		for _, ob := range oi.Branches {
+			oldBranchMap[ob.ID] = ob
+		}
+	}
+
+	keptItemIDs := make(map[string]bool)
+	keptBranchIDs := make(map[string]bool)
+
+	for i, item := range items {
+		if item.ID != "" {
+			if old, ok := oldItemMap[item.ID]; ok {
+				// Update existing item
+				keptItemIDs[item.ID] = true
+				if old.Name != item.Name || old.SortOrder != i {
+					checkItemRepo.UpdateCheckItem(&CheckItemModel{
+						BaseModel: model.BaseModel{ID: item.ID},
+						Name:      item.Name,
+						SortOrder: i,
+					})
+				}
+				// Granular branch diff
+				h.updateBranches(taskStorage, db, checkItemBranchRepo, item.ID, old.Branches, item.Branches, &keptBranchIDs, task)
+				continue
+			}
+		}
+		// New item → create with all branches
+		ci := &CheckItemModel{TaskID: task.ID, Name: item.Name, SortOrder: i}
+		if err := checkItemRepo.CreateCheckItem(ci); err != nil {
+			return fmt.Errorf("create check item: %w", err)
+		}
+		keptItemIDs[ci.ID] = true
+		for j, b := range item.Branches {
+			h.createBranch(taskStorage, checkItemBranchRepo, ci.ID, j, b, task)
+		}
+	}
+
+	// Delete old items not in new data
+	for _, oi := range oldItems {
+		if keptItemIDs[oi.ID] {
+			continue
+		}
+		// Delete branch tasks and branches first
+		for _, ob := range oi.Branches {
+			if ob.BranchTaskID != "" {
+				taskStorage.DeleteNonRootTask(ob.BranchTaskID)
+			}
+			checkItemBranchRepo.DeleteCheckItemBranch(ob.ID)
+		}
+		checkItemRepo.DeleteCheckItem(oi.ID)
+	}
+
+	return nil
 }
 
-func (h *handler) OnDelete(taskStorage taskkind.TaskStorage, task *model.TaskModel) error {
+// updateBranches diffs old vs new branches for a single check item.
+func (h *handler) updateBranches(
+	taskStorage taskkind.TaskStorage,
+	db *gorm.DB,
+	branchRepo *CheckItemBranchRepo,
+	itemID string,
+	oldBranches []CheckItemBranchModel,
+	newBranches []types.CheckItemBranchDTO,
+	keptBranchIDs *map[string]bool,
+	parentTask *model.TaskModel,
+) {
+	oldMap := make(map[string]CheckItemBranchModel, len(oldBranches))
+	for _, ob := range oldBranches {
+		oldMap[ob.ID] = ob
+	}
+
+	for j, nb := range newBranches {
+		if nb.ID != "" {
+			if old, ok := oldMap[nb.ID]; ok {
+				// Update existing branch
+				(*keptBranchIDs)[nb.ID] = true
+				branchTaskID := old.BranchTaskID
+				// Handle child task: create/update/delete based on create_todo
+				if nb.CreateTodo && nb.BranchTask != nil && nb.BranchTask.Task != nil && nb.BranchTask.Task.Name != "" {
+					if branchTaskID != "" {
+						// Update existing child task
+						h.updateChildTask(taskStorage, branchTaskID, nb.BranchTask)
+					} else {
+						// Create new child task
+						branchTaskID = h.createChildTask(taskStorage, nb.BranchTask, parentTask)
+					}
+				} else if !nb.CreateTodo && branchTaskID != "" {
+					// create_todo was unchecked → delete child task
+					taskStorage.DeleteNonRootTask(branchTaskID)
+					branchTaskID = ""
+				}
+				branchRepo.UpdateCheckItemBranch(&CheckItemBranchModel{
+					BaseModel:    model.BaseModel{ID: nb.ID},
+					Name:         nb.Name,
+					CreateTodo:   nb.CreateTodo,
+					BranchTaskID: branchTaskID,
+					SortOrder:    j,
+				})
+				continue
+			}
+		}
+		// New branch → create
+		h.createBranch(taskStorage, branchRepo, itemID, j, nb, parentTask)
+	}
+
+	// Delete old branches not in new data
+	for _, ob := range oldBranches {
+		if (*keptBranchIDs)[ob.ID] {
+			continue
+		}
+		if ob.BranchTaskID != "" {
+			taskStorage.DeleteNonRootTask(ob.BranchTaskID)
+		}
+		branchRepo.DeleteCheckItemBranch(ob.ID)
+	}
+}
+
+// createBranch creates a new branch (and its child task if create_todo).
+func (h *handler) createBranch(taskStorage taskkind.TaskStorage, branchRepo *CheckItemBranchRepo, itemID string, sortOrder int, b types.CheckItemBranchDTO, parentTask *model.TaskModel) {
+	branch := &CheckItemBranchModel{
+		CheckItemID: itemID,
+		Name:        b.Name,
+		CreateTodo:  b.CreateTodo,
+		SortOrder:   sortOrder,
+	}
+	if b.CreateTodo && b.BranchTask != nil && b.BranchTask.Task != nil && b.BranchTask.Task.Name != "" {
+		branch.BranchTaskID = h.createChildTask(taskStorage, b.BranchTask, parentTask)
+	}
+	branchRepo.CreateCheckItemBranch(branch)
+}
+
+// createChildTask creates a non-root task and returns its ID.
+func (h *handler) createChildTask(taskStorage taskkind.TaskStorage, bt *types.TaskWithExtra, parent *model.TaskModel) string {
+	kind := bt.Task.Kind
+	if kind == "" {
+		kind = "simple"
+	}
+	scheduleType := bt.Task.ScheduleType
+	if scheduleType == "" {
+		scheduleType = "once"
+	}
+	dataJSON, _ := json.Marshal(bt.Task.ScheduleData)
+	child := &model.TaskModel{
+		FamilyID:     parent.FamilyID,
+		GroupID:      bt.Task.GroupID,
+		LocationID:   bt.Task.LocationID,
+		ParentTaskID: parent.ID,
+		RootTaskID:   parent.RootTaskID,
+		Name:         bt.Task.Name,
+		ScheduleType: scheduleType,
+		ScheduleData: string(dataJSON),
+		Enabled:      true,
+		Kind:         kind,
+		CreatedBy:    parent.CreatedBy,
+	}
+	taskStorage.CreateNoRootTask(child, bt.Extra)
+	return child.ID
+}
+
+// updateChildTask updates an existing child task's fields.
+func (h *handler) updateChildTask(taskStorage taskkind.TaskStorage, taskID string, bt *types.TaskWithExtra) {
+	child, err := taskStorage.FindTaskByID(taskID)
+	if err != nil || child == nil {
+		return
+	}
+	if bt.Task.Name != "" {
+		child.Name = bt.Task.Name
+	}
+	if bt.Task.ScheduleType != "" {
+		child.ScheduleType = bt.Task.ScheduleType
+	}
+	if bt.Task.ScheduleData != nil {
+		dataJSON, _ := json.Marshal(bt.Task.ScheduleData)
+		child.ScheduleData = string(dataJSON)
+	}
+	if bt.Task.GroupID != "" {
+		child.GroupID = bt.Task.GroupID
+	}
+	if bt.Task.LocationID != "" {
+		child.LocationID = bt.Task.LocationID
+	}
+	if bt.Task.Kind != "" {
+		child.Kind = bt.Task.Kind
+	}
+	child.Enabled = true
+	taskStorage.UpdateNoRootTask(child)
+}
+
+func (h *handler) DeleteExtra(taskStorage taskkind.TaskStorage, task *model.TaskModel) error {
 	db := taskStorage.DB()
-	// Delete child tasks referenced by branch_task_id
-	db.Where("id IN (?)",
-		db.Model(&CheckItemBranchModel{}).Select("branch_task_id").
-			Where("branch_task_id != '' AND check_item_id IN (?)",
-				db.Model(&CheckItemModel{}).Select("id").Where("task_id = ?", task.ID),
-			),
-	).Delete(&model.TaskModel{})
+	// Delete child tasks via full lifecycle (triggers their DeleteExtra recursively).
+	var childIDs []string
+	db.Model(&CheckItemBranchModel{}).
+		Select("branch_task_id").
+		Where("branch_task_id != '' AND check_item_id IN (?)",
+			db.Model(&CheckItemModel{}).Select("id").Where("task_id = ?", task.ID),
+		).Pluck("branch_task_id", &childIDs)
+	for _, id := range childIDs {
+		if err := taskStorage.DeleteNonRootTask(id); err != nil {
+			return fmt.Errorf("delete child task %s: %w", id, err)
+		}
+	}
+	// Clean up plugin-specific data.
 	if err := NewCheckItemBranchRepo(db).DeleteCheckItemBranchesByTask(task.ID); err != nil {
 		return fmt.Errorf("delete branches: %w", err)
 	}
@@ -236,39 +428,7 @@ func (h *handler) saveCheckItems(taskStorage taskkind.TaskStorage, task *model.T
 			}
 			// Create child task if create_todo is set and task params provided.
 			if b.CreateTodo && b.BranchTask != nil && b.BranchTask.Task != nil && b.BranchTask.Task.Name != "" {
-				kind := b.BranchTask.Task.Kind
-				if kind == "" {
-					kind = "simple"
-				}
-				scheduleType := b.BranchTask.Task.ScheduleType
-				if scheduleType == "" {
-					scheduleType = "once"
-				}
-				dataJSON, _ := json.Marshal(b.BranchTask.Task.ScheduleData)
-				childTask := &model.TaskModel{
-					FamilyID:     task.FamilyID,
-					GroupID:      b.BranchTask.Task.GroupID,
-					LocationID:   b.BranchTask.Task.LocationID,
-					ParentTaskID: task.ID,
-					RootTaskID:   task.RootTaskID,
-					IsRoot:       false,
-					Name:         b.BranchTask.Task.Name,
-					ScheduleType: scheduleType,
-					ScheduleData: string(dataJSON),
-					Enabled:      true,
-					Kind:         kind,
-					CreatedBy:    task.CreatedBy,
-				}
-				if err := taskStorage.CreateNoRootTask(childTask); err != nil {
-					return fmt.Errorf("create branch task %s: %w", b.BranchTask.Task.Name, err)
-				}
-				// Initialize kind-specific extra data (e.g. check items for inspection child)
-				if childHandler := taskkind.GetManager().Get(kind); childHandler != nil {
-					if err := childHandler.OnCreate(taskStorage, childTask, b.BranchTask.Extra); err != nil {
-						return fmt.Errorf("init branch task %s extra: %w", b.BranchTask.Task.Name, err)
-					}
-				}
-				branch.BranchTaskID = childTask.ID
+				branch.BranchTaskID = h.createChildTask(taskStorage, b.BranchTask, task)
 			}
 			if err := checkItemBranchRepo.CreateCheckItemBranch(branch); err != nil {
 				return fmt.Errorf("create branch %s: %w", b.Name, err)

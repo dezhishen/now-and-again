@@ -30,16 +30,16 @@ type Account struct {
 // ─── Auth ─────────────────────────────────────────────────────────
 
 type CreateUserRequest struct {
-	DisplayName string `json:"display_name" binding:"required"`
-	Username    string `json:"username" binding:"required,min=3"`
-	Email       string `json:"email" binding:"required,email"`
-	Password    string `json:"password" binding:"required,min=8"`
-	Phone       string `json:"phone,omitempty"`
+	DisplayName string `json:"display_name" binding:"required,max=128"`
+	Username    string `json:"username" binding:"required,min=3,max=64"`
+	Email       string `json:"email" binding:"required,email,max=255"`
+	Password    string `json:"password" binding:"required,min=8,max=255"`
+	Phone       string `json:"phone,omitempty" binding:"max=20"`
 }
 
 type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string `json:"username" binding:"required,max=64"`
+	Password string `json:"password" binding:"required,max=255"`
 }
 
 type TokenPair struct {
@@ -50,9 +50,9 @@ type TokenPair struct {
 }
 
 type UpdateUserRequest struct {
-	DisplayName     *string `json:"display_name,omitempty"`
-	Email           *string `json:"email,omitempty"`
-	Phone           *string `json:"phone,omitempty"`
+	DisplayName     *string `json:"display_name,omitempty" binding:"omitempty,max=128"`
+	Email           *string `json:"email,omitempty" binding:"omitempty,email,max=255"`
+	Phone           *string `json:"phone,omitempty" binding:"omitempty,max=20"`
 	AvatarURL       *string `json:"avatar_url,omitempty"`
 	DefaultFamilyID *string `json:"default_family_id,omitempty"`
 }

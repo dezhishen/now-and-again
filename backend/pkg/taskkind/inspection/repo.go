@@ -23,6 +23,17 @@ func (r *CheckItemRepo) CreateCheckItem(ci *CheckItemModel) error {
 	return r.db.Create(ci).Error
 }
 
+func (r *CheckItemRepo) UpdateCheckItem(ci *CheckItemModel) error {
+	return r.db.Model(&CheckItemModel{}).Where("id = ?", ci.ID).Updates(map[string]any{
+		"name":       ci.Name,
+		"sort_order": ci.SortOrder,
+	}).Error
+}
+
+func (r *CheckItemRepo) DeleteCheckItem(id string) error {
+	return r.db.Where("id = ?", id).Delete(&CheckItemModel{}).Error
+}
+
 func (r *CheckItemRepo) DeleteCheckItemsByTask(taskID string) error {
 	return r.db.Where("task_id = ?", taskID).Delete(&CheckItemModel{}).Error
 }
@@ -45,4 +56,17 @@ func (r *CheckItemBranchRepo) DeleteCheckItemBranchesByTask(taskID string) error
 
 func (r *CheckItemBranchRepo) CreateCheckItemBranch(cb *CheckItemBranchModel) error {
 	return r.db.Create(cb).Error
+}
+
+func (r *CheckItemBranchRepo) UpdateCheckItemBranch(cb *CheckItemBranchModel) error {
+	return r.db.Model(&CheckItemBranchModel{}).Where("id = ?", cb.ID).Updates(map[string]any{
+		"name":           cb.Name,
+		"create_todo":    cb.CreateTodo,
+		"branch_task_id": cb.BranchTaskID,
+		"sort_order":     cb.SortOrder,
+	}).Error
+}
+
+func (r *CheckItemBranchRepo) DeleteCheckItemBranch(id string) error {
+	return r.db.Where("id = ?", id).Delete(&CheckItemBranchModel{}).Error
 }

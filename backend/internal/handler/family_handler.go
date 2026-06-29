@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -11,7 +14,7 @@ import (
 func (h *FamilyHandlers) Create(c *gin.Context) {
 	req, err := bindJSON[types.CreateFamilyRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	f, err := h.C.Create(userCtx(c), req)
@@ -25,7 +28,7 @@ func (h *FamilyHandlers) Create(c *gin.Context) {
 func (h *FamilyHandlers) Join(c *gin.Context) {
 	req, err := bindJSON[types.JoinFamilyRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	m, err := h.C.Join(userCtx(c), req)
@@ -44,6 +47,10 @@ func (h *FamilyHandlers) Get(c *gin.Context) {
 	}
 	f, err := h.C.Get(userCtx(c), familyID)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": err.Error()})
+			return
+		}
 		serverError(c, err)
 		return
 	}
@@ -58,7 +65,7 @@ func (h *FamilyHandlers) Update(c *gin.Context) {
 	}
 	req, err := bindJSON[types.UpdateFamilyRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	f, err := h.C.Update(userCtx(c), familyID, req)
@@ -133,7 +140,7 @@ func (h *FamilyHandlers) UpdateMemberRole(c *gin.Context) {
 	}
 	req, err := bindJSON[types.UpdateMemberRoleRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	if err := h.C.UpdateMemberRole(userCtx(c), familyID, userID, req.Role); err != nil {
@@ -202,7 +209,7 @@ func (h *FamilyHandlers) ReviewJoinRequest(c *gin.Context) {
 	}
 	req, err := bindJSON[types.ReviewJoinRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	if err := h.C.ReviewJoinRequest(userCtx(c), familyID, req); err != nil {
@@ -223,7 +230,7 @@ func (h *FamilyHandlers) CreateGroup(c *gin.Context) {
 	}
 	req, err := bindJSON[types.CreateFamilyGroupRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	g, err := h.C.CreateGroup(userCtx(c), familyID, req)
@@ -330,7 +337,7 @@ func (h *FamilyHandlers) ReviewGroupJoinRequest(c *gin.Context) {
 	}
 	req, err := bindJSON[types.ReviewGroupJoinRequest](c)
 	if err != nil {
-		badRequest(c, err.Error())
+		validationError(c, err)
 		return
 	}
 	if err := h.C.ReviewGroupJoinRequest(userCtx(c), groupID, req); err != nil {

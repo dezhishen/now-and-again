@@ -314,6 +314,13 @@ export default {
     email: '邮箱', phone: '手机号', phoneOptional: '可选',
     saving: '保存中...', saved: '已保存 ✓', save: '保存修改', adminRole: '系统管理员',
   },
+  validation: {
+    required: '{field} 不能为空',
+    maxLength: '{field} 不能超过 {max} 个字符',
+    minLength: '{field} 不能少于 {min} 个字符',
+    email: '邮箱格式不正确',
+    serverError: '服务器错误，请稍后重试',
+  },
   apiKey: {
     heading: 'API Key', description: 'API Key 用于 CLI 或第三方工具访问系统。每个 Key 可设置权限范围和过期时间。',
     created: '新 API Key 已创建，此密钥仅显示一次：', copyAndClose: '复制并关闭',

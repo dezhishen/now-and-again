@@ -305,6 +305,13 @@ export default {
     email: 'Email', phone: 'Phone', phoneOptional: 'Optional',
     saving: 'Saving...', saved: 'Saved ✓', save: 'Save Changes', adminRole: 'System Admin',
   },
+  validation: {
+    required: '{field} is required',
+    maxLength: '{field} must not exceed {max} characters',
+    minLength: '{field} must be at least {min} characters',
+    email: 'Invalid email format',
+    serverError: 'Server error, please try again later',
+  },
   apiKey: {
     heading: 'API Key', description: 'API Keys allow CLI or third-party tools to access the system. Each key can have scope and expiry.',
     created: 'New API Key created — shown only once:', copyAndClose: 'Copy & Close',
