@@ -1,7 +1,8 @@
+
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { ApiRequestError } from '@/types'
-import { translateFieldError } from '@/composables/useErrorHandler'
+import { ERROR_HANDLERS, translateFieldError } from '@/composables/useErrorHandler'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
@@ -18,13 +19,19 @@ const expanded = ref(false)
 
 const isServerError = computed(() => props.error?.code === 'INTERNAL_ERROR')
 
+/** i18n summary from ERROR_HANDLERS registry. */
+const i18nSummary = computed(() => {
+  if (!props.error) return ''
+  const handler = ERROR_HANDLERS[props.error.code]
+  return handler ? handler(props.error, t) : (props.error.summary || props.error.message)
+})
+
 function toggle() {
   expanded.value = !expanded.value
 }
 </script>
 
 <template>
-  <!-- 400-level: amber warning. 500-level: red danger. -->
   <div
     v-if="error"
     class="rounded-lg p-3 text-sm border"
@@ -34,16 +41,14 @@ function toggle() {
   >
     <div class="flex items-start justify-between gap-2">
       <div class="flex-1 min-w-0">
-        <!-- Summary -->
         <p
           class="font-medium"
           :class="isServerError
             ? 'text-red-600 dark:text-red-400'
             : 'text-amber-600 dark:text-amber-400'"
         >
-          {{ isServerError ? '⚠️ ' : '⚠️ ' }}{{ error.summary || error.message }}
+          {{ i18nSummary }}
         </p>
-        <!-- Detail count + toggle -->
         <p
           v-if="error.details?.length"
           class="text-xs mt-1"
@@ -62,7 +67,6 @@ function toggle() {
             {{ expanded ? '收起' : '展开' }}
           </button>
         </p>
-        <!-- 500 extra hint -->
         <p v-if="isServerError" class="text-xs text-red-400 dark:text-red-500 mt-1">
           请稍后重试，如持续出现请联系管理员
         </p>
@@ -76,7 +80,6 @@ function toggle() {
       >✕</button>
     </div>
 
-    <!-- Detail list — v-if to avoid rendering when collapsed -->
     <ul
       v-if="expanded && error.details?.length"
       class="mt-2 space-y-1 pl-4 border-l-2"

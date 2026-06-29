@@ -94,6 +94,26 @@ export class ApiRequestError extends Error {
   }
 }
 
+// ── ErrorCode → plain-text message (no i18n, for toast/log fallback) ──
+
+type MessageBuilder = (err: ApiError) => string
+
+export const ERROR_MESSAGES: Record<ErrorCode, MessageBuilder> = {
+  BAD_REQUEST:       (e) => e.summary,
+  VALIDATION_ERROR:  (e) => e.details?.map(d => d.field + ': ' + d.message).join('; ') || e.summary,
+  UNAUTHORIZED:      () => '请先登录',
+  FORBIDDEN:         () => '没有权限执行此操作',
+  NOT_FOUND:         () => '请求的资源不存在',
+  CONFLICT:          () => '数据冲突',
+  INTERNAL_ERROR:    () => '服务器内部错误，请稍后重试',
+}
+
+/** Build a plain-text message from an ApiError, using ERROR_MESSAGES registry. */
+export function formatError(err: ApiError): string {
+  const h = ERROR_MESSAGES[err.code]
+  return h ? h(err) : err.summary
+}
+
 export interface APIResponse<T> {
   success: boolean
   data: T

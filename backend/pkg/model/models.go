@@ -89,10 +89,10 @@ func (FamilyModel) TableName() string { return "families" }
 
 type FamilyMemberModel struct {
 	BaseModel
-	FamilyID string `gorm:"uniqueIndex:idx_family_user;type:char(36);not null"`
-	UserID   string `gorm:"uniqueIndex:idx_family_user;type:char(36);not null"`
+	FamilyID string `gorm:"uniqueIndex:idx_family_user;index:idx_family_status,priority:1;type:char(36);not null"`
+	UserID   string `gorm:"uniqueIndex:idx_family_user;index:idx_user_status,priority:1;type:char(36);not null"`
 	Role     string `gorm:"size:16;not null;default:member"`
-	Status   string `gorm:"size:16;not null;default:active"`
+	Status   string `gorm:"index:idx_family_status,priority:2;index:idx_user_status,priority:2;size:16;not null;default:active"`
 	JoinedAt time.Time
 	User     UserModel `gorm:"foreignKey:UserID"`
 }
@@ -113,10 +113,10 @@ func (FamilyGroupModel) TableName() string { return "family_groups" }
 
 type FamilyGroupMemberModel struct {
 	BaseModel
-	GroupID  string `gorm:"uniqueIndex:idx_group_user;type:char(36);not null"`
+	GroupID  string `gorm:"uniqueIndex:idx_group_user;index:idx_group_status,priority:1;type:char(36);not null"`
 	UserID   string `gorm:"uniqueIndex:idx_group_user;type:char(36);not null"`
 	Role     string `gorm:"size:16;not null;default:member"`
-	Status   string `gorm:"size:16;not null;default:pending"`
+	Status   string `gorm:"index:idx_group_status,priority:2;size:16;not null;default:pending"`
 	JoinedAt time.Time
 	User     UserModel `gorm:"foreignKey:UserID"`
 }
@@ -177,7 +177,7 @@ type FloorPlanModel struct {
 	FamilyID string     `gorm:"index;type:char(36);not null"`
 	Label    string     `gorm:"size:32;not null;default:'1F'"`
 	ImageID  string     `gorm:"index;type:char(36);not null"`
-	IsCover  bool       `gorm:"not null;default:false"`
+	IsCover  bool       `gorm:"index;not null;default:false"`
 	Width    int        `gorm:"not null;default:0"`
 	Height   int        `gorm:"not null;default:0"`
 	Image    ImageModel `gorm:"foreignKey:ImageID"`
@@ -204,16 +204,16 @@ type TaskModel struct {
 	GroupID        string           `gorm:"index;type:char(36)"`
 	Group          FamilyGroupModel `gorm:"foreignKey:GroupID"`
 	LocationID     string           `gorm:"index;type:char(36)"`
-	ParentTaskID   string           `gorm:"index;type:char(36)"`
+	ParentTaskID   string           `gorm:"index:idx_parent_root,priority:1;type:char(36)"`
 	RootTaskID     string           `gorm:"index;type:char(36)"` // root ancestor of the task tree, for log aggregation
-	IsRoot         bool             `gorm:"not null;default:false;index:idx_root_family,priority:1"`
+	IsRoot         bool             `gorm:"not null;default:false;index:idx_root_family,priority:1;index:idx_parent_root,priority:2"`
 	Name           string           `gorm:"size:128;not null"`
 	ScheduleType   string           `gorm:"size:32;not null"`   // once/daily/weekly/monthly/interval
 	ScheduleData   string           `gorm:"type:text;not null"` // JSON config
-	Enabled        bool             `gorm:"not null;default:true"`
+	Enabled        bool             `gorm:"not null;default:true;index:idx_enabled_archived,priority:1"`
 	Kind           string           `gorm:"size:16;not null;default:simple"` // simple | inspection (future: chain)
 	DisplaySummary string           `gorm:"size:256"`                        // plugin-populated display text for list view
-	Archived       bool             `gorm:"not null;default:false"`
+	Archived       bool             `gorm:"not null;default:false;index:idx_enabled_archived,priority:2"`
 	LastTodoAt     *time.Time
 	CreatedBy      string `gorm:"type:char(36);not null"`
 }
@@ -226,8 +226,8 @@ type TodoModel struct {
 	FamilyID    string    `gorm:"index;type:char(36);not null"`
 	LocationID  string    `gorm:"index;type:char(36)"`
 	AssignedTo  string    `gorm:"index;type:char(36)"`
-	Status      string    `gorm:"size:16;not null;default:pending"` // pending/done/skipped
-	Remark      string    `gorm:"type:text"`                        // user note on completion
+	Status      string    `gorm:"index;size:16;not null;default:pending"` // pending/done/skipped
+	Remark      string    `gorm:"type:text"`                              // user note on completion
 	DueStart    time.Time `gorm:"not null"`
 	DueDate     time.Time `gorm:"not null"`
 	CompletedAt *time.Time
@@ -246,7 +246,7 @@ type TaskLogModel struct {
 	TodoID     string    `gorm:"index;type:char(36)"`
 	Status     string    `gorm:"size:32;not null"`
 	Message    string    `gorm:"type:text"`
-	LogType    string    `gorm:"size:16;not null;default:system"`
+	LogType    string    `gorm:"index;size:16;not null;default:system"`
 	OperatorID string    `gorm:"index;type:char(36)"`
 	Task       TaskModel `gorm:"foreignKey:TaskID"` // for model-driven JOINs
 }
