@@ -35,12 +35,7 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, familyAuth *gin.R
 	auth.PATCH("/api/families/:family_id", h.Family.Update)
 	auth.DELETE("/api/families/:family_id", h.Family.Delete)
 	auth.POST("/api/families/:family_id/restore", h.Family.Restore)
-	auth.GET("/api/families/:family_id/members", h.Family.ListMembers)
-	auth.PUT("/api/families/:family_id/members/:user_id/role", h.Family.UpdateMemberRole)
-	auth.DELETE("/api/families/:family_id/members/:user_id", h.Family.RemoveMember)
 	auth.POST("/api/families/:family_id/leave", h.Family.LeaveFamily)
-	auth.GET("/api/families/:family_id/join-requests", h.Family.ListJoinRequests)
-	auth.PUT("/api/families/:family_id/join-requests", h.Family.ReviewJoinRequest)
 
 	// API Keys
 	auth.POST("/api/users/me/api-keys", h.ApiKey.Create)
@@ -49,9 +44,17 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, familyAuth *gin.R
 
 	// ── Family-scoped (requires X-Family-Id header) ─────────────
 
+	// Members
+	familyAuth.GET("/api/members", h.Family.ListMembers)
+	familyAuth.PUT("/api/members/:user_id/role", h.Family.UpdateMemberRole)
+	familyAuth.DELETE("/api/members/:user_id", h.Family.RemoveMember)
+	familyAuth.POST("/api/family/leave", h.Family.LeaveFamily)
+	familyAuth.GET("/api/family/join-requests", h.Family.ListJoinRequests)
+	familyAuth.PUT("/api/family/join-requests", h.Family.ReviewJoinRequest)
+
 	// Family Groups
-	familyAuth.POST("/api/families/:family_id/groups", h.Family.CreateGroup)
-	familyAuth.GET("/api/families/:family_id/groups", h.Family.ListGroups)
+	familyAuth.POST("/api/groups", h.Family.CreateGroup)
+	familyAuth.GET("/api/groups", h.Family.ListGroups)
 	familyAuth.POST("/api/groups/:group_id/join", h.Family.JoinGroup)
 	familyAuth.POST("/api/groups/:group_id/leave", h.Family.LeaveGroup)
 	familyAuth.GET("/api/groups/:group_id/members", h.Family.ListGroupMembers)

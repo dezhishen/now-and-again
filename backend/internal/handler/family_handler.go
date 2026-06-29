@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // ─── Family ───────────────────────────────────────────────────────
@@ -104,7 +105,8 @@ func (h *FamilyHandlers) ListMyFamilies(c *gin.Context) {
 }
 
 func (h *FamilyHandlers) ListMembers(c *gin.Context) {
-	familyID, err := paramUUID(c, "family_id")
+	fid := familyID(c)
+	familyID, err := uuid.Parse(fid)
 	if err != nil {
 		badRequest(c, "invalid family_id")
 		return
@@ -118,7 +120,8 @@ func (h *FamilyHandlers) ListMembers(c *gin.Context) {
 }
 
 func (h *FamilyHandlers) UpdateMemberRole(c *gin.Context) {
-	familyID, err := paramUUID(c, "family_id")
+	fid := familyID(c)
+	familyID, err := uuid.Parse(fid)
 	if err != nil {
 		badRequest(c, "invalid family_id")
 		return
@@ -141,7 +144,8 @@ func (h *FamilyHandlers) UpdateMemberRole(c *gin.Context) {
 }
 
 func (h *FamilyHandlers) RemoveMember(c *gin.Context) {
-	familyID, err := paramUUID(c, "family_id")
+	fid := familyID(c)
+	familyID, err := uuid.Parse(fid)
 	if err != nil {
 		badRequest(c, "invalid family_id")
 		return
@@ -159,7 +163,8 @@ func (h *FamilyHandlers) RemoveMember(c *gin.Context) {
 }
 
 func (h *FamilyHandlers) LeaveFamily(c *gin.Context) {
-	familyID, err := paramUUID(c, "family_id")
+	fid := familyID(c)
+	familyID, err := uuid.Parse(fid)
 	if err != nil {
 		badRequest(c, "invalid family_id")
 		return
@@ -174,7 +179,8 @@ func (h *FamilyHandlers) LeaveFamily(c *gin.Context) {
 // ─── Join Requests ────────────────────────────────────────────────
 
 func (h *FamilyHandlers) ListJoinRequests(c *gin.Context) {
-	familyID, err := paramUUID(c, "family_id")
+	fid := familyID(c)
+	familyID, err := uuid.Parse(fid)
 	if err != nil {
 		badRequest(c, "invalid family_id")
 		return
@@ -188,7 +194,8 @@ func (h *FamilyHandlers) ListJoinRequests(c *gin.Context) {
 }
 
 func (h *FamilyHandlers) ReviewJoinRequest(c *gin.Context) {
-	familyID, err := paramUUID(c, "family_id")
+	fid := familyID(c)
+	familyID, err := uuid.Parse(fid)
 	if err != nil {
 		badRequest(c, "invalid family_id")
 		return
@@ -208,7 +215,8 @@ func (h *FamilyHandlers) ReviewJoinRequest(c *gin.Context) {
 // ─── Family Group ─────────────────────────────────────────────────
 
 func (h *FamilyHandlers) CreateGroup(c *gin.Context) {
-	familyID, err := paramUUID(c, "family_id")
+	fid := familyID(c)
+	familyID, err := uuid.Parse(fid)
 	if err != nil {
 		badRequest(c, "invalid family_id")
 		return
@@ -227,7 +235,8 @@ func (h *FamilyHandlers) CreateGroup(c *gin.Context) {
 }
 
 func (h *FamilyHandlers) ListGroups(c *gin.Context) {
-	familyID, err := paramUUID(c, "family_id")
+	fid := familyID(c)
+	familyID, err := uuid.Parse(fid)
 	if err != nil {
 		badRequest(c, "invalid family_id")
 		return

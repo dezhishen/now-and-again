@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed, inject, onMounted, ref, type Ref, watch} from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useI18n } from '@/i18n'
+import type { I18nKey } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -10,7 +11,6 @@ import type { FamilyMember, FamilyRole } from '@/types'
 
 const { t } = useI18n()
 const auth = useAuthStore()
-const familyId = () => auth.activeFamilyId || ''
 
 // Reload data when this tab becomes active
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
@@ -37,13 +37,13 @@ onMounted(async () => {
 
 async function loadMembers() {
   try {
-    members.value = await api.get<FamilyMember[]>('/families/' + familyId() + '/members')
+    members.value = await api.get<FamilyMember[]>('/members')
   } catch { members.value = [] }
 }
 
 async function loadRequests() {
   try {
-    requests.value = await api.get<FamilyMember[]>('/families/' + familyId() + '/join-requests')
+    requests.value = await api.get<FamilyMember[]>('/family/join-requests')
   } catch { requests.value = [] }
 }
 
@@ -51,7 +51,7 @@ async function changeRole(userId: string, role: FamilyRole) {
   loading.value[userId] = true
   error.value = ''
   try {
-    await api.put('/families/' + familyId() + '/members/' + userId + '/role', { role })
+    await api.put('/members/' + userId + '/role', { role })
     await loadMembers()
   } catch (e: any) { error.value = e.message }
   finally { loading.value[userId] = false }
@@ -62,7 +62,7 @@ async function removeMember(userId: string) {
   loading.value[userId] = true
   error.value = ''
   try {
-    await api.delete('/families/' + familyId() + '/members/' + userId)
+    await api.delete('/members/' + userId)
     await loadMembers()
   } catch (e: any) { error.value = e.message }
   finally { loading.value[userId] = false }
@@ -72,7 +72,7 @@ async function reviewRequest(userId: string, action: 'active' | 'rejected') {
   loading.value[userId] = true
   error.value = ''
   try {
-    await api.put('/families/' + familyId() + '/join-requests', { user_id: userId, action })
+    await api.put('/family/join-requests', { user_id: userId, action })
     await Promise.all([loadMembers(), loadRequests()])
     if (activeTab.value === 'requests' && requests.value.length === 0) {
       activeTab.value = 'members'
@@ -81,7 +81,7 @@ async function reviewRequest(userId: string, action: 'active' | 'rejected') {
   finally { loading.value[userId] = false }
 }
 
-const ROLE_LABELS: Record<string, string> = {
+const ROLE_LABELS: Record<string, I18nKey> = {
   owner: 'members.role_owner',
   admin: 'members.role_admin',
   member: 'members.role_member',

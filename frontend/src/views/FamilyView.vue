@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import {markRaw, onMounted, provide, ref, watch} from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
+import { useI18n } from '@/i18n'
+import type { I18nKey } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
@@ -27,12 +28,12 @@ const isFamilyAdmin = ref(false)
 
 interface Tab {
   id: string
-  labelKey: string
+  labelKey: I18nKey
   icon: string
   component: any
 }
 
-const NAV_ITEMS: { id: string; icon: string; labelKey: string; component: any; adminOnly?: boolean }[] = [
+const NAV_ITEMS: { id: string; icon: string; labelKey: I18nKey; component: any; adminOnly?: boolean }[] = [
   { id: 'dashboard', icon: '🏠', labelKey: 'nav.dashboard', component: markRaw(DashboardView) },
   { id: 'tasks', icon: '✅', labelKey: 'nav.tasks', component: markRaw(TaskView) },
   { id: 'groups', icon: '👥', labelKey: 'nav.groups', component: markRaw(GroupListView) },
@@ -100,7 +101,7 @@ function closeTab(id: string) {
 
 onMounted(async () => {
   try {
-    const members = await api.get<{ user_id: string; role: string }[]>('/families/' + auth.activeFamilyId + '/members')
+    const members = await api.get<{ user_id: string; role: string }[]>('/members')
     const me = members.find(m => m.user_id === auth.user?.id)
     isFamilyAdmin.value = me?.role === 'owner' || me?.role === 'admin'
   } catch { /* */ }
@@ -121,7 +122,7 @@ onMounted(async () => {
 async function leaveFamily() {
   if (!await useConfirm(t('family.leaveConfirm'))) return
   try {
-    await api.post('/families/' + auth.activeFamilyId + '/leave')
+    await api.post('/family/leave')
     window.location.href = '/'
   } catch (e: any) { toast.error(e.message) }
 }

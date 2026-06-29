@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, inject, onMounted, ref, type Ref, watch} from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { useI18n } from 'vue-i18n'
+import { useI18n } from '@/i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useToast } from '@/composables/useToast'
@@ -12,7 +12,7 @@ import type { Family, Todo } from '@/types'
 
 initTaskKinds()
 
-const { t, locale } = useI18n()
+const { t, td, locale } = useI18n()
 const auth = useAuthStore()
 const localeCode = computed(() => locale.value)
 const toast = useToast()
@@ -97,8 +97,8 @@ async function loadAll() {
       loadTodos(),
       loadLocations(),
       (async () => { try { family.value = await api.get<Family>('/families/' + familyId()) } catch { /* */ } })(),
-      (async () => { try { memberCount.value = (await api.get<any[]>('/families/' + familyId() + '/members')).length } catch { /* */ } })(),
-      (async () => { try { groupCount.value = (await api.get<any[]>('/families/' + familyId() + '/groups')).length } catch { /* */ } })(),
+      (async () => { try { memberCount.value = (await api.get<any[]>('/members')).length } catch { /* */ } })(),
+      (async () => { try { groupCount.value = (await api.get<any[]>('/groups')).length } catch { /* */ } })(),
     ])
   })
 }
@@ -156,7 +156,7 @@ onMounted(() => { loadAll() })
             <p class="font-medium dark:text-gray-200 text-sm leading-snug line-clamp-2">{{ todo.task?.name || todo.task_id }}</p>
             <span v-if="getTodoBadgeKey(todo.task?.kind || '')"
               class="text-[10px] px-1 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 font-medium"
-            >{{ t(getTodoBadgeKey(todo.task?.kind || '')) }}</span>
+            >{{ td(getTodoBadgeKey(todo.task?.kind || '')) }}</span>
           </div>
 
           <!-- Meta info -->

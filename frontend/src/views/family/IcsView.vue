@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, inject, onMounted, ref, type Ref, watch} from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { useI18n } from 'vue-i18n'
+import { useI18n } from '@/i18n'
 import { useConfirm } from '@/composables/useConfirm'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -83,7 +83,7 @@ async function loadFeeds() {
   try { feeds.value = await api.get<IcsFeed[]>('/ics-feeds') } catch { feeds.value = [] }
 }
 async function loadGroups() {
-  try { groups.value = await api.get<FamilyGroup[]>('/families/' + familyId() + '/groups') } catch { groups.value = [] }
+  try { groups.value = await api.get<FamilyGroup[]>('/groups') } catch { groups.value = [] }
 }
 async function loadApiKeys() {
   try { apiKeys.value = await api.get<ApiKey[]>('/users/me/api-keys') } catch { apiKeys.value = [] }

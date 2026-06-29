@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
+import { useI18n } from '@/i18n'
+import type { I18nKey } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useDark } from '@/composables/useDark'
 
@@ -32,7 +33,7 @@ async function logout() {
   window.location.href = '/login'
 }
 
-const LANGS = [
+const LANGS: { code: string; key: I18nKey; flag: string }[] = [
   { code: 'zh-CN', key: 'lang.zhCN', flag: '🇨🇳' },
   { code: 'en', key: 'lang.en', flag: '🇺🇸' },
 ]

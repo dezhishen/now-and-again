@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
+import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
 import { useConfirm } from '@/composables/useConfirm'

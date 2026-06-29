@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useI18n } from '@/i18n'
+import type { I18nKey } from '@/i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import type { ApiKey } from '@/types'
@@ -17,7 +18,7 @@ const error = ref('')
 const creating = ref(false)
 const createdKey = ref<string | null>(null)
 
-const SCOPE_OPTIONS = [
+const SCOPE_OPTIONS: { groupKey: I18nKey; items: { value: string; labelKey: I18nKey }[] }[] = [
   { groupKey: 'apiKey.scope.family', items: [
     { value: 'family:read', labelKey: 'apiKey.scope.familyRead' },
     { value: 'family:write', labelKey: 'apiKey.scope.familyWrite' },
@@ -43,7 +44,7 @@ const SCOPE_OPTIONS = [
   ]},
 ]
 
-const SCOPE_LABELS: Record<string, string> = {}
+const SCOPE_LABELS: Record<string, I18nKey> = {}
 for (const g of SCOPE_OPTIONS) {
   for (const s of g.items) {
     SCOPE_LABELS[s.value] = s.labelKey

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useI18n } from '@/i18n'
 import { api } from '@/api/client'
 import type { Todo } from '@/types'
 import InspectionInspect from './InspectionInspect.vue'

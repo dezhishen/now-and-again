@@ -7,6 +7,9 @@
 //	logger.Sync()              // flush on shutdown
 //
 // Old logs are compressed to .gz after rotation.
+//
+// All convenience functions (Info, Warnf, Fatalf, etc.) are safe to call before
+// Init — they fall back to writing to stderr when the logger is nil.
 package logger
 
 import (
@@ -174,15 +177,83 @@ func compressFile(path string) {
 
 // ─── Convenience wrappers ────────────────────────────────────────
 
-func Info(msg string, fields ...zap.Field)  { L.Info(msg, fields...) }
-func Warn(msg string, fields ...zap.Field)  { L.Warn(msg, fields...) }
-func Error(msg string, fields ...zap.Field) { L.Error(msg, fields...) }
-func Debug(msg string, fields ...zap.Field) { L.Debug(msg, fields...) }
-func Fatal(msg string, fields ...zap.Field) { L.Fatal(msg, fields...) }
+// fallback formats and writes a message to stderr when the logger is nil.
+func fallback(level, template string, args ...interface{}) {
+	msg := fmt.Sprintf(template, args...)
+	fmt.Fprintf(os.Stderr, "[%s] %s\n", level, msg)
+}
+
+func Info(msg string, fields ...zap.Field) {
+	if L == nil {
+		fallback("INFO", msg)
+		return
+	}
+	L.Info(msg, fields...)
+}
+func Warn(msg string, fields ...zap.Field) {
+	if L == nil {
+		fallback("WARN", msg)
+		return
+	}
+	L.Warn(msg, fields...)
+}
+func Error(msg string, fields ...zap.Field) {
+	if L == nil {
+		fallback("ERROR", msg)
+		return
+	}
+	L.Error(msg, fields...)
+}
+func Debug(msg string, fields ...zap.Field) {
+	if L == nil {
+		fallback("DEBUG", msg)
+		return
+	}
+	L.Debug(msg, fields...)
+}
+func Fatal(msg string, fields ...zap.Field) {
+	if L == nil {
+		fallback("FATAL", msg)
+		os.Exit(1)
+		return
+	}
+	L.Fatal(msg, fields...)
+}
 
 // Infof uses sugared logger for printf-style.
-func Infof(template string, args ...interface{})  { S.Infof(template, args...) }
-func Warnf(template string, args ...interface{})  { S.Warnf(template, args...) }
-func Errorf(template string, args ...interface{}) { S.Errorf(template, args...) }
-func Debugf(template string, args ...interface{}) { S.Debugf(template, args...) }
-func Fatalf(template string, args ...interface{}) { S.Fatalf(template, args...) }
+func Infof(template string, args ...interface{}) {
+	if S == nil {
+		fallback("INFO", template, args...)
+		return
+	}
+	S.Infof(template, args...)
+}
+func Warnf(template string, args ...interface{}) {
+	if S == nil {
+		fallback("WARN", template, args...)
+		return
+	}
+	S.Warnf(template, args...)
+}
+func Errorf(template string, args ...interface{}) {
+	if S == nil {
+		fallback("ERROR", template, args...)
+		return
+	}
+	S.Errorf(template, args...)
+}
+func Debugf(template string, args ...interface{}) {
+	if S == nil {
+		fallback("DEBUG", template, args...)
+		return
+	}
+	S.Debugf(template, args...)
+}
+func Fatalf(template string, args ...interface{}) {
+	if S == nil {
+		fallback("FATAL", template, args...)
+		os.Exit(1)
+		return
+	}
+	S.Fatalf(template, args...)
+}

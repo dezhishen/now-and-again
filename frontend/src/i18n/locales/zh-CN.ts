@@ -18,6 +18,7 @@ export default {
     submit: '注册',
     hasAccount: '已有账号？',
     toLogin: '去登录',
+    error: '注册失败，请重试',
   },
   login: {
     heading: '登录',
@@ -28,6 +29,7 @@ export default {
     submit: '登录',
     noAccount: '没有账号？',
     toRegister: '注册',
+    error: '登录失败，请重试',
   },
   nav: {
     family: '家庭',
@@ -240,6 +242,7 @@ export default {
     disable: '禁用',
     enable: '启用',
     delete: '删除',
+    deleteConfirm: '确定要删除此任务吗？',
     more: '更多',
     noTasks: '暂无任务',
     showArchived: '已归档',
@@ -302,6 +305,14 @@ export default {
     admin: '管理员', expiresLabel: '过期时间（可选，留空则永不过期）：', create: '创建',
     revoke: '撤销', allScopes: '全部权限', expires: '过期: ', never: '永不过期',
     lastUsed: '最近: ', empty: '暂无 API Key',
+    scope: {
+      family: '家庭', familyRead: '读取家庭', familyWrite: '管理家庭', familyAdmin: '家庭管理',
+      floorPlan: '户型图', floorPlanRead: '读取户型图', floorPlanWrite: '管理户型图',
+      task: '任务', taskRead: '读取任务', taskWrite: '管理任务',
+      ics: '日历', icsRead: '读取日历',
+      user: '用户', userRead: '读取用户',
+      admin: '系统管理', adminRead: '读取系统配置', adminWrite: '修改系统配置',
+    },
   },
   admin: {
     heading: '管理面板', users: '用户管理', storage: '存储配置',

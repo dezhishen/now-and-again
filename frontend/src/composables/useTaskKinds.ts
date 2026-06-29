@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { I18nKey } from '@/i18n'
 
 // ── Plugin kinds MUST NOT leak internal types to the main flow. ──
 // All plugin-specific data is typed as `any` / `any[]` here.
@@ -10,9 +11,9 @@ export interface TaskKindDef {
   todoInfo?: Component
   todoActions: Component
   formComponent?: Component
-  todoBadgeKey?: string
-  labelKey: string
-  createLabelKey: string
+  todoBadgeKey?: I18nKey
+  labelKey: I18nKey
+  createLabelKey: I18nKey
   defaultCheckItems?: any[]
   /** 从 { task, extra } 生成 display_summary。插件自行解析 extra。 */
   buildDisplaySummary?: (taskWithExtra: { task: any; extra: any }) => string
@@ -74,6 +75,6 @@ export function parseExtra(kind: string, extra: any): any[] {
   return kinds[kind]?.parseExtra?.(extra) || []
 }
 
-export function getTaskKinds(): { kind: string; labelKey: string }[] {
+export function getTaskKinds(): { kind: string; labelKey: I18nKey }[] {
   return Object.entries(kinds).map(([kind, def]) => ({ kind, labelKey: def.labelKey }))
 }

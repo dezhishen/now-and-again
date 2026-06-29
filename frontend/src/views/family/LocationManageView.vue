@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {inject, onMounted, ref, type Ref, watch} from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useI18n } from '@/i18n'
 import { api } from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { useLoading } from '@/composables/useLoading'

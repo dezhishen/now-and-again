@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {inject, onMounted, ref, type Ref, watch} from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -10,7 +10,6 @@ import type { FamilyGroup, FamilyGroupMember } from '@/types'
 
 const { t } = useI18n()
 const auth = useAuthStore()
-const familyId = () => auth.activeFamilyId || ''
 
 // Reload data when this tab becomes active
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
@@ -40,7 +39,7 @@ const isFamilyAdmin = ref(false)
 onMounted(() => { withLoading(loadGroups) })
 
 async function loadGroups() {
-  try { groups.value = await api.get<FamilyGroup[]>('/families/' + familyId() + '/groups') } catch { groups.value = [] }
+  try { groups.value = await api.get<FamilyGroup[]>('/groups') } catch { groups.value = [] }
   for (const g of groups.value) {
     try {
       memberCache.value[g.id] = await api.get<FamilyGroupMember[]>('/groups/' + g.id + '/members')
@@ -48,7 +47,7 @@ async function loadGroups() {
   }
   // Check if current user is family owner/admin
   try {
-    const members = await api.get<{ user_id: string; role: string }[]>('/families/' + familyId() + '/members')
+    const members = await api.get<{ user_id: string; role: string }[]>('/members')
     const me = members.find(m => m.user_id === auth.user?.id)
     isFamilyAdmin.value = me?.role === 'owner' || me?.role === 'admin'
   } catch { /* */ }
@@ -57,7 +56,7 @@ async function loadGroups() {
 async function createGroup() {
   error.value = ''
   try {
-    await api.post('/families/' + familyId() + '/groups', { name: newName.value, description: newDesc.value })
+    await api.post('/groups', { name: newName.value, description: newDesc.value })
     newName.value = ''; newDesc.value = ''; showCreate.value = false
     await loadGroups()
   } catch (e: any) { error.value = e.message }

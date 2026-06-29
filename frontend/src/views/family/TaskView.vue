@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, inject, onMounted, ref, type Ref, watch} from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@/stores/auth'
+import { useI18n } from '@/i18n'
+import type { I18nKey } from '@/i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import TaskCard from '@/components/tasks/TaskCard.vue'
@@ -16,8 +16,6 @@ import type { Task, FamilyGroup } from '@/types'
 initTaskKinds()
 
 const toast = useToast()
-const auth = useAuthStore()
-const familyId = () => auth.activeFamilyId || ''
 
 // Reload on tab activation
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
@@ -59,9 +57,9 @@ const checkItems = ref<any[]>([])
 const editingTask = ref<Task | null>(null)
 const saving = ref(false)
 
-const { t } = useI18n()
+const { t, td } = useI18n()
 
-const SCHEDULE_TYPES = [
+const SCHEDULE_TYPES: { value: string; labelKey: I18nKey }[] = [
   { value: 'once', labelKey: 'schedule.once' },
   { value: 'daily', labelKey: 'schedule.daily' },
   { value: 'weekly', labelKey: 'schedule.weekly' },
@@ -104,7 +102,7 @@ async function loadLocations() {
 }
 
 async function loadGroups() {
-  try { groups.value = await api.get<FamilyGroup[]>('/families/' + familyId() + '/groups') } catch { groups.value = [] }
+  try { groups.value = await api.get<FamilyGroup[]>('/groups') } catch { groups.value = [] }
 }
 
 async function loadTasks() {
@@ -405,7 +403,7 @@ function scheduleSummary(task: Task): string {
       <div v-if="showTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @mousedown.self="showTaskForm = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-2xl max-h-[85vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
-            <h3 class="font-bold dark:text-gray-200">{{ editingTask ? t('taskCard.edit') : t(getCreateLabelKey(taskKind)) }}</h3>
+            <h3 class="font-bold dark:text-gray-200">{{ editingTask ? t('taskCard.edit') : td(getCreateLabelKey(taskKind)) }}</h3>
             <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showTaskForm = false">✕</button>
           </div>
           <div class="flex-1 overflow-auto p-4 space-y-3">

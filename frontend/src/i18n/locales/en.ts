@@ -18,6 +18,7 @@ export default {
     submit: 'Register',
     hasAccount: 'Already have an account?',
     toLogin: 'Login',
+    error: 'Registration failed, please try again',
   },
   login: {
     heading: 'Login',
@@ -28,6 +29,7 @@ export default {
     submit: 'Login',
     noAccount: "Don't have an account?",
     toRegister: 'Register',
+    error: 'Login failed, please try again',
   },
   nav: {
     family: 'Family',
@@ -231,6 +233,7 @@ export default {
     disable: 'Disable',
     enable: 'Enable',
     delete: 'Delete',
+    deleteConfirm: 'Delete this task?',
     more: 'More',
     noTasks: 'No tasks',
     showArchived: 'Archived',
@@ -293,6 +296,14 @@ export default {
     admin: 'Admin', expiresLabel: 'Expiry (optional, leave empty for no expiry):', create: 'Create',
     revoke: 'Revoke', allScopes: 'Full Access', expires: 'Expires: ', never: 'Never',
     lastUsed: 'Last used: ', empty: 'No API Keys yet',
+    scope: {
+      family: 'Family', familyRead: 'Read Family', familyWrite: 'Manage Family', familyAdmin: 'Family Admin',
+      floorPlan: 'Floor Plan', floorPlanRead: 'Read Floor Plan', floorPlanWrite: 'Manage Floor Plan',
+      task: 'Task', taskRead: 'Read Tasks', taskWrite: 'Manage Tasks',
+      ics: 'Calendar', icsRead: 'Read Calendar',
+      user: 'User', userRead: 'Read User',
+      admin: 'Admin', adminRead: 'Read Config', adminWrite: 'Modify Config',
+    },
   },
   admin: {
     heading: 'Admin Panel', users: 'User Management', storage: 'Storage Config',

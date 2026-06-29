@@ -19,16 +19,20 @@ import (
 )
 
 func main() {
+	// ── Logger (must be first — config.Load may fail and call Fatalf) ─────
+	logDir := filepath.Join(os.Getenv("DATA_DIR"), "logs")
+	if logDir == "logs" || logDir == "/logs" {
+		logDir = filepath.Join("data", "logs") // default when DATA_DIR is empty
+	}
+	if _, err := logger.Init(logDir); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to init logger: %v\n", err)
+	}
+	defer logger.Sync()
+
 	cfg, err := config.Load()
 	if err != nil {
 		logger.Fatalf("failed to load config: %v", err)
 	}
-
-	// ── Logger ─────────────────────────────────────────────────
-	if _, err := logger.Init(filepath.Join(cfg.BaseDir(), "logs")); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to init logger: %v\n", err)
-	}
-	defer logger.Sync()
 
 	// ── Database ────────────────────────────────────────────────
 	db, err := repository.NewDB(cfg.Database)
