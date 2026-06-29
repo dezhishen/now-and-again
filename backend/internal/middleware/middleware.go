@@ -43,6 +43,11 @@ type FamilyValidator interface {
 	IsOwner(userID, familyID string) error
 }
 
+// AdminValidator checks whether a user has the admin role.
+type AdminValidator interface {
+	IsAdmin(userID string) bool
+}
+
 // JWTAuth validates the Bearer token (JWT or API Key).
 func JWTAuth(secret string, apiKeyValidator ApiKeyValidator) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -171,6 +176,65 @@ func FamilyGuard(fv FamilyValidator) gin.HandlerFunc {
 		}
 
 		c.Set("family_id", familyID)
+		c.Next()
+	}
+}
+
+// AdminGuard ensures the request comes from an admin user.
+// JWT users must have the admin role; API-key users must have the admin:read scope.
+func AdminGuard(av AdminValidator) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uid, _ := c.Get("user_id")
+		userID, _ := uid.(string)
+		if userID == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+			return
+		}
+
+		authMethod, _ := c.Get("auth_method")
+		if authMethod == "api_key" {
+			granted, _ := c.Get("api_key_scopes")
+			grantedList, _ := granted.([]string)
+			if !scopes.Has(grantedList, scopes.AdminRead) {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "admin scope required"})
+				return
+			}
+		} else {
+			if av == nil || !av.IsAdmin(userID) {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "admin role required"})
+				return
+			}
+		}
+		c.Next()
+	}
+}
+
+// OwnerGuard ensures the requesting user is the owner of the active family.
+func OwnerGuard(fv FamilyValidator) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uid, _ := c.Get("user_id")
+		userID, _ := uid.(string)
+		fid, _ := c.Get("family_id")
+		familyID, _ := fid.(string)
+		if userID == "" || familyID == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+			return
+		}
+
+		authMethod, _ := c.Get("auth_method")
+		if authMethod == "api_key" {
+			granted, _ := c.Get("api_key_scopes")
+			grantedList, _ := granted.([]string)
+			if !scopes.Has(grantedList, scopes.FamilyAdmin) {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "family admin scope required"})
+				return
+			}
+		} else {
+			if err := fv.IsOwner(userID, familyID); err != nil {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "family owner required"})
+				return
+			}
+		}
 		c.Next()
 	}
 }

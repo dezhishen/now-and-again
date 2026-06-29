@@ -9,7 +9,7 @@
 [![Vue](https://img.shields.io/badge/Vue-3.x-4FC08D?logo=vue.js)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.x-06B6D4?logo=tailwindcss)](https://tailwindcss.com/)
-[![pnpm](https://img.shields.io/badge/pnpm-9.x-F69220?logo=pnpm)](https://pnpm.io/)
+[![pnpm](https://img.shields.io/badge/pnpm-10.x-F69220?logo=pnpm)](https://pnpm.io/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker)](https://www.docker.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite)](https://sqlite.org/)
 <br>
@@ -165,7 +165,7 @@ now-and-again/
 |------|------|------|
 | Go | ≥ 1.25 | Backend + CLI |
 | Node.js | ≥ 18 | Frontend 运行时 |
-| pnpm | ≥ 9 | Frontend 包管理 |
+| pnpm | ≥ 10 | Frontend 包管理 |
 
 ### 一键启动
 

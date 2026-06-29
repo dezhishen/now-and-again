@@ -8,7 +8,7 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
 )
 
-func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, familyAuth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers, taskHandler *TaskHandlers, todoHandler *TodoHandlers, logHandler *LogHandlers, icsHandler *IcsHandlers, calendarHandler *CalendarHandlers, locationHandler *LocationHandlers) {
+func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, familyAuth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers, taskHandler *TaskHandlers, todoHandler *TodoHandlers, logHandler *LogHandlers, icsHandler *IcsHandlers, calendarHandler *CalendarHandlers, locationHandler *LocationHandlers, taskTemplateHandler *TaskTemplateHandlers) {
 	h := NewHandlers(c)
 
 	// ── Public ──────────────────────────────────────────────────
@@ -110,4 +110,13 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, familyAuth *gin.R
 
 	// ICS public endpoint (no JWT - custom auth)
 	public.GET("/api/ics/:token", icsHandler.ServeICS)
+
+	// ── Task Templates (family-visible, all members) ───────────
+	familyAuth.GET("/api/task-templates", taskTemplateHandler.List)
+	familyAuth.GET("/api/task-templates/:code", taskTemplateHandler.Get)
+	familyAuth.POST("/api/task-templates/:code/render", taskTemplateHandler.Render)
+	familyAuth.GET("/api/task-templates/providers", taskTemplateHandler.ListProviders)
+
+	// ── Task Template Subscriptions (family-visible) ────────────
+	familyAuth.GET("/api/task-template-subscriptions", taskTemplateHandler.FamilyListSubscriptions)
 }

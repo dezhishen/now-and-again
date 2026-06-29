@@ -222,3 +222,14 @@ func (s *UserService) ListUsers(ctx context.Context) ([]types.User, error) {
 	}
 	return result, nil
 }
+
+// ─── IsAdmin ──────────────────────────────────────────────────────
+
+// IsAdmin returns true if the user has the "admin" role.
+func (s *UserService) IsAdmin(userID string) bool {
+	ok, err := s.repo.HasRole(userID, "admin")
+	if err != nil {
+		return false
+	}
+	return ok
+}

@@ -234,6 +234,10 @@ func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types
 		if err := tx.CreateTask(t); err != nil {
 			return err
 		}
+		// Set RootTaskID after insert (root task → self)
+		if err := tx.SetRootTaskID(t.ID, t.ID); err != nil {
+			return err
+		}
 		if h := s.taskManager.Get(kind); h != nil {
 			if err := h.OnCreate(&_taskStorage{repo: tx}, t, req.Extra); err != nil {
 				return err

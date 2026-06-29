@@ -152,7 +152,26 @@ var routeScopes = map[string]string{
 	"GET /api/admin/users":    AdminRead,
 	"GET /api/admin/settings": AdminRead,
 	"PUT /api/admin/settings": AdminWrite,
-}
+
+	// ── Task Templates ────────────────────────────────────────
+	"GET  /api/task-templates":                               TaskRead,
+	"GET  /api/task-templates/:code":                         TaskRead,
+	"POST /api/task-templates/:code/render":                  TaskRead,
+	"GET  /api/task-templates/providers":                     TaskRead,
+	"POST /api/task-templates":                               TaskWrite,
+	"PUT  /api/task-templates/:code":                         TaskWrite,
+	"DELETE /api/task-templates/:code":                       TaskWrite,
+	"POST /api/task-templates/providers/:code/refresh":       TaskWrite,
+	"POST /api/admin/task-templates/providers/:code/refresh": AdminWrite,
+	// ── Task Template Subscriptions ───────────────────────────
+	"GET  /api/task-template-subscriptions":             TaskRead,
+	"POST /api/task-template-subscriptions":             TaskWrite,
+	"PUT  /api/task-template-subscriptions/:id":         TaskWrite,
+	"DELETE /api/task-template-subscriptions/:id":       TaskWrite,
+	"GET  /api/admin/task-template-subscriptions":       AdminRead,
+	"POST /api/admin/task-template-subscriptions":       AdminWrite,
+	"PUT  /api/admin/task-template-subscriptions/:id":   AdminWrite,
+	"DELETE /api/admin/task-template-subscriptions/:id": AdminWrite}
 
 // Descriptions returns human-readable labels for UI.
 func Descriptions() map[string]string {

@@ -33,3 +33,7 @@ type TodoModel = model.TodoModel
 type TaskLogModel = model.TaskLogModel
 
 type IcsFeedModel = model.IcsFeedModel
+
+type TaskTemplateModel = model.TaskTemplateModel
+
+type TaskTemplateSubscriptionModel = model.TaskTemplateSubscriptionModel

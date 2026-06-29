@@ -10,6 +10,8 @@ export interface TaskKindDef {
   inspectComponent?: Component
   todoInfo?: Component
   todoActions: Component
+  /** Component for kind-specific extra fields (e.g. check items for inspection).
+   *  Receives v-model with extra data array. Main panel owns common fields. */
   formComponent?: Component
   todoBadgeKey?: I18nKey
   labelKey: I18nKey

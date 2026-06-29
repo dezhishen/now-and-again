@@ -18,6 +18,7 @@ type UserContract interface {
 	GetMe(ctx context.Context) (*types.User, error)
 	UpdateMe(ctx context.Context, req *types.UpdateUserRequest) (*types.User, error)
 	ListUsers(ctx context.Context) ([]types.User, error)
+	IsAdmin(userID string) bool
 }
 
 // ─── Family ───────────────────────────────────────────────────────
@@ -110,14 +111,41 @@ type CalendarContract interface {
 	GetCalendar(ctx context.Context, year, month int, groupID string) (any, error)
 }
 
+// ─── Task Template ────────────────────────────────────────────────
+
+// TaskTemplateContract defines template operations for both admin and family scopes.
+type TaskTemplateContract interface {
+	// Family-visible operations (system-level + family-level templates).
+	List(ctx context.Context, familyID uuid.UUID, kind string) ([]types.TaskTemplate, error)
+	GetByCode(ctx context.Context, familyID uuid.UUID, code string) (*types.TaskTemplate, error)
+	Render(ctx context.Context, familyID uuid.UUID, code string, params map[string]interface{}) (*types.RenderedTask, error)
+
+	// Family-level CRUD (owner only).
+	CreateFamily(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskTemplateRequest) (*types.TaskTemplate, error)
+	UpdateFamily(ctx context.Context, familyID uuid.UUID, code string, req *types.UpdateTaskTemplateRequest) (*types.TaskTemplate, error)
+	DeleteFamily(ctx context.Context, familyID uuid.UUID, code string) error
+
+	// Provider management.
+	ListProviders(ctx context.Context) ([]types.TemplateProvider, error)
+	RefreshSystemProvider(ctx context.Context, providerCode string) error
+	RefreshFamilyProvider(ctx context.Context, familyID uuid.UUID, providerCode string) error
+
+	// Subscription management.
+	ListSubscriptions(ctx context.Context, familyID *uuid.UUID) ([]types.TaskTemplateSubscription, error)
+	CreateSubscription(ctx context.Context, familyID *uuid.UUID, req *types.CreateSubscriptionRequest) (*types.TaskTemplateSubscription, error)
+	UpdateSubscription(ctx context.Context, id string, req *types.UpdateSubscriptionRequest) (*types.TaskTemplateSubscription, error)
+	DeleteSubscription(ctx context.Context, id string) error
+}
+
 type AllContracts struct {
-	User      UserContract
-	Family    FamilyContract
-	ApiKey    ApiKeyContract
-	FloorPlan FloorPlanContract
-	Location  LocationContract
-	Task      TaskContract
-	Todo      TodoContract
-	Log       LogContract
-	Calendar  CalendarContract
+	User         UserContract
+	Family       FamilyContract
+	ApiKey       ApiKeyContract
+	FloorPlan    FloorPlanContract
+	Location     LocationContract
+	Task         TaskContract
+	Todo         TodoContract
+	Log          LogContract
+	Calendar     CalendarContract
+	TaskTemplate TaskTemplateContract
 }

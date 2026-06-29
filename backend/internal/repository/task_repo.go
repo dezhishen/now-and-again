@@ -38,6 +38,22 @@ func (r *TaskRepo) FindTaskByParentId(parentID string) (*TaskModel, error) {
 	return &t, err
 }
 
+// SetRootTaskID sets the root_task_id column. Used after root task insertion.
+func (r *TaskRepo) SetRootTaskID(taskID, rootID string) error {
+	return r.db.Model(&TaskModel{}).Where("id = ?", taskID).Update("root_task_id", rootID).Error
+}
+
+// resolveRootID returns the root_task_id for the task, falling back to the task's own ID
+// for legacy data where root_task_id was never set.
+func (r *TaskRepo) resolveRootID(taskID string) string {
+	var rootID string
+	r.db.Model(&TaskModel{}).Select("root_task_id").Where("id = ?", taskID).Scan(&rootID)
+	if rootID == "" {
+		return taskID
+	}
+	return rootID
+}
+
 func (r *TaskRepo) ListTasksByFamily(familyID string) ([]TaskModel, error) {
 	var tasks []TaskModel
 	err := r.db.Preload("Group").Where("family_id = ? AND is_root = ?", familyID, true).Order("created_at ASC").Find(&tasks).Error
@@ -151,29 +167,27 @@ func (r *TaskRepo) CreateUserLog(taskID, todoID, userID, action, message string)
 	}).Error
 }
 
-// childTaskIDs returns a subquery selecting IDs of tasks whose parent is taskID.
-func (r *TaskRepo) childTaskIDs(taskID string) *gorm.DB {
-	return r.db.Model(&TaskModel{}).Select("id").Where("parent_task_id = ?", taskID)
-}
-
-// ListLogs returns logs for a task AND its child tasks, with Task names preloaded.
+// ListLogs returns logs for a task AND all its descendants (any depth).
+// If root_task_id is not set (legacy data), falls back to querying only the task's own logs.
 func (r *TaskRepo) ListLogs(taskID string, limit, offset int) ([]TaskLogModel, error) {
+	rootID := r.resolveRootID(taskID)
 	var logs []TaskLogModel
 	err := r.db.
 		Preload("Task").
-		Where("task_id = ? OR task_id IN (?)", taskID, r.childTaskIDs(taskID)).
+		Where("task_id IN (SELECT id FROM tasks WHERE root_task_id = ?)", rootID).
 		Order("created_at DESC").
 		Limit(limit).Offset(offset).
 		Find(&logs).Error
 	return logs, err
 }
 
-// ListUserLogs returns user-generated logs for a task AND its child tasks.
+// ListUserLogs returns user-generated logs for a task AND all descendants.
 func (r *TaskRepo) ListUserLogs(taskID string, limit, offset int) ([]TaskLogModel, error) {
+	rootID := r.resolveRootID(taskID)
 	var logs []TaskLogModel
 	err := r.db.
 		Preload("Task").
-		Where("(task_id = ? OR task_id IN (?)) AND log_type = ?", taskID, r.childTaskIDs(taskID), "user").
+		Where("task_id IN (SELECT id FROM tasks WHERE root_task_id = ?) AND log_type = ?", rootID, "user").
 		Order("created_at DESC").
 		Limit(limit).Offset(offset).
 		Find(&logs).Error

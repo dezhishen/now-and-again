@@ -7,7 +7,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import TaskCard from '@/components/tasks/TaskCard.vue'
 import { useToast } from '@/composables/useToast'
 import { useLoading } from '@/composables/useLoading'
-import { getCreateLabelKey, getDefaultCheckItems, getTaskKinds, getFormComponent, buildDisplaySummary, serializeExtra, parseExtra } from '@/composables/useTaskKinds'
+import { getDefaultCheckItems, getTaskKinds, getFormComponent, buildDisplaySummary, serializeExtra, parseExtra } from '@/composables/useTaskKinds'
 import { useConfirm } from '@/composables/useConfirm'
 import { initTaskKinds } from '@/components/tasks/init'
 import type { Task, FamilyGroup } from '@/types'
@@ -27,7 +27,6 @@ const tasks = ref<Task[]>([])
 const groups = ref<FamilyGroup[]>([])
 const locations = ref<{ id: string; name: string; color: string; floor_plan_id?: string }[]>([])
 const { loading, withLoading } = useLoading()
-const showKindMenu = ref(false)
 
 // Log modal
 const showLogs = ref(false)
@@ -43,7 +42,7 @@ const logs = ref<{ id: string; task_id: string; task_name?: string; status: stri
 
 const logTotalPages = computed(() => Math.max(1, Math.ceil(logTotal.value / LOG_PAGE_SIZE)))
 
-// Task form
+// Task form — main panel owns common fields + save/cancel; sub-component provides extra fields only
 const showTaskForm = ref(false)
 const taskName = ref('')
 const taskSchedule = ref('daily')
@@ -53,11 +52,11 @@ const taskDays = ref<number[]>([])
 const taskGroupID = ref('')
 const taskLocationID = ref('')
 const taskKind = ref('simple')
-const checkItems = ref<any[]>([])
+const checkItems = ref<any[]>([])   // extra data bound to kind-specific formComponent
 const editingTask = ref<Task | null>(null)
 const saving = ref(false)
 
-const { t, td } = useI18n()
+const { t } = useI18n()
 
 const SCHEDULE_TYPES: { value: string; labelKey: I18nKey }[] = [
   { value: 'once', labelKey: 'schedule.once' },
@@ -90,10 +89,14 @@ const filteredTasks = computed(() =>
     (filterDisabled.value || t.enabled)
   )
 )
-const MAX_VISIBLE_KINDS = 3
 const allKinds = computed(() => getTaskKinds())
-const visibleKinds = computed(() => allKinds.value.slice(0, MAX_VISIBLE_KINDS))
-const hiddenKinds = computed(() => allKinds.value.slice(MAX_VISIBLE_KINDS))
+
+// Reset extra data when switching task kind (only for new tasks)
+watch(taskKind, (kind) => {
+  if (!editingTask.value) {
+    checkItems.value = getDefaultCheckItems(kind) ? [...getDefaultCheckItems(kind)!] : []
+  }
+})
 
 async function loadLocations() {
   try {
@@ -108,10 +111,6 @@ async function loadGroups() {
 async function loadTasks() {
   try { tasks.value = await api.get<Task[]>('/tasks') } catch { tasks.value = [] }
 }
-
-// ── Timezone: API layer handles UTC ↔ local conversion ─────────
-// `buildScheduleData` sends local times; `api/client.ts` converts to UTC.
-// Response `schedule_data` is already local by the time we read it.
 
 function buildScheduleData(): any {
   switch (taskSchedule.value) {
@@ -142,7 +141,6 @@ async function openEdit(task: Task) {
   taskKind.value = task.kind || 'simple'
   checkItems.value = []
 
-  // Load kind-specific form data through plugin
   if (getFormComponent(task.kind || 'simple')) {
     try {
       const res = await api.get<{ extra: any }>('/tasks/' + task.id + '?with_extra=true')
@@ -280,6 +278,7 @@ function toggleDay(d: number) {
 }
 
 function scheduleSummary(task: Task): string {
+  const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
   const d = task.schedule_data || {}
   switch (task.schedule_type) {
     case 'once': return `一次性 ${d.date || ''} ${d.time || ''}`
@@ -302,19 +301,7 @@ function scheduleSummary(task: Task): string {
     <!-- Content -->
     <div>
       <div class="flex items-center gap-2 mb-3">
-        <button
-          v-for="k in visibleKinds" :key="k.kind"
-          class="btn-primary text-sm"
-          @click="openCreate(k.kind)"
-        >+ {{ t(k.labelKey) }}</button>
-        <div v-if="hiddenKinds.length > 0" class="relative">
-          <button class="btn-primary text-sm" @click.stop="showKindMenu = !showKindMenu">+ {{ t('taskCard.more') }} ▾</button>
-          <div v-if="showKindMenu" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 z-30 py-1 min-w-[120px]" @click="showKindMenu = false">
-            <button v-for="k in hiddenKinds" :key="k.kind" class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200" @click="openCreate(k.kind)">
-              {{ t(k.labelKey) }}
-            </button>
-          </div>
-        </div>
+        <button class="btn-primary text-sm" @click="openCreate()">+ {{ t('taskKind.create') }}</button>
         <span class="flex-1" />
         <button
           class="text-xs px-2 py-1 rounded border transition-colors"
@@ -398,15 +385,22 @@ function scheduleSummary(task: Task): string {
       </div>
     </Teleport>
 
-    <!-- Create/Edit Task Modal -->
+    <!-- Create/Edit Task Modal — main panel owns common fields + save/cancel -->
     <Teleport to="body">
       <div v-if="showTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @mousedown.self="showTaskForm = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-2xl max-h-[85vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
-            <h3 class="font-bold dark:text-gray-200">{{ editingTask ? t('taskCard.edit') : td(getCreateLabelKey(taskKind)) }}</h3>
+            <h3 class="font-bold dark:text-gray-200">{{ editingTask ? t('taskCard.edit') : t('taskKind.create') }}</h3>
             <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showTaskForm = false">✕</button>
           </div>
           <div class="flex-1 overflow-auto p-4 space-y-3">
+            <!-- Kind selector (disabled when editing) -->
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">任务类型</label>
+              <select v-model="taskKind" class="input" :disabled="!!editingTask">
+                <option v-for="k in allKinds" :key="k.kind" :value="k.kind">{{ t(k.labelKey) }}</option>
+              </select>
+            </div>
             <div>
               <label class="text-xs text-gray-400 block mb-1">任务名称</label>
               <input v-model="taskName" class="input" placeholder="输入任务名称" />
@@ -468,10 +462,11 @@ function scheduleSummary(task: Task): string {
                 <button v-if="taskGroupID" class="text-xs text-gray-400 hover:text-danger flex-shrink-0" @click="taskGroupID = ''">清除</button>
               </div>
             </div>
-            <!-- Kind-specific form fields -->
+            <!-- Kind-specific extra fields (only) — sub-component provides just the extra UI -->
             <component
               :is="getFormComponent(taskKind)"
               v-if="getFormComponent(taskKind)"
+              :key="taskKind"
               v-model="checkItems"
               :groups="groups"
               :locations="locations"

@@ -27,7 +27,7 @@ jobs:
           node-version: '24'
 
       - name: Set up pnpm
-        run: corepack enable && corepack prepare pnpm@9 --activate
+        run: corepack enable && corepack prepare pnpm@10 --activate
 
       - name: Build frontend
         run: |

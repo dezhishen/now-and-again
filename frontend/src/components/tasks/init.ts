@@ -26,8 +26,20 @@ export function initTaskKinds() {
     createLabelKey: 'taskKind.createInspect',
     buildDisplaySummary({ extra }) {
       const items: any[] = extra?.check_items || []
-      const names = items.map((ci: any) => ci.name).filter(Boolean)
-      return names.length > 0 ? '巡检: ' + names.join(', ') : ''
+      if (items.length === 0) return ''
+      const parts: string[] = []
+      for (const ci of items) {
+        if (!ci.name) continue
+        const subBranches = (ci.branches || [])
+          .filter((b: any) => b.create_todo && b.branch_task?.task?.name)
+          .map((b: any) => b.branch_task.task.name)
+        if (subBranches.length > 0) {
+          parts.push(ci.name + '→' + subBranches.join(','))
+        } else {
+          parts.push(ci.name)
+        }
+      }
+      return parts.length > 0 ? '巡检: ' + parts.join('; ') : ''
     },
     serializeExtra(items) {
       return { check_items: items }
@@ -35,14 +47,6 @@ export function initTaskKinds() {
     parseExtra(extra) {
       return extra?.check_items || []
     },
-    defaultCheckItems: [
-      {
-        name: '检查项1',
-        branches: [
-          { name: '正常', create_todo: false },
-          { name: '异常', create_todo: true, branch_task: { task: { name: '', kind: 'simple', schedule_type: 'once' } as any } },
-        ],
-      },
-    ],
+    defaultCheckItems: [],
   })
 }

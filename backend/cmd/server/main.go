@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -55,6 +56,7 @@ func main() {
 	settingsRepo := repository.NewSettingsRepo(db)
 	taskRepo := repository.NewTaskRepo(db)
 	icsRepo := repository.NewIcsRepo(db)
+	taskTemplateRepo := repository.NewTaskTemplateRepo(db)
 
 	// ── Services ────────────────────────────────────────────────
 	userSvc := service.NewUserService(userRepo, cfg.JWTSecret)
@@ -75,6 +77,12 @@ func main() {
 	logSvc := service.NewLogService(taskRepo)
 	icsSvc := service.NewIcsService(icsRepo, taskRepo, apiKeyRepo, userRepo)
 	calendarSvc := service.NewCalendarService(taskRepo)
+	taskTemplateSvc := service.NewTaskTemplateService(taskTemplateRepo)
+
+	// Sync all providers at startup so the DB is populated.
+	if err := taskTemplateSvc.SyncAll(context.Background()); err != nil {
+		logger.Warnf("warning: initial task template sync failed: %v", err)
+	}
 
 	// ── Seed admin ──────────────────────────────────────────────
 	if _, err := repository.SeedAdmin(db); err != nil {
@@ -82,7 +90,7 @@ func main() {
 	}
 
 	// ── Bundle contracts ────────────────────────────────────────
-	allContracts := service.NewAllContracts(userSvc, familySvc, apiKeySvc, floorPlanSvc, taskSvc, todoSvc, logSvc, calendarSvc)
+	allContracts := service.NewAllContracts(userSvc, familySvc, apiKeySvc, floorPlanSvc, taskSvc, todoSvc, logSvc, calendarSvc, taskTemplateSvc)
 
 	// ── HTTP Router ─────────────────────────────────────────────
 	router := gin.Default()
@@ -99,6 +107,7 @@ func main() {
 	icsHandler := &handler.IcsHandlers{Svc: icsSvc}
 	calendarHandler := &handler.CalendarHandlers{Svc: calendarSvc}
 	locationHandler := &handler.LocationHandlers{C: floorPlanSvc}
+	taskTemplateHandler := &handler.TaskTemplateHandlers{Svc: taskTemplateSvc}
 	auth := router.Group("")
 	auth.Use(middleware.JWTAuth(cfg.JWTSecret, apiKeyRepo))
 	auth.Use(middleware.ScopeGuard())
@@ -109,7 +118,35 @@ func main() {
 	familyAuth.Use(middleware.ScopeGuard())
 	familyAuth.Use(middleware.FamilyGuard(familySvc))
 
-	handler.RegisterRoutes(router, auth, familyAuth, allContracts, imageHandler, settingsHandler, taskHandler, todoHandler, logHandler, icsHandler, calendarHandler, locationHandler)
+	// Admin-only routes (JWT user must have admin role; API key must have admin scope)
+	adminAuth := auth.Group("")
+	adminAuth.Use(middleware.AdminGuard(userSvc))
+
+	// Family-owner-only routes (JWT user must be family owner; API key must have family:admin scope)
+	ownerAuth := familyAuth.Group("")
+	ownerAuth.Use(middleware.OwnerGuard(familySvc))
+
+	handler.RegisterRoutes(router, auth, familyAuth, allContracts, imageHandler, settingsHandler, taskHandler, todoHandler, logHandler, icsHandler, calendarHandler, locationHandler, taskTemplateHandler)
+
+	// ── Task Template: admin-only / owner-only routes ────────────
+	adminAuth.POST("/api/admin/task-templates/providers/:code/refresh", taskTemplateHandler.AdminRefreshProvider)
+
+	// Admin subscription CRUD
+	adminAuth.GET("/api/admin/task-template-subscriptions", taskTemplateHandler.AdminListSubscriptions)
+	adminAuth.POST("/api/admin/task-template-subscriptions", taskTemplateHandler.AdminCreateSubscription)
+	adminAuth.PUT("/api/admin/task-template-subscriptions/:id", taskTemplateHandler.AdminUpdateSubscription)
+	adminAuth.DELETE("/api/admin/task-template-subscriptions/:id", taskTemplateHandler.AdminDeleteSubscription)
+
+	// Family-owner template CRUD
+	ownerAuth.POST("/api/task-templates", taskTemplateHandler.CreateFamily)
+	ownerAuth.PUT("/api/task-templates/:code", taskTemplateHandler.UpdateFamily)
+	ownerAuth.DELETE("/api/task-templates/:code", taskTemplateHandler.DeleteFamily)
+	ownerAuth.POST("/api/task-templates/providers/:code/refresh", taskTemplateHandler.RefreshFamilyProvider)
+
+	// Family-owner subscription CRUD
+	ownerAuth.POST("/api/task-template-subscriptions", taskTemplateHandler.FamilyCreateSubscription)
+	ownerAuth.PUT("/api/task-template-subscriptions/:id", taskTemplateHandler.FamilyUpdateSubscription)
+	ownerAuth.DELETE("/api/task-template-subscriptions/:id", taskTemplateHandler.FamilyDeleteSubscription)
 
 	// ── Frontend SPA ───────────────────────────────────────────
 	webui.Serve(router)

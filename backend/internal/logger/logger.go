@@ -76,7 +76,7 @@ func Init(logDir string) (*zap.Logger, error) {
 		zapcore.NewCore(fileEncoder, zapcore.AddSync(writer), zapcore.InfoLevel),
 	)
 
-	L = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+	L = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.FatalLevel))
 	S = L.Sugar()
 
 	// Start compression goroutine

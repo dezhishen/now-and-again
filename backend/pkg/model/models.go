@@ -205,6 +205,7 @@ type TaskModel struct {
 	Group          FamilyGroupModel `gorm:"foreignKey:GroupID"`
 	LocationID     string           `gorm:"index;type:char(36)"`
 	ParentTaskID   string           `gorm:"index;type:char(36)"`
+	RootTaskID     string           `gorm:"index;type:char(36)"` // root ancestor of the task tree, for log aggregation
 	IsRoot         bool             `gorm:"not null;default:false;index:idx_root_family,priority:1"`
 	Name           string           `gorm:"size:128;not null"`
 	ScheduleType   string           `gorm:"size:32;not null"`   // once/daily/weekly/monthly/interval
@@ -273,3 +274,59 @@ type IcsFeedModel struct {
 }
 
 func (IcsFeedModel) TableName() string { return "ics_feeds" }
+
+// ─── Task Template ───────────────────────────────────────────────
+
+// TaskTemplateModel stores resolved task templates in the database.
+// Providers (builtin, http, …) sync their YAML definitions into this table;
+// the main flow reads only from here — never from providers directly.
+//
+// FamilyID is nil for system-level templates (managed by admin, visible to all
+// families) and non-nil for family-level templates (managed by family owner).
+type TaskTemplateModel struct {
+	BaseModel
+	FamilyID     *string `gorm:"index;type:char(36)"` // nil = system-level
+	ProviderCode string  `gorm:"index:idx_provider_template,priority:1;size:32;not null"`
+	TemplateCode string  `gorm:"index:idx_provider_template,priority:2;size:64;not null"`
+	Name         string  `gorm:"size:128;not null"`
+	Description  string  `gorm:"size:512"`
+	Kind         string  `gorm:"size:16;not null;default:simple"` // task kind selector
+	Icon         string  `gorm:"size:32"`
+	SortOrder    int     `gorm:"not null;default:0"`
+	Enabled      bool    `gorm:"not null;default:true"`
+
+	// Parameters is a JSON array of parameter definitions.
+	// Example: [{"key":"area","label":"区域","type":"string","required":true}]
+	Parameters string `gorm:"type:text"`
+
+	// TaskDefaults is a JSON object with default task field values.
+	// Go-template {{.param_key}} placeholders are resolved at render time.
+	TaskDefaults string `gorm:"type:text"`
+
+	// ExtraSchema is a JSON object with task-kind-specific extra defaults.
+	// The main flow passes it through as-is; the frontend renders the form.
+	ExtraSchema string `gorm:"type:text"`
+
+	// Version is the template version string from the provider.
+	Version  string `gorm:"size:32"`
+	Metadata string `gorm:"type:text"` // opaque provider metadata (e.g. source URL)
+}
+
+func (TaskTemplateModel) TableName() string { return "task_templates" }
+
+// ─── Task Template Subscription ──────────────────────────────────
+
+// TaskTemplateSubscriptionModel stores HTTP(S) subscription sources for task templates.
+// FamilyID is nil for system-level subscriptions (admin-managed); non-nil for family-level.
+type TaskTemplateSubscriptionModel struct {
+	BaseModel
+	FamilyID             *string `gorm:"index;type:char(36)"` // nil = system-level
+	ProviderCode         string  `gorm:"index;size:32;not null"`
+	URL                  string  `gorm:"size:2048;not null"`
+	Name                 string  `gorm:"size:128;not null"`
+	AutoRefresh          bool    `gorm:"not null;default:false"`
+	RefreshIntervalHours int     `gorm:"not null;default:24"`
+	Enabled              bool    `gorm:"not null;default:true"`
+}
+
+func (TaskTemplateSubscriptionModel) TableName() string { return "task_template_subscriptions" }

@@ -72,6 +72,16 @@ func (r *UserRepo) AddUserRole(userID, roleID string) error {
 	return r.db.Where(ur).FirstOrCreate(&ur).Error
 }
 
+// HasRole checks whether a user has a specific role by role name.
+func (r *UserRepo) HasRole(userID, roleName string) (bool, error) {
+	var count int64
+	err := r.db.Model(&UserRoleModel{}).
+		Joins("JOIN roles ON roles.id = user_roles.role_id").
+		Where("user_roles.user_id = ? AND roles.name = ?", userID, roleName).
+		Count(&count).Error
+	return count > 0, err
+}
+
 // ─── Transaction ──────────────────────────────────────────────────
 
 func (r *UserRepo) Tx(fn func(tx *gorm.DB) error) error {

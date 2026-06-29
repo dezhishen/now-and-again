@@ -1,0 +1,61 @@
+version: 1
+provider:
+  code: builtin
+  name: "内置模板"
+  description: "系统预置任务模板"
+templates:
+  - code: daily_inspection
+    name: "每日巡检"
+    description: "标准每日设备巡检模板"
+    kind: inspection
+    icon: "🔍"
+    sort_order: 1
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: area_name
+        label: "区域名称"
+        type: string
+        description: "需要巡检的区域"
+        required: true
+        placeholder: "例如：A区"
+    task_defaults:
+      name: "{{.area_name}} - 每日巡检"
+      schedule_type: daily
+      schedule_data:
+        time: "09:00"
+      enabled: true
+    extra_schema:
+      check_items:
+        - name: "设备运行状态"
+          branches:
+            - name: "正常"
+            - name: "异常"
+              create_todo: true
+        - name: "环境卫生"
+          branches:
+            - name: "合格"
+            - name: "不合格"
+              create_todo: true
+
+  - code: simple_daily_check
+    name: "每日打卡"
+    description: "简单的每日打卡任务"
+    kind: simple
+    icon: "✅"
+    sort_order: 2
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: check_item
+        label: "打卡项目"
+        type: string
+        description: "需要打卡的项目名称"
+        required: true
+        placeholder: "例如：晨会"
+    task_defaults:
+      name: "每日{{.check_item}}"
+      schedule_type: daily
+      schedule_data:
+        time: "08:00"
+      enabled: true

@@ -244,20 +244,29 @@ func (h *handler) saveCheckItems(taskStorage taskkind.TaskStorage, task *model.T
 				if scheduleType == "" {
 					scheduleType = "once"
 				}
+				dataJSON, _ := json.Marshal(b.BranchTask.Task.ScheduleData)
 				childTask := &model.TaskModel{
 					FamilyID:     task.FamilyID,
 					GroupID:      b.BranchTask.Task.GroupID,
 					LocationID:   b.BranchTask.Task.LocationID,
 					ParentTaskID: task.ID,
+					RootTaskID:   task.RootTaskID,
 					IsRoot:       false,
 					Name:         b.BranchTask.Task.Name,
 					ScheduleType: scheduleType,
+					ScheduleData: string(dataJSON),
 					Enabled:      true,
 					Kind:         kind,
 					CreatedBy:    task.CreatedBy,
 				}
 				if err := taskStorage.CreateNoRootTask(childTask); err != nil {
 					return fmt.Errorf("create branch task %s: %w", b.BranchTask.Task.Name, err)
+				}
+				// Initialize kind-specific extra data (e.g. check items for inspection child)
+				if childHandler := taskkind.GetManager().Get(kind); childHandler != nil {
+					if err := childHandler.OnCreate(taskStorage, childTask, b.BranchTask.Extra); err != nil {
+						return fmt.Errorf("init branch task %s extra: %w", b.BranchTask.Task.Name, err)
+					}
 				}
 				branch.BranchTaskID = childTask.ID
 			}
