@@ -80,6 +80,23 @@ async function leaveFamily(family: Family) {
     toast.success(t('family.left'))
   } catch (e: any) { toast.error(e.message) }
 }
+
+async function archiveFamily(family: Family) {
+  if (!await useConfirm(t('family.archiveConfirm'))) return
+  try {
+    await api.delete('/families/' + family.id)
+    family.archived = true
+    toast.success(t('family.archived'))
+  } catch (e: any) { toast.error(e.message) }
+}
+
+async function restoreFamily(family: Family) {
+  try {
+    await api.post('/families/' + family.id + '/restore')
+    family.archived = false
+    toast.success(t('family.restored'))
+  } catch (e: any) { toast.error(e.message) }
+}
 </script>
 
 <template>
@@ -116,16 +133,20 @@ async function leaveFamily(family: Family) {
             class="card relative overflow-hidden group"
           >
             <span v-if="f.created_by === auth.user?.id" class="absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-xs bg-primary/90 text-white font-medium">Owner</span>
+            <span v-if="f.archived" class="absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-xs bg-gray-500 text-white font-medium" :class="f.created_by === auth.user?.id ? 'ml-16' : ''">📦 {{ t('family.archived') }}</span>
 
             <!-- Favorite star -->
-            <button
-              class="absolute top-2 right-2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/80 dark:bg-gray-900/80 hover:bg-yellow-100 transition-colors"
-              @click="toggleFav(f.id)"
-              :title="favId() === f.id ? t('home.unfavorite') : t('home.favorite')"
-            >
-              <span v-if="favId() === f.id" class="text-yellow-500 text-lg">★</span>
-              <span v-else class="text-gray-300 dark:text-gray-600 text-lg group-hover:text-yellow-400 transition-colors">☆</span>
-            </button>
+            <div class="absolute top-2 right-2 z-10 flex items-center gap-1">
+              <span v-if="favId() === f.id" class="text-xs text-yellow-600 dark:text-yellow-400 font-medium">{{ t('familyManage.defaultFamily') }}</span>
+              <button
+                class="w-7 h-7 flex items-center justify-center rounded-full bg-white/80 dark:bg-gray-900/80 hover:bg-yellow-100 transition-colors"
+                @click="toggleFav(f.id)"
+                :title="favId() === f.id ? t('home.unfavorite') : t('home.favorite')"
+              >
+                <span v-if="favId() === f.id" class="text-yellow-500 text-lg">★</span>
+                <span v-else class="text-gray-300 dark:text-gray-600 text-lg group-hover:text-yellow-400 transition-colors">☆</span>
+              </button>
+            </div>
 
             <!-- Thumbnail -->
             <div v-if="f.thumbnail_url" class="mb-3 -mx-4 -mt-4 overflow-hidden rounded-t-lg aspect-video bg-gray-200 dark:bg-gray-700">
@@ -143,8 +164,26 @@ async function leaveFamily(family: Family) {
             </div>
 
             <div class="flex items-center gap-2 mt-3 pt-3 border-t dark:border-gray-700">
-              <button class="flex-1 btn-primary text-xs py-1" @click="auth.switchFamily(f.id); router.push('/family')">
+              <button
+                class="flex-1 btn-primary text-xs py-1"
+                :class="f.archived ? 'opacity-50' : ''"
+                @click="auth.switchFamily(f.id); router.push('/family')"
+              >
                 🚀 {{ t('familyManage.enter') }}
+              </button>
+              <button
+                v-if="f.created_by === auth.user?.id && f.archived"
+                class="px-2 py-1 text-xs text-primary border border-primary rounded transition-colors hover:bg-primary/10"
+                @click="restoreFamily(f)"
+              >
+                {{ t('family.restore') }}
+              </button>
+              <button
+                v-if="f.created_by === auth.user?.id && !f.archived"
+                class="px-2 py-1 text-xs text-gray-400 hover:text-danger border border-gray-200 dark:border-gray-600 rounded transition-colors"
+                @click="archiveFamily(f)"
+              >
+                📦 {{ t('family.archive') }}
               </button>
               <button
                 v-if="f.created_by !== auth.user?.id"

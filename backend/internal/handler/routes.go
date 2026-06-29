@@ -34,6 +34,7 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, familyAuth *gin.R
 	auth.GET("/api/families/:family_id", h.Family.Get)
 	auth.PATCH("/api/families/:family_id", h.Family.Update)
 	auth.DELETE("/api/families/:family_id", h.Family.Delete)
+	auth.POST("/api/families/:family_id/restore", h.Family.Restore)
 	auth.GET("/api/families/:family_id/members", h.Family.ListMembers)
 	auth.PUT("/api/families/:family_id/members/:user_id/role", h.Family.UpdateMemberRole)
 	auth.DELETE("/api/families/:family_id/members/:user_id", h.Family.RemoveMember)

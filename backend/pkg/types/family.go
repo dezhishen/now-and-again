@@ -9,6 +9,7 @@ type Family struct {
 	Name         string    `json:"name"`
 	InviteCode   string    `json:"invite_code"`
 	CreatedBy    string    `json:"created_by"`
+	Archived     bool      `json:"archived"`
 	ThumbnailURL string    `json:"thumbnail_url,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`

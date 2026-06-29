@@ -29,6 +29,7 @@ type FamilyContract interface {
 	Get(ctx context.Context, familyID uuid.UUID) (*types.Family, error)
 	Update(ctx context.Context, familyID uuid.UUID, req *types.UpdateFamilyRequest) (*types.Family, error)
 	Delete(ctx context.Context, familyID uuid.UUID) error
+	Restore(ctx context.Context, familyID uuid.UUID) error
 	ListMyFamilies(ctx context.Context) ([]types.Family, error)
 
 	// Member management

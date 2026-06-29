@@ -38,10 +38,9 @@ type ApiKeyValidator interface {
 
 // FamilyValidator checks family membership and returns the user's default family.
 type FamilyValidator interface {
-	// ValidateMembership returns nil if the user is a member of the family.
 	ValidateMembership(userID, familyID string) error
-	// GetDefaultFamily returns the user's default family ID, or empty string.
 	GetDefaultFamily(userID string) (string, error)
+	IsOwner(userID, familyID string) error
 }
 
 // JWTAuth validates the Bearer token (JWT or API Key).
@@ -145,6 +144,7 @@ func ScopeGuard() gin.HandlerFunc {
 // FamilyGuard extracts the active family from the X-Family-Id header,
 // validates membership, and sets "family_id" in the Gin context.
 // Falls back to the user's default family if no header is provided.
+// Archived families are only accessible by their owner.
 func FamilyGuard(fv FamilyValidator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, _ := c.Get("user_id")
@@ -162,7 +162,6 @@ func FamilyGuard(fv FamilyValidator) gin.HandlerFunc {
 				return
 			}
 		} else {
-			// Fall back to default family
 			defaultID, err := fv.GetDefaultFamily(uid)
 			if err != nil || defaultID == "" {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "no family selected"})

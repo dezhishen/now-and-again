@@ -19,7 +19,11 @@ func (r *FamilyRepo) UpdateFamily(f *FamilyModel) error {
 }
 
 func (r *FamilyRepo) DeleteFamily(id string) error {
-	return r.db.Where("id = ?", id).Delete(&FamilyModel{}).Error
+	return r.db.Model(&FamilyModel{}).Where("id = ?", id).Update("archived", true).Error
+}
+
+func (r *FamilyRepo) RestoreFamily(id string) error {
+	return r.db.Model(&FamilyModel{}).Where("id = ?", id).Update("archived", false).Error
 }
 
 func (r *FamilyRepo) FindFamilyByInviteCode(code string) (*FamilyModel, error) {

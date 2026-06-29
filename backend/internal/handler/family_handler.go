@@ -78,7 +78,20 @@ func (h *FamilyHandlers) Delete(c *gin.Context) {
 		serverError(c, err)
 		return
 	}
-	ok(c, gin.H{"message": "family deleted"})
+	ok(c, gin.H{"message": "family archived"})
+}
+
+func (h *FamilyHandlers) Restore(c *gin.Context) {
+	familyID, err := paramUUID(c, "family_id")
+	if err != nil {
+		badRequest(c, "invalid family_id")
+		return
+	}
+	if err := h.C.Restore(userCtx(c), familyID); err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, gin.H{"message": "family restored"})
 }
 
 func (h *FamilyHandlers) ListMyFamilies(c *gin.Context) {

@@ -80,6 +80,7 @@ type FamilyModel struct {
 	InviteCode         string              `gorm:"uniqueIndex;size:32;not null"`
 	CreatedBy          string              `gorm:"type:char(36);not null"`
 	Timezone           string              `gorm:"size:64;not null;default:Asia/Shanghai"`
+	Archived           bool                `gorm:"not null;default:false"`
 	FloorPlanImagePath string              `gorm:"->"`
 	Members            []FamilyMemberModel `gorm:"foreignKey:FamilyID"`
 }

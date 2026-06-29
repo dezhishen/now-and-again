@@ -287,7 +287,7 @@ export default {
     unfavorite: '取消收藏', inviteCodePrefix: '邀请码: ',
   },
   familyManage: {
-    heading: '家庭管理', enter: '进入',
+    heading: '家庭管理', enter: '进入', defaultFamily: '默认',
   },
   profile: {
     heading: '个人中心', displayName: '显示名称', displayNamePlaceholder: '你的显示名称',
@@ -313,5 +313,6 @@ export default {
     storageLocalActive: '✓ 本地存储已激活，图片保存在服务器的 uploads 目录下。',
   },
   confirm: { cancel: '取消', ok: '确认' },
-  family: { leaveConfirm: '确定要离开这个家庭吗？', leaveFamily: '离开家庭', created: '家庭已创建', joined: '已加入家庭', left: '已离开家庭' },
+  family: { leaveConfirm: '确定要离开这个家庭吗？', leaveFamily: '离开家庭', created: '家庭已创建', joined: '已加入家庭', left: '已离开家庭',
+    archiveConfirm: '归档后家庭成员将无法访问，确定归档？', archive: '归档', archived: '已归档', restore: '恢复', restored: '家庭已恢复' },
 }

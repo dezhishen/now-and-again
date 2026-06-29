@@ -19,6 +19,7 @@ export interface Family {
   name: string
   invite_code: string
   created_by: string
+  archived: boolean
   thumbnail_url?: string
   created_at: string
   updated_at: string

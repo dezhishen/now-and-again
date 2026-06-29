@@ -116,15 +116,28 @@ func (s *FamilyService) Delete(ctx context.Context, familyID uuid.UUID) error {
 	if err != nil {
 		return fmt.Errorf("family not found")
 	}
-
-	// Only owner can delete
-	m, err := s.repo.FindMember(familyID.String(), userID)
-	if err != nil || m.Role != "owner" {
-		return fmt.Errorf("only owner can delete family")
+	if f.CreatedBy != userID {
+		return fmt.Errorf("only owner can archive family")
 	}
 
-	_ = f // suppress unused warning
 	return s.repo.DeleteFamily(familyID.String())
+}
+
+func (s *FamilyService) Restore(ctx context.Context, familyID uuid.UUID) error {
+	userID := ctx.Value("user_id").(string)
+
+	f, err := s.repo.FindFamilyByID(familyID.String())
+	if err != nil {
+		return fmt.Errorf("family not found")
+	}
+	if f.CreatedBy != userID {
+		return fmt.Errorf("only owner can restore family")
+	}
+	if !f.Archived {
+		return fmt.Errorf("family is not archived")
+	}
+
+	return s.repo.RestoreFamily(familyID.String())
 }
 
 func (s *FamilyService) ListMyFamilies(ctx context.Context) ([]types.Family, error) {
@@ -383,4 +396,15 @@ func (s *FamilyService) GetDefaultFamily(userID string) (string, error) {
 		return *user.DefaultFamilyID, nil
 	}
 	return "", nil
+}
+
+func (s *FamilyService) IsOwner(userID, familyID string) error {
+	f, err := s.repo.FindFamilyByID(familyID)
+	if err != nil {
+		return err
+	}
+	if f.CreatedBy != userID {
+		return fmt.Errorf("not the owner")
+	}
+	return nil
 }

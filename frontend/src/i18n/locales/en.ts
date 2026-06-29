@@ -278,7 +278,7 @@ export default {
     unfavorite: 'Unfavorite', inviteCodePrefix: 'Invite code: ',
   },
   familyManage: {
-    heading: 'Family Management', enter: 'Enter',
+    heading: 'Family Management', enter: 'Enter', defaultFamily: 'Default',
   },
   profile: {
     heading: 'Profile', displayName: 'Display Name', displayNamePlaceholder: 'Your display name',
@@ -304,5 +304,6 @@ export default {
     storageLocalActive: '✓ Local storage active. Images stored in the server uploads directory.',
   },
   confirm: { cancel: 'Cancel', ok: 'OK' },
-  family: { leaveConfirm: 'Leave this family?', leaveFamily: 'Leave Family', created: 'Family created', joined: 'Joined family', left: 'Left family' },
+  family: { leaveConfirm: 'Leave this family?', leaveFamily: 'Leave Family', created: 'Family created', joined: 'Joined family', left: 'Left family',
+    archiveConfirm: 'Archive this family? Members will lose access.', archive: 'Archive', archived: 'Archived', restore: 'Restore', restored: 'Family restored' },
 }
