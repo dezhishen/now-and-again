@@ -305,6 +305,17 @@ export default {
     email: 'Email', phone: 'Phone', phoneOptional: 'Optional',
     saving: 'Saving...', saved: 'Saved ✓', save: 'Save Changes', adminRole: 'System Admin',
   },
+  error: {
+    summary: {
+      badRequest: 'Invalid request',
+      validation: 'Validation failed',
+      unauthorized: 'Please log in first',
+      forbidden: 'Permission denied',
+      notFound: 'Resource not found',
+      conflict: 'Data conflict',
+      internal: 'Internal server error, please try again later',
+    },
+  },
   validation: {
     required: '{field} is required',
     maxLength: '{field} must not exceed {max} characters',

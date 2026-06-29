@@ -75,6 +75,31 @@ frontend/
 
 新增类型只需实现接口并注册（`init()` 自动注册），无需修改任何现有代码。
 
+### 任务插件生命周期
+
+```
+taskkind.Handler
+  ├─ SaveExtra(task, extra)    ← 新建时持久化插件特有数据
+  ├─ UpdateExtra(task, extra)  ← 更新时按 ID 精细化 diff（非全删全建）
+  ├─ DeleteExtra(task)         ← 删除时清理插件数据
+  ├─ OnComplete(todo, extra)   ← 待办完成时的业务逻辑
+  └─ GetExtra(task)            ← 读取插件数据供前端展示
+
+taskkind.TaskStorage（注入到插件的方法集合）
+  ├─ CreateNoRootTask(task, extra)  ← 创建子任务并触发其 SaveExtra
+  ├─ UpdateNoRootTask(task)         ← 更新子任务
+  └─ DeleteNonRootTask(id)          ← 递归删除子任务树，触发 DeleteExtra
+```
+
+- 主流程（`TaskService`）只处理 root 节点的行记录
+- 插件通过 `TaskStorage` 调用主流程注入的方法，实现递归嵌套
+- 主流程不引用插件内部的 model/结构体
+
+### 统一错误处理
+
+所有 API 非 2xx 响应遵循统一格式 `{ success, error: { code, summary, details? } }`。
+前端通过 `ApiRequestError` 类 + `ErrorDisplay` 组件按 ErrorCode 区分展示（400 琥珀色 / 500 红色）。
+
 ### 插件注册模式
 
 - **taskkind**：`TaskManager` struct 管理 Handler 注册表

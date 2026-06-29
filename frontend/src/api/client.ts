@@ -1,4 +1,5 @@
 import type { APIResponse, User } from '@/types'
+import { ApiRequestError } from '@/types'
 import { requestToUTC, responseToLocal } from '@/composables/timezone'
 
 const BASE_URL = '/api'
@@ -229,7 +230,12 @@ class ApiClient {
     }
 
     const json: APIResponse<T> = await res.json()
-    if (!json.success) throw new Error(json.error || 'Unknown error')
+    if (!json.success) {
+      if (json.error) {
+        throw new ApiRequestError(json.error)
+      }
+      throw new ApiRequestError({ code: 'INTERNAL_ERROR', summary: 'Unknown error' })
+    }
     return responseToLocal(json.data) as T
   }
 

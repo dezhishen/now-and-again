@@ -174,3 +174,45 @@
 - JWT: `Authorization: Bearer <access_token>`
 - API Key: `X-API-Key: na_xxxx` 或 `Authorization: Bearer na_xxxx`
 - Refresh: Cookie `refresh_token` (httpOnly)
+
+## 统一错误响应
+
+所有非 2xx 响应遵循统一格式：
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "summary": "参数校验失败",
+    "details": [
+      { "field": "name", "message": "不能为空" }
+    ]
+  }
+}
+```
+
+### 错误码
+
+| Code | HTTP | 含义 | details |
+|------|------|------|---------|
+| `BAD_REQUEST` | 400 | 请求格式错误 | — |
+| `VALIDATION_ERROR` | 400 | 字段校验失败 | `FieldError[]` |
+| `UNAUTHORIZED` | 401 | 未认证 | — |
+| `FORBIDDEN` | 403 | 无权限 | — |
+| `NOT_FOUND` | 404 | 资源不存在 | — |
+| `CONFLICT` | 409 | 数据冲突 | — |
+| `INTERNAL_ERROR` | 500 | 服务器内部错误 | — |
+
+### 后端实现
+
+- `pkg/types/common.go` — `ErrorCode`、`APIError`、`FieldError` 类型定义
+- `internal/handler/handlers.go` — `apiError()`/`validationError()`/`notFound()` 等统一响应辅助函数
+- 所有 Handler 中 `bindJSON` 错误统一调用 `validationError()`，返回结构化字段级错误
+
+### 前端处理
+
+- `types/index.ts` — `ApiRequestError` 类，继承 `Error`，含 `code`/`summary`/`details`
+- `api/client.ts` — 解析 `APIError` 并抛出 `ApiRequestError`
+- `composables/useErrorHandler.ts` — 按 `ErrorCode` 映射 i18n 摘要
+- `components/ErrorDisplay.vue` — 可折叠错误展示组件（400 琥珀色 / 500 红色）

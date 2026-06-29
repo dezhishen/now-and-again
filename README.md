@@ -74,6 +74,7 @@ erDiagram
 | ✅ 待办管理 | ✅ 完成 | 快速完成/备注完成/跳过，巡检分支选择 |
 | 📅 ICS 订阅 | ✅ 完成 | 标准 iCalendar，API Key/Basic Auth，可导入日历 App |
 | 🖥️ 日历大屏 | ✅ 完成 | embed 标签嵌入，支持自动刷新 |
+| ⚠️ 错误处理 | ✅ 完成 | 统一 ErrorCode + 字段级 details + 前端可折叠 ErrorDisplay |
 | 🖥️ Web 前端 | ✅ 完成 | Vue 3 + i18n 中英文 + 暗色模式 + 自适应布局 |
 | 💻 CLI 工具 | ⚠️ 开发中 | 命令框架完成，部分 API 待对接 |
 | 🐳 Docker | ✅ 完成 | 多阶段构建，GitHub Actions 推送到 GHCR |

@@ -66,10 +66,38 @@ export interface ApiKey {
   created_at: string
 }
 
+// ─── Unified error types ─────────────────────────────────────────
+
+export type ErrorCode = 'BAD_REQUEST' | 'VALIDATION_ERROR' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'INTERNAL_ERROR'
+
+export interface FieldError {
+  field: string
+  message: string
+}
+
+export interface ApiError {
+  code: ErrorCode
+  summary: string
+  details?: FieldError[]
+}
+
+export class ApiRequestError extends Error {
+  code: ErrorCode
+  details: FieldError[]
+  summary: string
+  constructor(err: ApiError) {
+    super(err.summary)
+    this.name = 'ApiRequestError'
+    this.code = err.code
+    this.summary = err.summary
+    this.details = err.details || []
+  }
+}
+
 export interface APIResponse<T> {
   success: boolean
   data: T
-  error?: string
+  error?: ApiError
 }
 
 // ─── Floor Plan ──────────────────────────────────────────────────

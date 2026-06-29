@@ -9,6 +9,7 @@ import (
 
 	"github.com/dezhishen/now-and-again/backend/internal/logger"
 	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -37,7 +38,7 @@ func familyID(c *gin.Context) string {
 	return ""
 }
 
-// ─── Response helpers ─────────────────────────────────────────────
+// ─── Response helpers — all use unified types.APIError ────────────
 
 func ok(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
@@ -45,39 +46,63 @@ func ok(c *gin.Context, data interface{}) {
 func created(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": data})
 }
-func badRequest(c *gin.Context, msg string) {
-	c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": msg})
+
+func apiError(c *gin.Context, status int, code types.ErrorCode, summary string) {
+	c.AbortWithStatusJSON(status, gin.H{
+		"success": false,
+		"error":   types.APIError{Code: code, Summary: summary},
+	})
 }
 
-// validationError returns a 400 with field-level validation errors extracted from gin binding.
+func apiErrorDetails(c *gin.Context, status int, code types.ErrorCode, summary string, details []types.FieldError) {
+	c.AbortWithStatusJSON(status, gin.H{
+		"success": false,
+		"error":   types.APIError{Code: code, Summary: summary, Details: details},
+	})
+}
+
+func badRequest(c *gin.Context, summary string) {
+	apiError(c, http.StatusBadRequest, types.ErrBadRequest, summary)
+}
+
+func serverError(c *gin.Context, err error) {
+	logger.Errorf("handler error: %v", err)
+	apiError(c, http.StatusInternalServerError, types.ErrInternal, "服务器内部错误")
+}
+
+func unauthorized(c *gin.Context, summary string) {
+	apiError(c, http.StatusUnauthorized, types.ErrUnauthorized, summary)
+}
+
+func notFound(c *gin.Context, summary string) {
+	apiError(c, http.StatusNotFound, types.ErrNotFound, summary)
+}
+
+// validationError returns a structured 400 with field-level details.
 func validationError(c *gin.Context, err error) {
 	var ve validator.ValidationErrors
 	if errors.As(err, &ve) {
-		fields := make([]gin.H, 0, len(ve))
+		fields := make([]types.FieldError, 0, len(ve))
 		for _, fe := range ve {
-			fields = append(fields, gin.H{
-				"field":   jsonFieldName(fe),
-				"message": validationMessage(fe),
-				"tag":     fe.Tag(),
+			fields = append(fields, types.FieldError{
+				Field:   lowerFirst(fe.Field()),
+				Message: validationMsg(fe),
 			})
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "参数校验失败", "fields": fields})
+		apiErrorDetails(c, http.StatusBadRequest, types.ErrValidation, "参数校验失败", fields)
 		return
 	}
 	badRequest(c, err.Error())
 }
 
-// jsonFieldName extracts the json tag name from a validator.FieldError.
-func jsonFieldName(fe validator.FieldError) string {
-	// fe.StructField() gives the Go struct field name.
-	// fe.StructNamespace() gives the full path like "CreateUserRequest.Username"
-	// We just return the last part (field name in snake_case from json tag)
-	name := fe.Field()
-	return strings.ToLower(name[:1]) + name[1:]
+func lowerFirst(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	return strings.ToLower(s[:1]) + s[1:]
 }
 
-// validationMessage returns a human-readable validation error message.
-func validationMessage(fe validator.FieldError) string {
+func validationMsg(fe validator.FieldError) string {
 	switch fe.Tag() {
 	case "required":
 		return "不能为空"
@@ -90,14 +115,6 @@ func validationMessage(fe validator.FieldError) string {
 	default:
 		return "校验失败: " + fe.Tag()
 	}
-}
-
-func serverError(c *gin.Context, err error) {
-	logger.Errorf("handler error: %v", err)
-	c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
-}
-func unauthorized(c *gin.Context, msg string) {
-	c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": msg})
 }
 
 // ─── Param parsers ────────────────────────────────────────────────

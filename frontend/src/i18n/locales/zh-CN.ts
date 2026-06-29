@@ -314,6 +314,17 @@ export default {
     email: '邮箱', phone: '手机号', phoneOptional: '可选',
     saving: '保存中...', saved: '已保存 ✓', save: '保存修改', adminRole: '系统管理员',
   },
+  error: {
+    summary: {
+      badRequest: '请求参数有误',
+      validation: '参数校验失败',
+      unauthorized: '请先登录',
+      forbidden: '没有权限执行此操作',
+      notFound: '请求的资源不存在',
+      conflict: '数据冲突',
+      internal: '服务器内部错误，请稍后重试',
+    },
+  },
   validation: {
     required: '{field} 不能为空',
     maxLength: '{field} 不能超过 {max} 个字符',
