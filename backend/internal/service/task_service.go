@@ -234,22 +234,15 @@ func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID
 		}
 	}
 
-	// Carry forward remark from the previous completed todo as display context.
-	var displaySummary string
-	if last, err := tx.FindLastCompletedTodo(taskID); err == nil && last.Remark != "" {
-		displaySummary = fmt.Sprintf("上期备注：%s", last.Remark)
-	}
-
 	todo := &repository.TodoModel{
-		TaskID:         taskID,
-		FamilyID:       familyID,
-		LocationID:     task.LocationID,
-		DueStart:       now,
-		DueDate:        now.Add(window),
-		Status:         "pending",
-		DisplaySummary: displaySummary,
-		TaskName:       task.Name,
-		TaskKind:       task.Kind,
+		TaskID:     taskID,
+		FamilyID:   familyID,
+		LocationID: task.LocationID,
+		DueStart:   now,
+		DueDate:    now.Add(window),
+		Status:     "pending",
+		TaskName:   task.Name,
+		TaskKind:   task.Kind,
 	}
 	if err := tx.CreateTodo(todo); err != nil {
 		return err

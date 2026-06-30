@@ -533,7 +533,7 @@ func (h *handler) ensureBranchTask(taskStorage taskkind.TaskStorage, todo *model
 	if err != nil || branchTask == nil {
 		return
 	}
-	branchTodo, err := taskStorage.CreateTodo(branchTask.ID, "")
+	branchTodo, err := taskStorage.CreateTodo(branchTask.ID, todo.Remark)
 	if err != nil {
 		return
 	}

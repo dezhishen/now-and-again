@@ -168,9 +168,9 @@ onMounted(() => { loadAll() })
               <span>🕐</span>
               <span>{{ fmtRange(todo.due_start, todo.due_date) }}</span>
             </p>
-            <!-- Todo-level display_summary (e.g., previous remark carry-over) -->
+            <!-- System-generated context (carry-over from previous cycle) -->
             <p v-if="todo.display_summary" class="text-xs text-blue-400 flex items-center gap-1">
-              <span>💬</span>
+              <span>↩️</span>
               <span>{{ todo.display_summary }}</span>
             </p>
             <component
