@@ -4,6 +4,8 @@ import { useI18n } from '@/i18n'
 import { api } from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { useLoading } from '@/composables/useLoading'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { getLocationKinds, getLocationKindIcon } from '@/composables/useLocationKinds'
@@ -14,6 +16,7 @@ initLocationKinds()
 
 const { t } = useI18n()
 const toast = useToast()
+const { error, setError, clearError } = useErrorHandler()
 
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
 watch(refreshKey, (newVal) => { if (newVal === 'locations') withLoading(async () => { await loadLocations(); await loadPlans() }) })
@@ -89,7 +92,7 @@ async function saveLocation() {
       toast.success(t('locations.created'))
     }
     editing.value = false
-  } catch (e: any) { toast.error(e.message) }
+  } catch (e: any) { setError(e) }
 }
 
 async function deleteLocation(loc: Location) {
@@ -98,7 +101,7 @@ async function deleteLocation(loc: Location) {
     await api.delete('/locations/' + loc.id)
     locations.value = locations.value.filter(l => l.id !== loc.id)
     toast.success(t('locations.deleted'))
-  } catch (e: any) { toast.error(e.message) }
+  } catch (e: any) { setError(e) }
 }
 
 async function unlinkPlan(loc: Location) {
@@ -107,7 +110,7 @@ async function unlinkPlan(loc: Location) {
     const idx = locations.value.findIndex(l => l.id === loc.id)
     if (idx >= 0) locations.value[idx] = updated
     toast.success(t('locations.unlinked'))
-  }).catch((e: any) => toast.error(e.message))
+  }).catch((e: any) => setError(e))
 }
 
 function getPlanLabel(planId: string) {
@@ -117,7 +120,7 @@ function getPlanLabel(planId: string) {
 
 <template>
   <div>
-    <LoadingSpinner v-if="loading" />
+    <LoadingSpinner :text="t('app.loading')" v-if="loading" />
     <template v-else>
     <div class="flex items-center justify-between mb-4">
       <button class="btn-primary" @click="openCreate">+ {{ t('locations.add') }}</button>
@@ -158,6 +161,8 @@ function getPlanLabel(planId: string) {
           <h3 class="text-lg font-semibold mb-4 dark:text-gray-200">
             {{ editLoc ? t('locations.editLocation') : t('locations.addLocation') }}
           </h3>
+
+          <ErrorDisplay :error="error" @close="clearError" />
 
           <!-- Name -->
           <label class="block text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('locations.name') }}</label>

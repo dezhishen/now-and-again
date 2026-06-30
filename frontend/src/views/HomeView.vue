@@ -5,6 +5,8 @@ import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
+import { useErrorHandler } from '@/composables/useErrorHandler'
 import type { Family } from '@/types'
 
 const { t } = useI18n()
@@ -15,7 +17,7 @@ const loading = ref(true)
 const showCreate = ref(false)
 const familyName = ref('')
 const inviteCode = ref('')
-const error = ref('')
+const { error, setError, clearError } = useErrorHandler()
 
 function favId(): string | null {
   return auth.user?.default_family_id || null
@@ -48,34 +50,34 @@ const hasCreatedFamily = computed(() =>
 )
 
 async function createFamily() {
-  error.value = ''
+  clearError()
   try {
     const f = await api.post<Family>('/families', { name: familyName.value })
     families.value.push(f)
     familyName.value = ''
     showCreate.value = false
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
 }
 
 async function joinFamily() {
-  error.value = ''
+  clearError()
   try {
     await api.post('/families/join', { invite_code: inviteCode.value })
     inviteCode.value = ''
     families.value = await api.get<Family[]>('/users/me/families')
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
 }
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto py-4 md:py-8 px-4">
+  <div class="max-w-3xl mx-auto p-4">
     <div class="mb-8">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg md:text-xl font-bold dark:text-gray-200">{{ t('home.heading') }}</h2>
         <button v-if="!hasCreatedFamily" class="btn-primary" @click="showCreate = !showCreate">{{ showCreate ? t('home.cancel') : '+ ' + t('home.createFamily') }}</button>
       </div>
 
-      <LoadingSpinner v-if="loading" />
+      <LoadingSpinner :text="t('app.loading')" v-if="loading" />
       <div v-if="!loading">
       <div v-if="showCreate" class="card mb-4 flex flex-col sm:flex-row gap-2">
         <input v-model="familyName" class="input flex-1" :placeholder="t('home.familyName')" @keyup.enter="createFamily" />
@@ -87,7 +89,7 @@ async function joinFamily() {
         <button class="btn-primary" @click="joinFamily">{{ t('home.join') }}</button>
       </div>
 
-      <p v-if="error" class="text-danger text-sm mb-2">{{ error }}</p>
+      <ErrorDisplay :error="error" @close="clearError" />
 
       <div v-if="families.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-8">{{ t('home.noFamily') }}</div>
 

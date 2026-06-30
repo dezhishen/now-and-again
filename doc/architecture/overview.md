@@ -137,3 +137,20 @@ taskkind.TaskStorage（注入到插件的方法集合）
 
 - 统一 images 表管理，业务表存 image_id
 - 默认本地存储，可扩展 S3/OSS
+
+### 任务模板系统
+
+- **架构**: `pkg/tasktemplate/` — 插件式 Provider 接口，内置 + HTTP 两种实现
+- **Provider 注册表**: `init()` 自注册，主流程通过接口调用，不做任何 Provider 特化
+- **内置 Provider**: Go `embed.FS` 打包 YAML 模板文件，启动时自动同步到数据库
+- **HTTP Provider**: 通过订阅 URL 拉取远程 YAML 模板，支持系统级和家庭级订阅
+- **双级别**: 系统模板（admin 管理，所有家庭可见）+ 家庭模板（owner 管理，仅本家庭可见）
+- **数据流**: Provider.Sync() → 解析 YAML → Upsert 到 `task_templates` 表 → 前端通过 API 查询
+- **模板渲染**: Go `text/template` 填充参数，生成 `task_defaults` + `extra_schema` 用于预填任务表单
+
+### 错误处理体系
+
+- 前端统一使用 `useErrorHandler()` + `<ErrorDisplay>` 组件
+- ErrorDisplay 支持三种展示模式：`toast`（居中自动消失）、`dialog`（模态弹窗）、`inline`（内联警告框）
+- 展示模式通过插件式注册表 `displayModes` 按错误码映射，可通过 `registerDisplayMode()` 扩展
+- 颜色按 severity 分级：`info`（蓝）、`warning`（琥珀）、`error`（红）、`success`（绿）

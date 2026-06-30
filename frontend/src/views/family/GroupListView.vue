@@ -6,6 +6,8 @@ import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useLoading } from '@/composables/useLoading'
 import { useConfirm } from '@/composables/useConfirm'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import type { FamilyGroup, FamilyGroupMember } from '@/types'
 
 const { t } = useI18n()
@@ -20,7 +22,7 @@ const { loading: pageLoading, withLoading } = useLoading()
 const showCreate = ref(false)
 const newName = ref('')
 const newDesc = ref('')
-const error = ref('')
+const { error, setError, clearError } = useErrorHandler()
 const loading = ref<Record<string, boolean>>({})
 
 interface GroupDetail {
@@ -54,12 +56,12 @@ async function loadGroups() {
 }
 
 async function createGroup() {
-  error.value = ''
+  clearError()
   try {
     await api.post('/groups', { name: newName.value, description: newDesc.value })
     newName.value = ''; newDesc.value = ''; showCreate.value = false
     await loadGroups()
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
 }
 
 async function openManage(groupId: string) {
@@ -102,7 +104,7 @@ async function joinGroup(groupId: string) {
     await api.post('/groups/' + groupId + '/join')
     // Refresh member cache so buttons update
     memberCache.value[groupId] = await api.get<FamilyGroupMember[]>('/groups/' + groupId + '/members')
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
   finally { loading.value[groupId] = false }
 }
 
@@ -111,7 +113,7 @@ async function leaveGroup(groupId: string) {
   try {
     await api.post('/groups/' + groupId + '/leave')
     memberCache.value[groupId] = await api.get<FamilyGroupMember[]>('/groups/' + groupId + '/members')
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
   finally { loading.value[groupId] = false }
 }
 
@@ -120,7 +122,7 @@ async function reviewRequest(userId: string, action: 'active' | 'rejected') {
   try {
     await api.put('/groups/' + manageGroupId.value + '/join-requests', { user_id: userId, action })
     await openManage(manageGroupId.value)
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
   finally { loading.value[userId] = false }
 }
 
@@ -130,7 +132,7 @@ async function removeMember(userId: string) {
   try {
     await api.delete('/groups/' + manageGroupId.value + '/members/' + userId)
     await openManage(manageGroupId.value)
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
   finally { loading.value[userId] = false }
 }
 </script>
@@ -143,9 +145,9 @@ async function removeMember(userId: string) {
       </button>
     </div>
 
-    <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
+    <ErrorDisplay :error="error" @close="clearError" />
 
-    <LoadingSpinner v-if="pageLoading" />
+    <LoadingSpinner :text="t('app.loading')" v-if="pageLoading" />
     <template v-else>
 
     <!-- Create form -->
@@ -203,7 +205,7 @@ async function removeMember(userId: string) {
             <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="manageDetail = null">✕</button>
           </div>
 
-          <LoadingSpinner v-if="manageLoading" />
+          <LoadingSpinner :text="t('app.loading')" v-if="manageLoading" />
 
           <template v-else>
             <!-- Tabs -->

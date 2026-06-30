@@ -6,6 +6,8 @@ import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useToast } from '@/composables/useToast'
 import { useLoading } from '@/composables/useLoading'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import { getTodoActions, getTodoInfo, getTodoBadgeKey } from '@/composables/useTaskKinds'
 import { initTaskKinds } from '@/components/tasks/init'
 import type { Family, Todo } from '@/types'
@@ -23,6 +25,7 @@ const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
 
 const activeTab = ref<'todos' | 'overview'>('todos')
 const { loading, withLoading } = useLoading()
+const { error, setError, clearError } = useErrorHandler()
 const family = ref<Family | null>(null)
 const memberCount = ref(0)
 const groupCount = ref(0)
@@ -66,7 +69,7 @@ async function submitRemark() {
     await withLoading(loadTodos)
     toast.success(t('dashboard.completed'))
     showRemark.value = false
-  } catch (e: any) { toast.error(e.message) }
+  } catch (e: any) { setError(e) }
   finally { remarkSubmitting.value = false }
 }
 
@@ -79,7 +82,7 @@ async function completeTodoDirect(todo: Todo, status: string) {
     await api.put('/todos/' + todo.id, { todo: { status: status as 'done' | 'skipped' } })
     await withLoading(loadTodos)
     toast.success(status === 'done' ? t('dashboard.completed') : t('dashboard.skipped'))
-  } catch (e: any) { toast.error(e.message) }
+  } catch (e: any) { setError(e) }
   finally {
     const next = new Set(processingTodos.value)
     next.delete(todo.id)
@@ -128,7 +131,7 @@ onMounted(() => { loadAll() })
 <template>
   <div>
 
-    <LoadingSpinner v-if="loading" />
+    <LoadingSpinner :text="t('app.loading')" v-if="loading" />
 
     <template v-else>
 
@@ -224,6 +227,7 @@ onMounted(() => { loadAll() })
             <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showRemark = false">✕</button>
           </div>
           <div class="p-4 space-y-3">
+            <ErrorDisplay :error="error" @close="clearError" />
             <p class="text-sm text-gray-500 dark:text-gray-400">{{ remarkTodo?.task?.name }}</p>
             <textarea
               v-model="remarkText"

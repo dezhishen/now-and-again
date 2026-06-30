@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
+import { appLoadingText } from '@/composables/useAppLoading'
+import i18n from '@/i18n'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -24,6 +26,7 @@ const router = createRouter({
         { path: 'ics', name: 'family-ics', component: () => import('@/views/family/IcsView.vue') },
         { path: 'calendar', name: 'family-calendar', component: () => import('@/views/family/CalendarView.vue') },
         { path: 'settings', name: 'family-settings', component: () => import('@/views/family/SettingsView.vue') },
+        { path: 'templates', name: 'family-templates', component: () => import('@/views/family/TaskTemplateListView.vue') },
       ],
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
@@ -33,21 +36,27 @@ const router = createRouter({
 
 router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore()
+  const t = i18n.global.t
 
   // ── Silent token restore (only for protected routes) ─────
   if (to.meta.requiresAuth && !api.hasValidToken()) {
+    appLoadingText.value = t('app.checkingSession')
     await auth.initSession()
   }
   // Lazy-load user profile (token valid but user lost on refresh).
   // fetchUser clears the token on 401 (stale token after db-reset).
   if (auth.isLoggedIn && !auth.user) {
+    appLoadingText.value = t('app.fetchingUser')
     await auth.fetchUser()
   }
 
   // Lazy-load families list (needed for header display)
   if (auth.isLoggedIn && auth.families.length === 0) {
-    auth.loadFamilies()
+    appLoadingText.value = t('app.loadingFamilies')
+    await auth.loadFamilies()
   }
+
+  appLoadingText.value = ''
 
   // ── Auth guard ────────────────────────────────────────────
   if (to.meta.requiresAuth && !auth.isLoggedIn) {

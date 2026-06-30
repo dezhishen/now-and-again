@@ -7,6 +7,8 @@ import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useLoading } from '@/composables/useLoading'
 import { useConfirm } from '@/composables/useConfirm'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import type { FamilyMember, FamilyRole } from '@/types'
 
 const { t } = useI18n()
@@ -20,7 +22,7 @@ const members = ref<FamilyMember[]>([])
 const { loading: pageLoading, withLoading } = useLoading()
 const requests = ref<FamilyMember[]>([])
 const activeTab = ref<'members' | 'requests'>('members')
-const error = ref('')
+const { error, setError, clearError } = useErrorHandler()
 const loading = ref<Record<string, boolean>>({})
 
 const myRole = computed(() => {
@@ -49,35 +51,35 @@ async function loadRequests() {
 
 async function changeRole(userId: string, role: FamilyRole) {
   loading.value[userId] = true
-  error.value = ''
+  clearError()
   try {
     await api.put('/members/' + userId + '/role', { role })
     await loadMembers()
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
   finally { loading.value[userId] = false }
 }
 
 async function removeMember(userId: string) {
   if (!await useConfirm(t('members.removeConfirm'))) return
   loading.value[userId] = true
-  error.value = ''
+  clearError()
   try {
     await api.delete('/members/' + userId)
     await loadMembers()
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
   finally { loading.value[userId] = false }
 }
 
 async function reviewRequest(userId: string, action: 'active' | 'rejected') {
   loading.value[userId] = true
-  error.value = ''
+  clearError()
   try {
     await api.put('/family/join-requests', { user_id: userId, action })
     await Promise.all([loadMembers(), loadRequests()])
     if (activeTab.value === 'requests' && requests.value.length === 0) {
       activeTab.value = 'members'
     }
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
   finally { loading.value[userId] = false }
 }
 
@@ -91,9 +93,9 @@ const ROLE_LABELS: Record<string, I18nKey> = {
 <template>
   <div>
 
-    <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
+    <ErrorDisplay :error="error" @close="clearError" />
 
-    <LoadingSpinner v-if="pageLoading" />
+    <LoadingSpinner :text="t('app.loading')" v-if="pageLoading" />
     <template v-else>
 
     <!-- Tabs -->

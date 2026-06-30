@@ -7,6 +7,8 @@ import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useToast } from '@/composables/useToast'
 import { useLoading } from '@/composables/useLoading'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import type { FamilyGroup, ApiKey } from '@/types'
 
 const { t } = useI18n()
@@ -30,6 +32,7 @@ const groups = ref<FamilyGroup[]>([])
 const apiKeys = ref<ApiKey[]>([])
 const { loading, withLoading } = useLoading()
 const toast = useToast()
+const { error, setError, clearError } = useErrorHandler()
 
 // Form state
 
@@ -135,12 +138,12 @@ async function saveFeed() {
     }
     showForm.value = false
     await loadFeeds()
-  } catch (e: any) { toast.error(e.message) }
+  } catch (e: any) { setError(e) }
 }
 
 async function deleteFeed(id: string) {
   if (!await useConfirm(t('ics.deleteConfirm'))) return
-  try { await api.delete('/ics-feeds/' + id); await loadFeeds(); toast.success(t('ics.deleted')) } catch (e: any) { toast.error(e.message) }
+  try { await api.delete('/ics-feeds/' + id); await loadFeeds(); toast.success(t('ics.deleted')) } catch (e: any) { setError(e) }
 }
 
 function copyLink(url: string) {
@@ -178,7 +181,7 @@ function getUsageHint(feed: IcsFeed): string {
 <template>
   <div>
 
-    <LoadingSpinner v-if="loading" />
+    <LoadingSpinner :text="t('app.loading')" v-if="loading" />
     <template v-else>
 
     <!-- Guide -->
@@ -199,6 +202,8 @@ function getUsageHint(feed: IcsFeed): string {
     <!-- Create/Edit Form -->
     <div v-if="showForm" class="card mb-6 space-y-3">
       <h3 class="font-bold dark:text-gray-200">{{ editingFeed ? t('ics.editFeed') : t('ics.createFeedTitle') }}</h3>
+
+      <ErrorDisplay :error="error" @close="clearError" />
 
       <div>
         <label class="text-xs text-gray-400 block mb-1">{{ t('ics.feedName') }}</label>

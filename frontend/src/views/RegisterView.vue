@@ -3,23 +3,25 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
+import { useErrorHandler } from '@/composables/useErrorHandler'
 
 const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
 const form = reactive({ username: '', email: '', password: '', display_name: '' })
 const submitting = ref(false)
-const error = ref('')
+const { error, setError, clearError } = useErrorHandler()
 
 async function handleRegister() {
   if (submitting.value) return
-  error.value = ''
+  clearError()
   submitting.value = true
   try {
     await auth.register({ ...form })
     router.push('/login')
   } catch (e: any) {
-    error.value = e.message || t('register.error')
+    setError(e)
   } finally {
     submitting.value = false
   }
@@ -35,7 +37,7 @@ async function handleRegister() {
         <input v-model="form.username" class="input" :placeholder="t('register.usernamePlaceholder')" required minlength="3" autocomplete="username" />
         <input v-model="form.email" type="email" class="input" :placeholder="t('register.emailPlaceholder')" required />
         <input v-model="form.password" type="password" class="input" :placeholder="t('register.passwordPlaceholder')" required minlength="8" autocomplete="new-password" />
-        <p v-if="error" class="text-danger text-sm">{{ error }}</p>
+        <ErrorDisplay :error="error" @close="clearError" />
         <button type="submit" class="btn-primary w-full mt-2" :disabled="submitting">{{ submitting ? '...' : t('register.submit') }}</button>
       </form>
       <p class="text-center text-sm text-gray-400 dark:text-gray-500 mt-4">

@@ -219,3 +219,102 @@ export interface Todo {
   created_at: string
   updated_at: string
 }
+
+// ─── Task Template ────────────────────────────────────────────────
+
+export interface TemplateParameter {
+  key: string
+  label: string
+  type: 'string' | 'int' | 'float' | 'bool' | 'select' | 'time'
+  description?: string
+  required?: boolean
+  default?: any
+  options?: { label: string; value: string }[]
+  placeholder?: string
+}
+
+export interface TaskTemplate {
+  id: string
+  family_id?: string | null
+  provider_code: string
+  template_code: string
+  name: string
+  description?: string
+  kind: string
+  icon?: string
+  sort_order: number
+  enabled: boolean
+  parameters?: TemplateParameter[]
+  task_defaults?: any
+  extra_schema?: any
+  version?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TemplateProvider {
+  code: string
+  name: string
+  description?: string
+  last_sync_at?: string
+  sync_status: string
+}
+
+export interface RenderedTask {
+  task_defaults: any
+  extra_schema?: any
+}
+
+export interface CreateTaskTemplateRequest {
+  template_code: string
+  name: string
+  description?: string
+  kind: string
+  icon?: string
+  sort_order?: number
+  enabled?: boolean
+  parameters?: TemplateParameter[]
+  task_defaults?: any
+  extra_schema?: any
+}
+
+export interface UpdateTaskTemplateRequest {
+  name?: string
+  description?: string
+  kind?: string
+  icon?: string
+  sort_order?: number
+  enabled?: boolean
+  parameters?: TemplateParameter[]
+  task_defaults?: any
+  extra_schema?: any
+}
+
+export interface TaskTemplateSubscription {
+  id: string
+  family_id?: string | null
+  provider_code: string
+  url: string
+  name: string
+  auto_refresh: boolean
+  refresh_interval_hours: number
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateSubscriptionRequest {
+  provider_code: string
+  url: string
+  name: string
+  auto_refresh?: boolean
+  refresh_interval_hours?: number
+}
+
+export interface UpdateSubscriptionRequest {
+  url?: string
+  name?: string
+  auto_refresh?: boolean
+  refresh_interval_hours?: number
+  enabled?: boolean
+}

@@ -4,6 +4,8 @@ import { useI18n } from '@/i18n'
 import type { I18nKey } from '@/i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
+import { useErrorHandler } from '@/composables/useErrorHandler'
 import type { ApiKey } from '@/types'
 
 const { t } = useI18n()
@@ -14,7 +16,7 @@ const showCreate = ref(false)
 const newName = ref('')
 const newScopes = ref('')
 const newExpires = ref('')
-const error = ref('')
+const { error, setError, clearError } = useErrorHandler()
 const creating = ref(false)
 const createdKey = ref<string | null>(null)
 
@@ -98,7 +100,7 @@ function toggleScope(scope: string) {
 async function create() {
   if (creating.value) return
   creating.value = true
-  error.value = ''
+  clearError()
   try {
     const scopes = newScopes.value ? newScopes.value.split(',').map(s => s.trim()).filter(Boolean) : undefined
     const body: any = { name: newName.value }
@@ -109,7 +111,7 @@ async function create() {
     createdKey.value = res.api_key.raw_key || null
     newName.value = ''; newScopes.value = ''; newExpires.value = ''
     await load()
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
   finally { creating.value = false }
 }
 
@@ -117,7 +119,7 @@ async function revoke(id: string) {
   try {
     await api.delete('/users/me/api-keys/' + id)
     await load()
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
 }
 
 function copyKey() {
@@ -126,13 +128,13 @@ function copyKey() {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto py-4 md:py-8 px-4">
+  <div class="max-w-2xl mx-auto p-4">
     <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">API Keys</h2>
     <p class="text-sm text-gray-400 mb-4">API Key 用于 CLI 或第三方工具访问系统。每个 Key 可设置权限范围和过期时间。</p>
 
-    <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
+    <ErrorDisplay :error="error" @close="clearError" />
 
-    <LoadingSpinner v-if="loading" />
+    <LoadingSpinner :text="t('app.loading')" v-if="loading" />
     <template v-else>
 
     <!-- Show just-created key -->

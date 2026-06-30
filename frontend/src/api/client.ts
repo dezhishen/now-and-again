@@ -244,6 +244,47 @@ class ApiClient {
   patch<T>(path: string, body?: unknown) { return this.request<T>('PATCH', path, body) }
   put<T>(path: string, body?: unknown) { return this.request<T>('PUT', path, body) }
   delete<T>(path: string) { return this.request<T>('DELETE', path) }
+
+  /** Same as request() but skips requestToUTC / responseToLocal timezone conversion.
+   *  Use for configuration data (templates, settings) that is not actual datetimes. */
+  private async rawRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
+    if (this.accessToken && this.isTokenExpiringSoon(120)) {
+      await this.refreshAccessToken()
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json', Accept: 'application/json',
+    }
+    if (this.accessToken) headers['Authorization'] = `Bearer ${this.accessToken}`
+    if (this.familyId) headers['X-Family-Id'] = this.familyId
+
+    let res = await fetch(`${BASE_URL}${path}`, {
+      method, headers, credentials: 'include',
+      body: body ? JSON.stringify(body) : undefined,
+    })
+
+    if (res.status === SESSION_EXPIRED_CODE && this.accessToken && path !== '/auth/refresh') {
+      const refreshed = await this.refreshAccessToken()
+      if (refreshed) {
+        res = await fetch(`${BASE_URL}${path}`, { method, headers, credentials: 'include', body: body ? JSON.stringify(body) : undefined })
+      } else if (!this.accessToken) {
+        if (!this.sessionExpiredFired) { this.sessionExpiredFired = true; this.onSessionExpired?.() }
+        throw new Error('Session expired')
+      }
+    }
+
+    const json: APIResponse<T> = await res.json()
+    if (!json.success) {
+      if (json.error) throw new ApiRequestError(json.error)
+      throw new ApiRequestError({ code: 'INTERNAL_ERROR', summary: 'Unknown error' })
+    }
+    return json.data as T
+  }
+
+  getRaw<T>(path: string) { return this.rawRequest<T>('GET', path) }
+  postRaw<T>(path: string, body?: unknown) { return this.rawRequest<T>('POST', path, body) }
+  putRaw<T>(path: string, body?: unknown) { return this.rawRequest<T>('PUT', path, body) }
+  deleteRaw<T>(path: string) { return this.rawRequest<T>('DELETE', path) }
 }
 
 export const api = new ApiClient()

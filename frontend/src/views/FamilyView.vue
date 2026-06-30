@@ -5,7 +5,8 @@ import { useI18n } from '@/i18n'
 import type { I18nKey } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
-import { useToast } from '@/composables/useToast'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import { api } from '@/api/client'
 
 import DashboardView from './family/DashboardView.vue'
@@ -16,9 +17,10 @@ import LocationManageView from './family/LocationManageView.vue'
 import TaskView from './family/TaskView.vue'
 import IcsView from './family/IcsView.vue'
 import SettingsView from './family/SettingsView.vue'
+import TaskTemplateListView from './family/TaskTemplateListView.vue'
 
 const { t } = useI18n()
-const toast = useToast()
+const { error, setError, clearError } = useErrorHandler()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
@@ -36,6 +38,7 @@ interface Tab {
 const NAV_ITEMS: { id: string; icon: string; labelKey: I18nKey; component: any; adminOnly?: boolean }[] = [
   { id: 'dashboard', icon: '🏠', labelKey: 'nav.dashboard', component: markRaw(DashboardView) },
   { id: 'tasks', icon: '✅', labelKey: 'nav.tasks', component: markRaw(TaskView) },
+  { id: 'templates', icon: '📋', labelKey: 'nav.templates', component: markRaw(TaskTemplateListView) },
   { id: 'groups', icon: '👥', labelKey: 'nav.groups', component: markRaw(GroupListView) },
   { id: 'locations', icon: '📍', labelKey: 'nav.locations', component: markRaw(LocationManageView) },
   { id: 'members', icon: '👤', labelKey: 'nav.members', component: markRaw(MemberListView) },
@@ -51,6 +54,7 @@ const activeTabId = ref('')
 // THEIR tab becomes active — not when any other tab switches.
 const refreshKey = ref('')
 provide('refreshKey', refreshKey)
+provide('isFamilyAdmin', isFamilyAdmin)
 watch(activeTabId, (newVal) => {
   if (newVal) refreshKey.value = newVal
 })
@@ -124,12 +128,13 @@ async function leaveFamily() {
   try {
     await api.post('/family/leave')
     window.location.href = '/'
-  } catch (e: any) { toast.error(e.message) }
+  } catch (e: any) { setError(e) }
 }
 </script>
 
 <template>
   <div class="flex flex-col md:flex-row h-full overflow-hidden">
+    <ErrorDisplay :error="error" @close="clearError" />
     <!-- Mobile hamburger -->
     <button class="md:hidden fixed top-2 left-3 z-40 w-8 h-8 rounded-lg flex items-center justify-center bg-gray-200 dark:bg-gray-700 shadow text-sm" @click="showMenu = !showMenu">
       {{ showMenu ? '✕' : '☰' }}

@@ -4,13 +4,15 @@ import { useI18n } from '@/i18n'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
+import { useErrorHandler } from '@/composables/useErrorHandler'
 
 const { t } = useI18n()
 const auth = useAuthStore()
 const loading = ref(true)
 const saving = ref(false)
 const saved = ref(false)
-const error = ref('')
+const { error, setError, clearError } = useErrorHandler()
 
 const displayName = ref('')
 const email = ref('')
@@ -29,7 +31,7 @@ onMounted(async () => {
 
 async function save() {
   saving.value = true
-  error.value = ''
+  clearError()
   saved.value = false
   try {
     const body: Record<string, string> = {}
@@ -45,17 +47,17 @@ async function save() {
     }
     saved.value = true
     setTimeout(() => { saved.value = false }, 2000)
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
   finally { saving.value = false }
 }
 </script>
 
 <template>
-  <div class="max-w-xl mx-auto">
+  <div class="max-w-2xl mx-auto p-4">
     <h2 class="text-xl md:text-2xl font-bold mb-6 dark:text-gray-200">{{ t('profile.heading') }}</h2>
 
-    <p v-if="error" class="text-danger text-sm mb-4">{{ error }}</p>
-    <LoadingSpinner v-if="loading" />
+    <ErrorDisplay :error="error" @close="clearError" />
+    <LoadingSpinner :text="t('app.loading')" v-if="loading" />
 
     <template v-else>
       <div class="card mb-6">

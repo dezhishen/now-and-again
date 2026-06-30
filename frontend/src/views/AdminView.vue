@@ -3,15 +3,18 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from '@/i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import AdminTaskTemplatesView from '@/views/AdminTaskTemplatesView.vue'
 import type { User } from '@/types'
 
 const { t } = useI18n()
 const users = ref<User[]>([])
 const loading = ref(true)
-const activeTab = ref<'users' | 'storage'>('users')
+const activeTab = ref<'users' | 'storage' | 'task-templates'>('users')
 const settings = ref<Record<string, string>>({})
 const saved = ref(false)
-const error = ref('')
+const { error, setError, clearError } = useErrorHandler()
 
 onMounted(async () => {
   loading.value = true
@@ -30,13 +33,13 @@ async function loadSettings() {
 }
 
 async function saveSettings() {
-  error.value = ''
+  clearError()
   saved.value = false
   try {
     await api.put('/admin/settings', settings.value)
     saved.value = true
     setTimeout(() => { saved.value = false }, 2000)
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
 }
 
 const STORAGE_OPTIONS = [
@@ -48,7 +51,7 @@ const STORAGE_OPTIONS = [
 </script>
 
 <template>
-  <div>
+  <div class="max-w-4xl mx-auto p-4">
     <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">{{ t('admin.heading') }}</h2>
 
     <!-- Tabs -->
@@ -61,6 +64,10 @@ const STORAGE_OPTIONS = [
         :class="activeTab === 'storage' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
         @click="activeTab = 'storage'"
       >{{ t('admin.storage') }}</button>
+      <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+        :class="activeTab === 'task-templates' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+        @click="activeTab = 'task-templates'"
+      >{{ t('taskTemplate.heading') }}</button>
     </div>
 
     <!-- Users Tab -->
@@ -84,9 +91,9 @@ const STORAGE_OPTIONS = [
 
     <!-- Storage Tab -->
     <div v-if="activeTab === 'storage'">
-      <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
+      <ErrorDisplay :error="error" @close="clearError" />
 
-    <LoadingSpinner v-if="loading" />
+    <LoadingSpinner :text="t('app.loading')" v-if="loading" />
     <template v-else>
 
       <div class="card mb-4 max-w-lg">
@@ -111,6 +118,11 @@ const STORAGE_OPTIONS = [
         </div>
       </div>
     </template>
+    </div>
+
+    <!-- Task Templates Tab -->
+    <div v-if="activeTab === 'task-templates'">
+      <AdminTaskTemplatesView />
     </div>
   </div>
 </template>

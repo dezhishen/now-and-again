@@ -7,15 +7,19 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import TaskCard from '@/components/tasks/TaskCard.vue'
 import { useToast } from '@/composables/useToast'
 import { useLoading } from '@/composables/useLoading'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import { getDefaultCheckItems, getTaskKinds, getFormComponent, buildDisplaySummary, serializeExtra, parseExtra } from '@/composables/useTaskKinds'
 import { useConfirm } from '@/composables/useConfirm'
 import { initTaskKinds } from '@/components/tasks/init'
-import type { Task, FamilyGroup } from '@/types'
+import TemplatePickerDialog from '@/components/taskTemplate/TemplatePickerDialog.vue'
+import type { Task, FamilyGroup, TaskTemplate } from '@/types'
 
 // Initialize plugin task kinds
 initTaskKinds()
 
 const toast = useToast()
+const { error, setError, clearError } = useErrorHandler()
 
 // Reload on tab activation
 const refreshKey = inject<Ref<string>>('refreshKey', ref(''))
@@ -55,6 +59,9 @@ const taskKind = ref('simple')
 const checkItems = ref<any[]>([])   // extra data bound to kind-specific formComponent
 const editingTask = ref<Task | null>(null)
 const saving = ref(false)
+
+// ── Template picker ───────────────────────────────────────────────
+const showTemplatePicker = ref(false)
 
 const { t } = useI18n()
 
@@ -132,6 +139,27 @@ function openCreate(kind?: string) {
   showTaskForm.value = true
 }
 
+/** Called when user confirms a template → pre-fill the task form. */
+function applyTemplate(tmpl: TaskTemplate, taskDefaults: any, extraSchema: any) {
+  showTemplatePicker.value = false
+
+  editingTask.value = null
+  taskName.value = taskDefaults?.name || ''
+  taskSchedule.value = taskDefaults?.schedule_type || 'daily'
+  taskKind.value = tmpl.kind
+
+  const sd = taskDefaults?.schedule_data || {}
+  taskTime.value = sd.time || '09:00'
+  taskDate.value = sd.date || ''
+  taskDays.value = sd.days || []
+
+  checkItems.value = extraSchema?.check_items
+    ? JSON.parse(JSON.stringify(extraSchema.check_items))
+    : getDefaultCheckItems(tmpl.kind) ? [...getDefaultCheckItems(tmpl.kind)!] : []
+
+  showTaskForm.value = true
+}
+
 async function openEdit(task: Task) {
   editingTask.value = task
   taskName.value = task.name
@@ -189,7 +217,7 @@ async function saveTask() {
     }
     showTaskForm.value = false
     await loadTasks()
-  } catch (e: any) { toast.error(e.message) }
+  } catch (e: any) { setError(e) }
   finally { saving.value = false }
 }
 
@@ -198,16 +226,16 @@ async function toggleTask(task: Task) {
     const newEnabled = !task.enabled
     await api.put('/tasks/' + task.id + '/enabled', { enabled: newEnabled })
     task.enabled = newEnabled
-  } catch (e: any) { toast.error(e.message) }
+  } catch (e: any) { setError(e) }
 }
 
 async function deleteTask(id: string) {
   if (!await useConfirm(t('taskCard.deleteConfirm'))) return
-  try { await api.delete('/tasks/' + id); await loadTasks(); toast.success('已删除') } catch (e: any) { toast.error(e.message) }
+  try { await api.delete('/tasks/' + id); await loadTasks(); toast.success('已删除') } catch (e: any) { setError(e) }
 }
 
 async function triggerTask(id: string) {
-  try { await api.post('/tasks/' + id + '/trigger'); await loadTasks(); toast.success('已生成待办') } catch (e: any) { toast.error(e.message) }
+  try { await api.post('/tasks/' + id + '/trigger'); await loadTasks(); toast.success('已生成待办') } catch (e: any) { setError(e) }
 }
 
 async function viewLogs(taskId: string) {
@@ -294,7 +322,7 @@ function scheduleSummary(task: Task): string {
 <template>
   <div>
 
-    <LoadingSpinner v-if="loading" />
+    <LoadingSpinner :text="t('app.loading')" v-if="loading" />
 
     <template v-else>
 
@@ -302,6 +330,7 @@ function scheduleSummary(task: Task): string {
     <div>
       <div class="flex items-center gap-2 mb-3">
         <button class="btn-primary text-sm" @click="openCreate()">+ {{ t('taskKind.create') }}</button>
+        <button class="btn-secondary text-sm" @click="showTemplatePicker = true">📋 从模板创建</button>
         <span class="flex-1" />
         <button
           class="text-xs px-2 py-1 rounded border transition-colors"
@@ -394,6 +423,7 @@ function scheduleSummary(task: Task): string {
             <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showTaskForm = false">✕</button>
           </div>
           <div class="flex-1 overflow-auto p-4 space-y-3">
+            <ErrorDisplay :error="error" @close="clearError" />
             <!-- Kind selector (disabled when editing) -->
             <div>
               <label class="text-xs text-gray-400 block mb-1">任务类型</label>
@@ -480,5 +510,12 @@ function scheduleSummary(task: Task): string {
       </div>
     </Teleport>
     </template>
+
+    <!-- Template Picker Dialog -->
+    <TemplatePickerDialog
+      v-if="showTemplatePicker"
+      @close="showTemplatePicker = false"
+      @apply="applyTemplate"
+    />
   </div>
 </template>

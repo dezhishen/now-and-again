@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
+import { useErrorHandler } from '@/composables/useErrorHandler'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -11,7 +13,7 @@ const auth = useAuthStore()
 const username = ref('')
 const password = ref('')
 const submitting = ref(false)
-const error = ref('')
+const { error, setError, clearError } = useErrorHandler()
 
 const redirect = (() => {
   const q = route.query.redirect as string
@@ -21,14 +23,13 @@ const redirect = (() => {
 
 async function handleLogin() {
   if (submitting.value) return
-  error.value = ''
+  clearError()
   submitting.value = true
   try {
     await auth.login(username.value, password.value)
-    // Use hard navigation — Vue Router guards may conflict with auth state changes.
     window.location.href = redirect
   } catch (e: any) {
-    error.value = e.message || t('login.error')
+    setError(e)
   } finally {
     submitting.value = false
   }
@@ -55,7 +56,7 @@ async function handleLogin() {
           autocomplete="current-password"
           required
         />
-        <p v-if="error" class="text-danger text-sm">{{ error }}</p>
+        <ErrorDisplay :error="error" @close="clearError" />
         <button type="submit" class="btn-primary w-full mt-2" :disabled="submitting">
           {{ submitting ? '...' : t('login.submit') }}
         </button>

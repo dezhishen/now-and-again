@@ -64,3 +64,40 @@
 | `active` | 已加入 |
 | `pending` | 待审核 |
 | `rejected` | 已拒绝 |
+
+## 任务模板
+
+### task_templates
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | char(36) PK | UUID |
+| `family_id` | char(36) nullable | NULL = 系统级，非 NULL = 家庭级 |
+| `provider_code` | varchar(32) | 来源（builtin/http/family） |
+| `template_code` | varchar(64) | 模板唯一标识 |
+| `name` | varchar(128) | 模板名称 |
+| `description` | varchar(512) | 描述 |
+| `kind` | varchar(16) | 任务类型（simple/inspection） |
+| `icon` | varchar(32) | 图标 emoji |
+| `sort_order` | int | 排序 |
+| `enabled` | bool | 是否启用 |
+| `parameters` | text | JSON：参数定义列表 |
+| `task_defaults` | text | JSON：任务默认字段（支持 Go template） |
+| `extra_schema` | text | JSON：任务类型专属 extra 字段 |
+| `version` | varchar(32) | 版本号 |
+| `metadata` | text | Provider 元数据（如源 URL） |
+
+索引：`(provider_code, template_code)` 联合索引
+
+### task_template_subscriptions
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | char(36) PK | UUID |
+| `family_id` | char(36) nullable | NULL = 系统级订阅 |
+| `provider_code` | varchar(32) | Provider 标识（http） |
+| `url` | varchar(2048) | 订阅 URL |
+| `name` | varchar(128) | 显示名称 |
+| `auto_refresh` | bool | 是否自动刷新 |
+| `refresh_interval_hours` | int | 刷新间隔（小时） |
+| `enabled` | bool | 是否启用 |

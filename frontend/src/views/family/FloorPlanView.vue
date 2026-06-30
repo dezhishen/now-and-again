@@ -6,6 +6,8 @@ import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useLoading } from '@/composables/useLoading'
 import { useConfirm } from '@/composables/useConfirm'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import type { FloorPlan, Location, Point } from '@/types'
 
 const { t } = useI18n()
@@ -17,7 +19,7 @@ watch(refreshKey, (newVal) => { if (newVal === 'floor-plan') withLoading(loadPla
 
 const floorPlans = ref<FloorPlan[]>([])
 const { loading, withLoading } = useLoading()
-const error = ref('')
+const { error, setError, clearError } = useErrorHandler()
 const uploading = ref(false)
 const showUploadMenu = ref(false)
 
@@ -61,7 +63,7 @@ async function uploadFile(e: Event) {
 }
 
 async function doUpload(file: File, label?: string, isCover?: boolean) {
-  uploading.value = true; error.value = ''
+  uploading.value = true; clearError()
   try {
     const form = new FormData(); form.append('file', file)
     if (label) form.append('label', label)
@@ -77,7 +79,7 @@ async function doUpload(file: File, label?: string, isCover?: boolean) {
     const json = await res.json()
     if (!json.success) throw new Error(json.error || 'Unknown error')
     floorPlans.value.push(json.data); openEdit(json.data)
-  } catch (e: any) { error.value = e.message } finally { uploading.value = false }
+  } catch (e: any) { setError(e) } finally { uploading.value = false }
 }
 
 async function deletePlan(plan: FloorPlan) {
@@ -86,24 +88,24 @@ async function deletePlan(plan: FloorPlan) {
     await api.delete('/floor-plans/' + plan.id)
     floorPlans.value = floorPlans.value.filter(p => p.id !== plan.id)
     if (editPlan.value?.id === plan.id) editPlan.value = null
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
 }
 
 async function setAsCover(plan: FloorPlan) {
-  error.value = ''
+  clearError()
   try {
     await api.put('/floor-plans/' + plan.id + '/cover')
     floorPlans.value.forEach(p => { p.is_cover = p.id === plan.id })
     if (editPlan.value?.id === plan.id) editPlan.value.is_cover = true
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
 }
 
 async function unlinkLocation(locId: string) {
-  error.value = ''
+  clearError()
   try {
     await api.put('/locations/' + locId, { floor_plan_id: '' })
     if (editPlan.value?.locations) editPlan.value.locations = editPlan.value.locations.filter(l => l.id !== locId)
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
 }
 
 // ─── Canvas Drawing ──────────────────────────────────────────────
@@ -176,9 +178,9 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
       </div>
     </div>
 
-    <p v-if="error" class="text-danger text-sm mb-3">{{ error }}</p>
+    <ErrorDisplay :error="error" @close="clearError" />
 
-    <LoadingSpinner v-if="loading" />
+    <LoadingSpinner :text="t('app.loading')" v-if="loading" />
     <template v-else>
 
     <!-- Empty -->

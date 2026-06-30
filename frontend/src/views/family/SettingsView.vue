@@ -7,6 +7,8 @@ import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useLoading } from '@/composables/useLoading'
 import { useConfirm } from '@/composables/useConfirm'
+import { useErrorHandler } from '@/composables/useErrorHandler'
+import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import type { Family } from '@/types'
 
 const router = useRouter()
@@ -23,7 +25,7 @@ const { loading, withLoading } = useLoading()
 const editName = ref('')
 const saving = ref(false)
 const saved = ref(false)
-const error = ref('')
+const { error, setError, clearError } = useErrorHandler()
 
 async function loadFamily() {
   try {
@@ -40,7 +42,7 @@ onMounted(async () => {
 
 async function saveName() {
   saving.value = true
-  error.value = ''
+  clearError()
   saved.value = false
   try {
     await api.patch('/families/' + familyId(), { name: editName.value })
@@ -48,7 +50,7 @@ async function saveName() {
     saved.value = true
     setTimeout(() => { saved.value = false }, 2000)
   } catch (e: any) {
-    error.value = e.message
+    setError(e)
     editName.value = family.value?.name || ''
   } finally { saving.value = false }
 }
@@ -58,7 +60,7 @@ async function deleteFamily() {
   try {
     await api.delete('/families/' + familyId())
     router.push('/')
-  } catch (e: any) { error.value = e.message }
+  } catch (e: any) { setError(e) }
 }
 
 const copied = ref(false)
@@ -75,8 +77,8 @@ async function copyInviteCode() {
 <template>
   <div class="max-w-xl">
 
-    <p v-if="error" class="text-danger text-sm mb-4">{{ error }}</p>
-    <LoadingSpinner v-if="loading" />
+    <ErrorDisplay :error="error" @close="clearError" />
+    <LoadingSpinner :text="t('app.loading')" v-if="loading" />
     <template v-else>
     <!-- Invite Code -->
     <div class="card mb-4">

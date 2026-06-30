@@ -11,12 +11,14 @@
     "check-i18n": "npx tsx scripts/check-i18n.ts"
   },
   "dependencies": {
+    "js-yaml": "^5.2.0",
     "pinia": "^2.2.0",
     "vue": "^3.5.0",
     "vue-i18n": "9",
     "vue-router": "^4.4.0"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@vitejs/plugin-vue": "^5.1.0",
     "autoprefixer": "^10.5.2",
     "postcss": "^8.5.15",

@@ -204,6 +204,113 @@
 | `CONFLICT` | 409 | 数据冲突 | — |
 | `INTERNAL_ERROR` | 500 | 服务器内部错误 | — |
 
+## 任务模板
+
+### 模板查询（家庭可见，所有成员）
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/task-templates` | JWT/APIKey | 列出可用模板（系统 + 本家庭），支持 `?kind=` 过滤 |
+| GET | `/api/task-templates/:code` | JWT/APIKey | 获取单个模板详情（含 parameters） |
+| POST | `/api/task-templates/:code/render` | JWT/APIKey | 传入参数 JSON，返回渲染后的 task_defaults + extra_schema |
+| GET | `/api/task-templates/providers` | JWT/APIKey | 列出所有已注册的 Provider |
+
+### 家庭模板 CRUD（owner 专属）
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| POST | `/api/task-templates` | JWT(owner) | 创建家庭级模板 |
+| PUT | `/api/task-templates/:code` | JWT(owner) | 更新家庭级模板 |
+| DELETE | `/api/task-templates/:code` | JWT(owner) | 删除家庭级模板 |
+| POST | `/api/task-templates/providers/:code/refresh` | JWT(owner) | 刷新家庭级 Provider（如 HTTP 订阅） |
+
+### 订阅管理（家庭）
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/task-template-subscriptions` | JWT/APIKey | 列出家庭订阅列表 |
+| POST | `/api/task-template-subscriptions` | JWT(owner) | 添加家庭订阅 |
+| PUT | `/api/task-template-subscriptions/:id` | JWT(owner) | 更新家庭订阅 |
+| DELETE | `/api/task-template-subscriptions/:id` | JWT(owner) | 删除家庭订阅 |
+
+### 系统模板管理（admin 专属）
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| POST | `/api/admin/task-templates/providers/:code/refresh` | JWT(admin) | 刷新系统级 Provider |
+| GET | `/api/admin/task-template-subscriptions` | JWT(admin) | 列出系统级订阅 |
+| POST | `/api/admin/task-template-subscriptions` | JWT(admin) | 添加系统级订阅 |
+| PUT | `/api/admin/task-template-subscriptions/:id` | JWT(admin) | 更新系统级订阅 |
+| DELETE | `/api/admin/task-template-subscriptions/:id` | JWT(admin) | 删除系统级订阅 |
+
+### 模板数据结构
+
+```json
+// TaskTemplate
+{
+  "id": "uuid",
+  "family_id": "uuid | null",
+  "provider_code": "builtin | http | family",
+  "template_code": "daily_inspection",
+  "name": "每日巡检",
+  "description": "标准每日设备巡检模板",
+  "kind": "simple | inspection",
+  "icon": "🔍",
+  "sort_order": 1,
+  "enabled": true,
+  "parameters": [
+    {
+      "key": "area_name",
+      "label": "区域名称",
+      "type": "string | int | float | bool | select | time",
+      "description": "需要巡检的区域",
+      "required": true,
+      "default": "A区",
+      "placeholder": "例如：A区"
+    }
+  ],
+  "task_defaults": {
+    "name": "{{.area_name}} - 每日巡检",
+    "schedule_type": "daily",
+    "schedule_data": { "time": "09:00" }
+  },
+  "extra_schema": { "check_items": [...] }
+}
+```
+
+### 模板渲染请求/响应
+
+```json
+// POST /api/task-templates/:code/render
+// Request: { "area_name": "A区" }
+// Response:
+{
+  "task_defaults": {
+    "name": "A区 - 每日巡检",
+    "schedule_type": "daily",
+    "schedule_data": { "time": "09:00" }
+  },
+  "extra_schema": { "check_items": [...] }
+}
+```
+
+### 后端实现
+
+- `pkg/tasktemplate/provider.go` — `Provider` 接口 + `TemplateStorage` 接口
+- `pkg/tasktemplate/registry.go` — 线程安全的 Provider 注册表
+- `pkg/tasktemplate/builtin/` — 内置 Provider（embed.FS 内嵌 YAML）
+- `pkg/tasktemplate/http/` — HTTP 订阅 Provider
+- `pkg/model/models.go` — `TaskTemplateModel`、`TaskTemplateSubscriptionModel`
+
+### 前端实现
+
+- `src/api/task-templates.ts` — 模板查询/渲染/CRUD/订阅管理（使用 raw API 跳过时区转换）
+- `src/views/family/TaskTemplateListView.vue` — 模板列表 + 创建/编辑/删除 + 订阅管理
+- `src/views/AdminTaskTemplatesView.vue` — 管理后台（Provider 管理 + 系统订阅）
+- `src/components/taskTemplate/TemplatePickerDialog.vue` — 三步向导（选择模板 → 填参数 → 预览确认）
+- `src/components/taskTemplate/TemplateFormDialog.vue` — 模板创建/编辑表单（YAML 编辑器）
+- `src/components/taskTemplate/TemplateRenderDialog.vue` — 模板渲染弹窗
+
 ### 后端实现
 
 - `pkg/types/common.go` — `ErrorCode`、`APIError`、`FieldError` 类型定义
