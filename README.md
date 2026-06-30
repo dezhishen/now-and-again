@@ -52,7 +52,7 @@ erDiagram
     CheckItem ||--o{ CheckItemBranch : "分支"
 ```
 
-> 共 21 张表，涵盖任务调度、巡检、地点管理、ICS 日历订阅、API Key 权限体系。详见 [数据库文档](doc/database/schema.md)。
+> 共 23 张表，涵盖任务调度、巡检、地点管理、ICS 日历订阅、任务模板、API Key 权限体系。详见 [数据库文档](doc/database/schema.md)。
 
 ---
 
@@ -62,7 +62,7 @@ erDiagram
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
-| 🗄️ 数据模型 | ✅ 完成 | 21 张表，GORM AutoMigrate |
+| 🗄️ 数据模型 | ✅ 完成 | 23 张表，GORM AutoMigrate |
 | 🔐 认证体系 | ✅ 完成 | JWT + Refresh Token + API Key（Scope 权限控制） |
 | 👤 用户管理 | ✅ 完成 | 注册/登录/个人中心/管理员面板 |
 | 👨‍👩‍👧 家庭管理 | ✅ 完成 | 创建/加入/邀请码/成员管理/审核 |
@@ -74,6 +74,7 @@ erDiagram
 | ✅ 待办管理 | ✅ 完成 | 快速完成/备注完成/跳过，巡检分支选择 |
 | 📅 ICS 订阅 | ✅ 完成 | 标准 iCalendar，API Key/Basic Auth，可导入日历 App |
 | 🖥️ 日历大屏 | ✅ 完成 | embed 标签嵌入，支持自动刷新 |
+| 📋 任务模板 | ✅ 完成 | 插件式 Provider（内置 YAML + HTTP 订阅），系统/家庭双级别 |
 | ⚠️ 错误处理 | ✅ 完成 | 统一 ErrorCode + 字段级 details + 前端可折叠 ErrorDisplay |
 | 🖥️ Web 前端 | ✅ 完成 | Vue 3 + i18n 中英文 + 暗色模式 + 自适应布局 |
 | 💻 CLI 工具 | ⚠️ 开发中 | 命令框架完成，部分 API 待对接 |
@@ -88,7 +89,8 @@ erDiagram
 |------|------|
 | 🔀 **Now & Again 双模式** | 一次性任务完成后归档；周期性任务自动计算下次到期日 |
 | 🔍 **巡检驱动** | 检查项→分支→异常自动创建跟进子任务（可指定地点/小组） |
-| 🧩 **插件化架构** | 任务类型(taskkind) + 调度类型(scheduler) + 地点类型(locationkind) 三插件系统，新增类型零侵入 |
+| 📋 **任务模板系统** | 插件式 Provider（内置 YAML + HTTP 远程订阅），Go template 渲染参数，系统/家庭双级别隔离 |
+| 🧩 **插件化架构** | 任务类型(taskkind) + 任务模板(tasktemplate) + 调度类型(scheduler) + 地点类型(locationkind) 四插件系统，新增类型零侵入 |
 | 📍 **地点独立管理** | 地点为一级实体，不强制绑定户型图，支持室内/户外等多种类型 |
 | 👥 **家庭 + 小组分工** | 任务精确指派到小组/地点，巡检分支可独立配置 |
 | 📋 **完整操作日志** | 全程记录创建/完成/跳过/巡检/跟进 |
@@ -111,8 +113,10 @@ now-and-again/
 │   │   ├── model/              #     共享 GORM 模型 + 迁移注册表
 │   │   ├── scheduler/          #     调度引擎 + 类型注册表
 │   │   ├── taskkind/           #     任务类型插件 (simple, inspection)
+│   │   ├── tasktemplate/       #     任务模板系统 (内置 + HTTP 订阅)
 │   │   ├── locationkind/       #     地点类型插件 (indoor)
 │   │   ├── scopes/             #     权限范围
+│   │   ├── timeutil/           #     时间工具
 │   │   └── types/              #     共享 DTO + model→DTO 转换
 │   └── internal/
 │       ├── config/             #   配置
@@ -120,9 +124,11 @@ now-and-again/
 │       ├── middleware/          #   JWT · API Key · Scope 鉴权
 │       ├── repository/         #   GORM 模型 · 迁移 · 种子数据
 │       ├── service/            #   业务逻辑层
+│       ├── webui/              #   嵌入前端 dist（Go embed）
 │       └── logger/             #   日志（按日切割 + 压缩）
 │
 ├── frontend/                   # Vue 3 + TypeScript + Vite + pnpm
+│   ├── scripts/                #   构建脚本 (check-i18n)
 │   └── src/
 │       ├── api/client.ts       #   HTTP 客户端
 │       ├── router/             #   Vue Router
@@ -148,6 +154,9 @@ now-and-again/
 │
 ├── .github/agents/             # Copilot 自定义 Agent
 │   └── create-task-kind.agent.md
+│
+├── skills/                     # 技能文件
+│   └── na-tools.yaml
 │
 ├── data/                       # 运行时数据 (SQLite + 上传文件)
 ├── docker-compose.yml
@@ -204,8 +213,8 @@ cd cli && go run .
 |------|------|
 | [Docker 部署](doc/deployment/docker.md) | Docker 一键部署、数据持久化 |
 | [架构设计](doc/architecture/overview.md) | 系统架构、插件系统、分层设计 |
-| [API 文档](doc/api/endpoints.md) | 完整 RESTful API 路由表（59 个端点） |
-| [数据库 Schema](doc/database/schema.md) | 21 张表结构、索引策略 |
+| [API 文档](doc/api/endpoints.md) | 完整 RESTful API 路由表（69 个端点） |
+| [数据库 Schema](doc/database/schema.md) | 23 张表结构、索引策略 |
 
 ---
 

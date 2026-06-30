@@ -1,13 +1,12 @@
 # API 文档
 
-> 共 59 个端点。公开路由无鉴权，受保护路由需要 JWT 或 API Key。
+> 共 69 个端点。公开路由无鉴权，家庭级路由通过 `X-Family-Id` 请求头传递家庭 ID。
 
-## 系统初始化
+## 系统状态
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| GET | `/api/system/status` | 无 | 返回 `{initialized: bool}` |
-| POST | `/api/setup` | 无 | 创建第一个管理员（仅未初始化时可用） |
+| GET | `/api/system/status` | 无 | 返回 `{"status": "ok"}` |
 
 ## 认证
 
@@ -16,7 +15,6 @@
 | POST | `/api/auth/register` | 无 | 注册新用户 |
 | POST | `/api/auth/login` | 无 | 登录获取 access_token + refresh_token(cookie) |
 | POST | `/api/auth/refresh` | Cookie | 刷新 access_token |
-| POST | `/api/auth/logout` | Cookie | 登出 |
 
 ## 图片
 
@@ -28,15 +26,16 @@
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
+| POST | `/api/auth/logout` | Cookie | 登出 |
 | GET | `/api/users/me` | JWT/APIKey | 获取当前用户 |
 | PUT | `/api/users/me` | JWT/APIKey | 更新当前用户 |
 | GET | `/api/users/me/families` | JWT/APIKey | 我的家庭列表 |
-| GET | `/api/admin/users` | JWT(admin) | 管理员查看所有用户 |
 
 ## 管理面板
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
+| GET | `/api/admin/users` | JWT(admin) | 管理员查看所有用户 |
 | GET | `/api/admin/settings` | JWT | 获取系统设置 |
 | PUT | `/api/admin/settings` | JWT | 更新设置 |
 
@@ -49,24 +48,30 @@
 | GET | `/api/families/:family_id` | JWT/APIKey | 家庭详情 |
 | PATCH | `/api/families/:family_id` | JWT/APIKey | 修改家庭名称 (owner/admin) |
 | DELETE | `/api/families/:family_id` | JWT/APIKey | 删除家庭 (仅 owner) |
-| GET | `/api/families/:family_id/members` | JWT/APIKey | 成员列表 |
-| PUT | `/api/families/:family_id/members/:user_id/role` | JWT/APIKey | 修改成员角色 (owner/admin) |
-| DELETE | `/api/families/:family_id/members/:user_id` | JWT/APIKey | 移除成员 (owner/admin) |
+| POST | `/api/families/:family_id/restore` | JWT/APIKey | 恢复已删除家庭 (仅 owner) |
 | POST | `/api/families/:family_id/leave` | JWT/APIKey | 退出家庭 |
 
-## 家庭审核
+## 成员管理
+
+> 需要 `X-Family-Id` 请求头
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| GET | `/api/families/:family_id/join-requests` | JWT/APIKey | 待审核申请 |
-| PUT | `/api/families/:family_id/join-requests` | JWT/APIKey | 审核申请 (active/rejected) |
+| GET | `/api/members` | JWT/APIKey | 成员列表 |
+| PUT | `/api/members/:user_id/role` | JWT/APIKey | 修改成员角色 (owner/admin) |
+| DELETE | `/api/members/:user_id` | JWT/APIKey | 移除成员 (owner/admin) |
+| POST | `/api/family/leave` | JWT/APIKey | 退出家庭 |
+| GET | `/api/family/join-requests` | JWT/APIKey | 待审核申请 |
+| PUT | `/api/family/join-requests` | JWT/APIKey | 审核申请 (active/rejected) |
 
 ## 小组
 
+> 需要 `X-Family-Id` 请求头
+
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| POST | `/api/families/:family_id/groups` | JWT/APIKey | 创建小组 |
-| GET | `/api/families/:family_id/groups` | JWT/APIKey | 小组列表 |
+| POST | `/api/groups` | JWT/APIKey | 创建小组 |
+| GET | `/api/groups` | JWT/APIKey | 小组列表 |
 | POST | `/api/groups/:group_id/join` | JWT/APIKey | 加入小组 |
 | POST | `/api/groups/:group_id/leave` | JWT/APIKey | 离开小组 |
 | GET | `/api/groups/:group_id/members` | JWT/APIKey | 小组成员 |
@@ -84,41 +89,48 @@
 
 ## 户型图
 
+> 需要 `X-Family-Id` 请求头
+
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| POST | `/api/families/:family_id/floor-plans` | JWT/APIKey | 上传户型图 (multipart: file + label + is_cover) |
-| GET | `/api/families/:family_id/floor-plans` | JWT/APIKey | 户型图列表 |
+| POST | `/api/floor-plans` | JWT/APIKey | 上传户型图 (multipart: file + label + is_cover) |
+| GET | `/api/floor-plans` | JWT/APIKey | 户型图列表 |
 | GET | `/api/floor-plans/:plan_id` | JWT/APIKey | 户型图详情 |
 | PUT | `/api/floor-plans/:plan_id/cover` | JWT/APIKey | 设为封面 |
 | DELETE | `/api/floor-plans/:plan_id` | JWT/APIKey | 删除户型图 |
 
 ## 地点（一级实体）
 
-> Location 属于 Family，可选关联到 FloorPlan。kind 插件化（indoor 等）。
+> 需要 `X-Family-Id` 请求头。Location 属于 Family，可选关联到 FloorPlan。kind 插件化（indoor 等）。
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| GET | `/api/families/:family_id/locations` | JWT/APIKey | 家庭所有地点 |
-| POST | `/api/families/:family_id/locations` | JWT/APIKey | 创建地点 (name + kind + color, 可选 floor_plan_id) |
+| GET | `/api/locations` | JWT/APIKey | 家庭所有地点 |
+| POST | `/api/locations` | JWT/APIKey | 创建地点 (name + kind + color, 可选 floor_plan_id) |
 | GET | `/api/floor-plans/:plan_id/locations` | JWT/APIKey | 户型图关联地点 |
 | PUT | `/api/locations/:location_id` | JWT/APIKey | 更新地点（可设置/取消户型图关联） |
 | DELETE | `/api/locations/:location_id` | JWT/APIKey | 删除地点（被任务引用时拒绝） |
 
 ## 任务
 
-> 请求体：`{ task: {...}, extra: {...} }`，与 GET 返回格式对称。
+> 需要 `X-Family-Id` 请求头。请求体：`{ task: {...}, extra: {...} }`，与 GET 返回格式对称。
 > 任务类型插件化：simple / inspection。
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| POST | `/api/families/:family_id/tasks` | JWT/APIKey | 创建任务 |
-| GET | `/api/families/:family_id/tasks` | JWT/APIKey | 任务列表 |
+| POST | `/api/tasks` | JWT/APIKey | 创建任务 |
+| GET | `/api/tasks` | JWT/APIKey | 任务列表 |
 | GET | `/api/tasks/:task_id` | JWT/APIKey | 获取任务 (with_extra=true 返回插件数据) |
 | PUT | `/api/tasks/:task_id` | JWT/APIKey | 更新任务（含 extra 数据时触发插件 OnUpdate） |
 | PUT | `/api/tasks/:task_id/enabled` | JWT/APIKey | 启用/禁用任务（不触发插件，仅更新调度器） |
 | DELETE | `/api/tasks/:task_id` | JWT/APIKey | 删除任务 |
-| GET | `/api/tasks/:task_id/logs` | JWT/APIKey | 操作日志 |
 | POST | `/api/tasks/:task_id/trigger` | JWT/APIKey | 手动生成待办 |
+
+### 任务日志
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/tasks/:task_id/logs` | JWT/APIKey | 操作日志 |
 
 ### 创建巡检任务示例
 
@@ -146,97 +158,67 @@
 
 ## 待办
 
+> 需要 `X-Family-Id` 请求头
+
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| GET | `/api/families/:family_id/todos` | JWT/APIKey | 待办列表 (?status=pending) |
+| GET | `/api/todos` | JWT/APIKey | 待办列表 (?status=pending) |
 | GET | `/api/todos/:todo_id` | JWT/APIKey | 待办详情 (with_extra=true) |
 | PUT | `/api/todos/:todo_id` | JWT/APIKey | 完成/跳过待办 |
 
 ## 日历
 
+> 需要 `X-Family-Id` 请求头
+
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| GET | `/api/families/:family_id/calendar` | JWT/APIKey | 日历视图 |
+| GET | `/api/calendar` | JWT/APIKey | 日历视图 |
 
 ## ICS 订阅
 
+> 需要 `X-Family-Id` 请求头
+
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| POST | `/api/families/:family_id/ics-feeds` | JWT/APIKey | 创建 ICS 订阅 |
-| GET | `/api/families/:family_id/ics-feeds` | JWT/APIKey | 订阅列表 |
+| POST | `/api/ics-feeds` | JWT/APIKey | 创建 ICS 订阅 |
+| GET | `/api/ics-feeds` | JWT/APIKey | 订阅列表 |
 | GET | `/api/ics-feeds/:feed_id` | JWT/APIKey | 订阅详情 |
 | PUT | `/api/ics-feeds/:feed_id` | JWT/APIKey | 更新订阅 |
 | DELETE | `/api/ics-feeds/:feed_id` | JWT/APIKey | 删除订阅 |
 | GET | `/api/ics/:token` | 无 | ICS 日历端点（支持 API Key / Basic Auth） |
 
-## 认证方式
-
-- JWT: `Authorization: Bearer <access_token>`
-- API Key: `X-API-Key: na_xxxx` 或 `Authorization: Bearer na_xxxx`
-- Refresh: Cookie `refresh_token` (httpOnly)
-
-## 统一错误响应
-
-所有非 2xx 响应遵循统一格式：
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "summary": "参数校验失败",
-    "details": [
-      { "field": "name", "message": "不能为空" }
-    ]
-  }
-}
-```
-
-### 错误码
-
-| Code | HTTP | 含义 | details |
-|------|------|------|---------|
-| `BAD_REQUEST` | 400 | 请求格式错误 | — |
-| `VALIDATION_ERROR` | 400 | 字段校验失败 | `FieldError[]` |
-| `UNAUTHORIZED` | 401 | 未认证 | — |
-| `FORBIDDEN` | 403 | 无权限 | — |
-| `NOT_FOUND` | 404 | 资源不存在 | — |
-| `CONFLICT` | 409 | 数据冲突 | — |
-| `INTERNAL_ERROR` | 500 | 服务器内部错误 | — |
-
 ## 任务模板
 
-### 模板查询（家庭可见，所有成员）
+### 模板查询
+
+> 需要 `X-Family-Id` 请求头。返回系统级 + 本家庭级模板。
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
-| GET | `/api/task-templates` | JWT/APIKey | 列出可用模板（系统 + 本家庭），支持 `?kind=` 过滤 |
+| GET | `/api/task-templates` | JWT/APIKey | 列出可用模板，支持 `?kind=` 过滤 |
 | GET | `/api/task-templates/:code` | JWT/APIKey | 获取单个模板详情（含 parameters） |
 | POST | `/api/task-templates/:code/render` | JWT/APIKey | 传入参数 JSON，返回渲染后的 task_defaults + extra_schema |
 | GET | `/api/task-templates/providers` | JWT/APIKey | 列出所有已注册的 Provider |
 
-### 家庭模板 CRUD（owner 专属）
+### 订阅管理
+
+> 需要 `X-Family-Id` 请求头
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/task-template-subscriptions` | JWT/APIKey | 列出家庭订阅列表 |
+
+### 计划中的端点（接口已实现，路由待注册）
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
 | POST | `/api/task-templates` | JWT(owner) | 创建家庭级模板 |
 | PUT | `/api/task-templates/:code` | JWT(owner) | 更新家庭级模板 |
 | DELETE | `/api/task-templates/:code` | JWT(owner) | 删除家庭级模板 |
-| POST | `/api/task-templates/providers/:code/refresh` | JWT(owner) | 刷新家庭级 Provider（如 HTTP 订阅） |
-
-### 订阅管理（家庭）
-
-| 方法 | 路径 | 鉴权 | 说明 |
-|------|------|------|------|
-| GET | `/api/task-template-subscriptions` | JWT/APIKey | 列出家庭订阅列表 |
+| POST | `/api/task-templates/providers/:code/refresh` | JWT(owner) | 刷新家庭 Provider |
 | POST | `/api/task-template-subscriptions` | JWT(owner) | 添加家庭订阅 |
 | PUT | `/api/task-template-subscriptions/:id` | JWT(owner) | 更新家庭订阅 |
 | DELETE | `/api/task-template-subscriptions/:id` | JWT(owner) | 删除家庭订阅 |
-
-### 系统模板管理（admin 专属）
-
-| 方法 | 路径 | 鉴权 | 说明 |
-|------|------|------|------|
 | POST | `/api/admin/task-templates/providers/:code/refresh` | JWT(admin) | 刷新系统级 Provider |
 | GET | `/api/admin/task-template-subscriptions` | JWT(admin) | 列出系统级订阅 |
 | POST | `/api/admin/task-template-subscriptions` | JWT(admin) | 添加系统级订阅 |
@@ -294,32 +276,57 @@
 }
 ```
 
-### 后端实现
+---
 
-- `pkg/tasktemplate/provider.go` — `Provider` 接口 + `TemplateStorage` 接口
-- `pkg/tasktemplate/registry.go` — 线程安全的 Provider 注册表
-- `pkg/tasktemplate/builtin/` — 内置 Provider（embed.FS 内嵌 YAML）
-- `pkg/tasktemplate/http/` — HTTP 订阅 Provider
-- `pkg/model/models.go` — `TaskTemplateModel`、`TaskTemplateSubscriptionModel`
+## 认证方式
 
-### 前端实现
+- JWT: `Authorization: Bearer <access_token>`
+- API Key: `X-API-Key: na_xxxx` 或 `Authorization: Bearer na_xxxx`
+- Refresh: Cookie `refresh_token` (httpOnly)
+- 家庭级路由: `X-Family-Id: <uuid>` 请求头
 
-- `src/api/task-templates.ts` — 模板查询/渲染/CRUD/订阅管理（使用 raw API 跳过时区转换）
-- `src/views/family/TaskTemplateListView.vue` — 模板列表 + 创建/编辑/删除 + 订阅管理
-- `src/views/AdminTaskTemplatesView.vue` — 管理后台（Provider 管理 + 系统订阅）
-- `src/components/taskTemplate/TemplatePickerDialog.vue` — 三步向导（选择模板 → 填参数 → 预览确认）
-- `src/components/taskTemplate/TemplateFormDialog.vue` — 模板创建/编辑表单（YAML 编辑器）
-- `src/components/taskTemplate/TemplateRenderDialog.vue` — 模板渲染弹窗
+## 统一错误响应
 
-### 后端实现
+所有非 2xx 响应遵循统一格式：
 
-- `pkg/types/common.go` — `ErrorCode`、`APIError`、`FieldError` 类型定义
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "summary": "参数校验失败",
+    "details": [
+      { "field": "name", "message": "不能为空" }
+    ]
+  }
+}
+```
+
+### 错误码
+
+| Code | HTTP | 含义 | details |
+|------|------|------|---------|
+| `BAD_REQUEST` | 400 | 请求格式错误 | — |
+| `VALIDATION_ERROR` | 400 | 字段校验失败 | `FieldError[]` |
+| `UNAUTHORIZED` | 401 | 未认证 | — |
+| `FORBIDDEN` | 403 | 无权限 | — |
+| `NOT_FOUND` | 404 | 资源不存在 | — |
+| `CONFLICT` | 409 | 数据冲突 | — |
+| `INTERNAL_ERROR` | 500 | 服务器内部错误 | — |
+
+## 后端实现
+
+- `internal/handler/routes.go` — 路由注册
 - `internal/handler/handlers.go` — `apiError()`/`validationError()`/`notFound()` 等统一响应辅助函数
-- 所有 Handler 中 `bindJSON` 错误统一调用 `validationError()`，返回结构化字段级错误
+- `pkg/contracts/contracts.go` — 10 个领域接口
+- `pkg/types/` — 共享 DTO 定义
+- `pkg/tasktemplate/` — 模板 Provider 接口 + builtin/http 实现
 
-### 前端处理
+## 前端实现
 
-- `types/index.ts` — `ApiRequestError` 类，继承 `Error`，含 `code`/`summary`/`details`
-- `api/client.ts` — 解析 `APIError` 并抛出 `ApiRequestError`
-- `composables/useErrorHandler.ts` — 按 `ErrorCode` 映射 i18n 摘要
-- `components/ErrorDisplay.vue` — 可折叠错误展示组件（400 琥珀色 / 500 红色）
+- `src/api/` — API 客户端模块
+- `src/types/index.ts` — `ApiRequestError` 类，继承 `Error`，含 `code`/`summary`/`details`
+- `src/api/client.ts` — 解析 `APIError` 并抛出 `ApiRequestError`
+- `src/composables/useErrorHandler.ts` — 按 `ErrorCode` 映射 i18n 摘要
+- `src/components/ErrorDisplay.vue` — 可折叠错误展示组件（400 琥珀色 / 500 红色）
+- `src/components/taskTemplate/` — 模板选择/创建/渲染组件

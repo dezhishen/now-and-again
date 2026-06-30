@@ -24,7 +24,7 @@
 │  SQLite                                  │
 └──────────────────────────────────────────┘
 
-backend/pkg/ — 公共类型、调度器、插件系统（CLI 直接引用）
+backend/pkg/ — 公共类型、调度器、插件系统（taskkind / tasktemplate / locationkind / scheduler）
 ```
 
 ## 项目结构
@@ -34,7 +34,7 @@ backend/
   cmd/server/main.go      入口
   internal/
     handler/               HTTP 处理器
-    service/               业务逻辑（user/family/task/todo/log/floorplan/ics）
+    service/               业务逻辑（user/family/task/todo/log/floorplan/ics/apikey/calendar/image/task_template）
     repository/            数据访问 + AutoMigrate
     middleware/             JWT / API Key / Scope 鉴权
     config/                配置
@@ -45,8 +45,12 @@ backend/
     contracts/             API 接口定义
     scheduler/             任务调度引擎 (gocron) + 类型注册表
     taskkind/              任务类型插件 (simple, inspection)
+    tasktemplate/          任务模板系统 (Provider 接口 + 内置 + HTTP 订阅)
     locationkind/          地点类型插件 (indoor)
+    timeutil/              时间工具
     scopes/                权限范围
+  internal/
+    webui/                 嵌入前端 dist（Go embed）
 
 cli/
   cmd/                     CLI 命令
@@ -70,25 +74,49 @@ frontend/
 | 系统 | 后端包 | 前端 composable | 现有类型 |
 |------|--------|-----------------|---------|
 | 任务类型 | `pkg/taskkind/` | `useTaskKinds` | simple, inspection |
+| 任务模板 | `pkg/tasktemplate/` | — | builtin, http |
 | 地点类型 | `pkg/locationkind/` | `useLocationKinds` | indoor |
 | 调度类型 | `pkg/scheduler/` | — | once, daily, weekly, monthly, interval |
 
 新增类型只需实现接口并注册（`init()` 自动注册），无需修改任何现有代码。
 
-### 任务插件生命周期
+### 任务模板插件生命周期
 
 ```
-taskkind.Handler
-  ├─ SaveExtra(task, extra)    ← 新建时持久化插件特有数据
-  ├─ UpdateExtra(task, extra)  ← 更新时按 ID 精细化 diff（非全删全建）
-  ├─ DeleteExtra(task)         ← 删除时清理插件数据
-  ├─ OnComplete(todo, extra)   ← 待办完成时的业务逻辑
-  └─ GetExtra(task)            ← 读取插件数据供前端展示
+Provider 接口
+  ├─ Code() / Name() / Description()  ← 标识和展示信息
+  ├─ Sync(ctx, storage)               ← 解析数据源 → Upsert 到 task_templates 表
+  ├─ LastSyncAt() / SyncStatus()      ← 同步状态查询
+  └─ TemplateStorage（注入给 Provider 的方法集合）
+       ├─ UpsertTemplate(tmpl)        ← 写入/更新模板（按 provider_code + template_code 去重）
+       ├─ DeleteTemplate(code)        ← 删除过时模板（系统级清理）
+       ├─ FindByProvider(code)        ← 查询某 Provider 的所有模板
+       ├─ ListSubscriptions(code)     ← 查询订阅源（HTTP Provider 获取 URL 列表）
+       └─ DB()                        ← 返回 *gorm.DB
+```
 
-taskkind.TaskStorage（注入到插件的方法集合）
-  ├─ CreateNoRootTask(task, extra)  ← 创建子任务并触发其 SaveExtra
-  ├─ UpdateNoRootTask(task)         ← 更新子任务
-  └─ DeleteNonRootTask(id)          ← 递归删除子任务树，触发 DeleteExtra
+- **内置 Provider**：Go `embed.FS` 打包 YAML，启动时自动 Sync 到系统级模板
+- **HTTP Provider**：从订阅 URL 拉取远程 YAML，支持系统和家庭两级订阅
+- 主流程通过 `Provider` 接口调用，不做类型断言，Provider 完全可插拔
+
+```
+taskkind.Handler（接口，Kind 必须为 "simple" 或 "inspection"）
+  ├─ Kind() string                     ← 返回类型标识
+  ├─ SaveExtra(storage, task, extra)   ← 新建时持久化插件特有数据
+  ├─ UpdateExtra(storage, task, extra) ← 更新时持久化（nil extra = 清空）
+  ├─ DeleteExtra(storage, task)        ← 删除时清理插件数据
+  ├─ OnComplete(storage, todo, extra)  ← 待办完成时触发（extra 来自请求）
+  └─ GetExtra(storage, task)           ← 读取插件数据供前端展示
+
+taskkind.TaskStorage（注入给 Handler 的方法集合）
+  ├─ FindTaskByID(taskID)               ← 按 ID 查任务
+  ├─ FindTaskByParentId(parentID)       ← 按 parent_id 查子任务
+  ├─ CreateNoRootTask(task, extra)      ← 创建子任务并触发其 SaveExtra
+  ├─ UpdateNoRootTask(task, extra)      ← 更新子任务并触发 UpdateExtra
+  ├─ UpdateTaskFields(task)             ← 仅更新字段，不触发 Handler
+  ├─ DeleteNonRootTask(id)              ← 递归删除子树，触发 DeleteExtra
+  ├─ CreateTodo(taskID, displaySummary) ← 创建待办，返回 *TodoModel
+  └─ DB() *gorm.DB                      ← 获取 DB 实例做自定义查询
 ```
 
 - 主流程（`TaskService`）只处理 root 节点的行记录

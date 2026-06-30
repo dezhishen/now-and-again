@@ -27,6 +27,8 @@
 | `check_item_branches` | 检查项分支 | check_item_id, name, create_todo, branch_task_id, sort_order |
 | `inspection_results` | 巡检结果 | task_id, todo_id, family_id, item_name, branch_name, created_by |
 | `ics_feeds` | ICS 订阅 | family_id, name, filter_days, auth_type, api_key_id, access_token |
+| `task_templates` | 任务模板 | family_id(NULL=系统级), provider_code, template_code, name, kind, icon, parameters, task_defaults, extra_schema |
+| `task_template_subscriptions` | 模板订阅源 | family_id(NULL=系统级), provider_code, url, name, auto_refresh, refresh_interval_hours |
 
 ## 核心索引
 
@@ -41,6 +43,8 @@
 | `api_key_models` | UNIQUE(key_hash), UNIQUE(key_prefix) |
 | `tasks` | (is_root, family_id), family_id, group_id, location_id, parent_task_id |
 | `locations` | family_id, floor_plan_id |
+| `task_templates` | UNIQUE(family_id, provider_code, template_code) |
+| `task_template_subscriptions` | (family_id, provider_code) |
 
 ## 角色与权限
 
