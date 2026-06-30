@@ -192,8 +192,7 @@ cd cli && go run .
 | `PORT` | `8080` | 后端 HTTP 监听端口 |
 | `JWT_SECRET` | (自动生成) | JWT 签名密钥 |
 | `ADMIN_DEFAULT_PASSWORD` | (随机生成) | 首次运行时默认管理员密码 |
-| `DB_DRIVER` | `sqlite` | 数据库驱动：`sqlite` / `postgres` |
-| `DB_DSN` | — | PostgreSQL 连接串 |
+| `DB_DRIVER` | `sqlite` | 数据库驱动（仅 SQLite） |
 | `DATA_DIR` | `./data` | 数据根目录 |
 | `GIN_MODE` | `debug` | Gin 运行模式 |
 

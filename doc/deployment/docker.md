@@ -52,8 +52,6 @@ docker run -d \
 | `PORT` | `8080` | HTTP 监听端口 |
 | `JWT_SECRET` | (自动生成) | JWT 签名密钥，不设置则自动生成并持久化 |
 | `ADMIN_DEFAULT_PASSWORD` | (随机生成) | 首次启动时的管理员密码 |
-| `DB_DRIVER` | `sqlite` | 数据库驱动，可选 `postgres` |
-| `DB_DSN` | — | PostgreSQL 连接串（仅 postgres 时需要） |
 
 ## 数据持久化
 
@@ -93,41 +91,7 @@ volumes:
 docker compose logs | grep -i "admin password"
 ```
 
-## PostgreSQL 部署
 
-```yaml
-services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: now_and_again
-      POSTGRES_USER: na
-      POSTGRES_PASSWORD: secure_password
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
-
-  server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - DATA_DIR=/data
-      - GIN_MODE=release
-      - DB_DRIVER=postgres
-      - DB_DSN=host=postgres user=na password=secure_password dbname=now_and_again port=5432 sslmode=disable
-    volumes:
-      - data:/data
-    depends_on:
-      - postgres
-    restart: unless-stopped
-
-volumes:
-  data:
-  pgdata:
-```
 
 ## 健康检查
 

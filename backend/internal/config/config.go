@@ -17,8 +17,7 @@ type Config struct {
 }
 
 type DatabaseConfig struct {
-	Driver string // "sqlite" | "postgres"
-	DSN    string
+	DSN string
 }
 
 func Load() (*Config, error) {
@@ -32,13 +31,6 @@ func Load() (*Config, error) {
 	dbDSN := filepath.Join(abs, "now-and-again.db")
 	uploadDir := filepath.Join(abs, "uploads")
 
-	// For non-sqlite drivers (e.g. postgres), allow explicit DSN
-	if envOrDefault("DB_DRIVER", "sqlite") != "sqlite" {
-		if dsn := os.Getenv("DB_DSN"); dsn != "" {
-			dbDSN = dsn
-		}
-	}
-
 	jwtSecret, err := resolveJWTSecret(abs)
 	if err != nil {
 		return nil, fmt.Errorf("resolve jwt secret: %w", err)
@@ -48,8 +40,7 @@ func Load() (*Config, error) {
 		Port:      envOrDefault("PORT", "8080"),
 		JWTSecret: jwtSecret,
 		Database: DatabaseConfig{
-			Driver: envOrDefault("DB_DRIVER", "sqlite"),
-			DSN:    dbDSN,
+			DSN: dbDSN,
 		},
 		UploadDir:       uploadDir,
 		DefaultTimezone: envOrDefault("DEFAULT_TIMEZONE", "Asia/Shanghai"),

@@ -14,7 +14,6 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
@@ -61,16 +60,7 @@ func (l gormZapLogger) Trace(ctx context.Context, begin time.Time, fc func() (st
 }
 
 func NewDB(cfg config.DatabaseConfig) (*gorm.DB, error) {
-	var dialector gorm.Dialector
-
-	switch cfg.Driver {
-	case "sqlite":
-		dialector = sqlite.Open(cfg.DSN)
-	case "postgres":
-		dialector = postgres.Open(cfg.DSN)
-	default:
-		return nil, fmt.Errorf("unsupported database driver: %s", cfg.Driver)
-	}
+	dialector := sqlite.Open(cfg.DSN)
 
 	db, err := gorm.Open(dialector, &gorm.Config{
 		Logger: gormZapLogger{},

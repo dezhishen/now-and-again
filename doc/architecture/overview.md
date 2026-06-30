@@ -7,7 +7,7 @@
 | 前端 | Vue 3 + Vite + TypeScript + Pinia + Tailwind CSS + vue-i18n (pnpm) |
 | 后端 | Go 1.25 + Gin + GORM (github.com/glebarez/sqlite, 纯 Go 无 CGO) |
 | CLI | Go + Cobra，通过 HTTP / API Key 调用后端 |
-| 数据库 | SQLite (默认) / PostgreSQL |
+| 数据库 | SQLite |
 
 ## 分层架构
 
@@ -21,7 +21,7 @@
 ├──────────────────────────────────────────┤
 │  Repository (GORM)                       │
 ├──────────────────────────────────────────┤
-│  SQLite / PostgreSQL                     │
+│  SQLite                                  │
 └──────────────────────────────────────────┘
 
 backend/pkg/ — 公共类型、调度器、插件系统（CLI 直接引用）
