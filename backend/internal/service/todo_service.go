@@ -73,12 +73,17 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 	// Only create log and trigger plugins if the todo was actually pending.
 	// Duplicate completions are silently ignored (idempotent).
 	if updated {
+		// Sync the in-memory todo with the just-persisted fields so OnComplete
+		// receives the remark the user typed.
+		todo.Remark = todoFields.Remark
+		todo.Status = status
+		todo.CompletedBy = userID
+
 		msg := fmt.Sprintf("完成待办: %s", todo.Task.Name)
 		if todoFields.Remark != "" {
 			msg += fmt.Sprintf(" | 备注: %s", todoFields.Remark)
 		}
 		s.repo.CreateUserLog(todo.TaskID, todoID.String(), userID, status, msg)
-		todo.CompletedBy = userID
 		if h := s.taskManager.Get(todo.Task.Kind); h != nil {
 			h.OnComplete(s.taskStorage, todo, req.Extra)
 		}

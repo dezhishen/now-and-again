@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/model"
 	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
@@ -37,6 +36,9 @@ func (h *handler) SaveExtra(taskStorage taskkind.TaskStorage, task *model.TaskMo
 }
 
 func (h *handler) UpdateExtra(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
+	if extra == nil {
+		return nil // field-only update, keep existing extra data
+	}
 	items, err := parseCheckItems(extra)
 	if err != nil {
 		return fmt.Errorf("parse check items: %w", err)
@@ -78,7 +80,9 @@ func (h *handler) UpdateExtra(taskStorage taskkind.TaskStorage, task *model.Task
 					})
 				}
 				// Granular branch diff
-				h.updateBranches(taskStorage, db, checkItemBranchRepo, item.ID, old.Branches, item.Branches, &keptBranchIDs, task)
+				if err := h.updateBranches(taskStorage, db, checkItemBranchRepo, item.ID, old.Branches, item.Branches, &keptBranchIDs, task); err != nil {
+					return fmt.Errorf("update branches for item %s: %w", item.ID, err)
+				}
 				continue
 			}
 		}
@@ -89,7 +93,9 @@ func (h *handler) UpdateExtra(taskStorage taskkind.TaskStorage, task *model.Task
 		}
 		keptItemIDs[ci.ID] = true
 		for j, b := range item.Branches {
-			h.createBranch(taskStorage, checkItemBranchRepo, ci.ID, j, b, task)
+			if err := h.createBranch(taskStorage, checkItemBranchRepo, ci.ID, j, b, task); err != nil {
+				return fmt.Errorf("create branch: %w", err)
+			}
 		}
 	}
 
@@ -121,7 +127,7 @@ func (h *handler) updateBranches(
 	newBranches []types.CheckItemBranchDTO,
 	keptBranchIDs *map[string]bool,
 	parentTask *model.TaskModel,
-) {
+) error {
 	oldMap := make(map[string]CheckItemBranchModel, len(oldBranches))
 	for _, ob := range oldBranches {
 		oldMap[ob.ID] = ob
@@ -136,8 +142,12 @@ func (h *handler) updateBranches(
 				// Handle child task: create/update/delete based on create_todo
 				if nb.CreateTodo && nb.BranchTask != nil && nb.BranchTask.Task != nil && nb.BranchTask.Task.Name != "" {
 					if branchTaskID != "" {
-						// Update existing child task
-						h.updateChildTask(taskStorage, branchTaskID, nb.BranchTask)
+						// Update existing child task (may delete+recreate if kind changed)
+						newID, err := h.updateChildTask(taskStorage, branchTaskID, nb.BranchTask)
+						if err != nil {
+							return err
+						}
+						branchTaskID = newID
 					} else {
 						// Create new child task
 						branchTaskID = h.createChildTask(taskStorage, nb.BranchTask, parentTask)
@@ -158,7 +168,9 @@ func (h *handler) updateBranches(
 			}
 		}
 		// New branch → create
-		h.createBranch(taskStorage, branchRepo, itemID, j, nb, parentTask)
+		if err := h.createBranch(taskStorage, branchRepo, itemID, j, nb, parentTask); err != nil {
+			return err
+		}
 	}
 
 	// Delete old branches not in new data
@@ -171,10 +183,12 @@ func (h *handler) updateBranches(
 		}
 		branchRepo.DeleteCheckItemBranch(ob.ID)
 	}
+	return nil
 }
 
 // createBranch creates a new branch (and its child task if create_todo).
-func (h *handler) createBranch(taskStorage taskkind.TaskStorage, branchRepo *CheckItemBranchRepo, itemID string, sortOrder int, b types.CheckItemBranchDTO, parentTask *model.TaskModel) {
+// Returns error so callers can detect DB failures instead of silently losing data.
+func (h *handler) createBranch(taskStorage taskkind.TaskStorage, branchRepo *CheckItemBranchRepo, itemID string, sortOrder int, b types.CheckItemBranchDTO, parentTask *model.TaskModel) error {
 	branch := &CheckItemBranchModel{
 		CheckItemID: itemID,
 		Name:        b.Name,
@@ -184,7 +198,7 @@ func (h *handler) createBranch(taskStorage taskkind.TaskStorage, branchRepo *Che
 	if b.CreateTodo && b.BranchTask != nil && b.BranchTask.Task != nil && b.BranchTask.Task.Name != "" {
 		branch.BranchTaskID = h.createChildTask(taskStorage, b.BranchTask, parentTask)
 	}
-	branchRepo.CreateCheckItemBranch(branch)
+	return branchRepo.CreateCheckItemBranch(branch)
 }
 
 // createChildTask creates a non-root task and returns its ID.
@@ -215,12 +229,32 @@ func (h *handler) createChildTask(taskStorage taskkind.TaskStorage, bt *types.Ta
 	return child.ID
 }
 
-// updateChildTask updates an existing child task's fields.
-func (h *handler) updateChildTask(taskStorage taskkind.TaskStorage, taskID string, bt *types.TaskWithExtra) {
+// updateChildTask updates an existing child task. If the task kind changed,
+// it deletes the old task and creates a new one so the new kind's SaveExtra runs.
+func (h *handler) updateChildTask(taskStorage taskkind.TaskStorage, taskID string, bt *types.TaskWithExtra) (string, error) {
 	child, err := taskStorage.FindTaskByID(taskID)
 	if err != nil || child == nil {
-		return
+		return "", err
 	}
+
+	newKind := bt.Task.Kind
+	if newKind == "" {
+		newKind = "simple"
+	}
+
+	// Kind changed → delete old and create new to trigger proper lifecycle
+	if child.Kind != newKind {
+		if err := taskStorage.DeleteNonRootTask(taskID); err != nil {
+			return "", fmt.Errorf("delete old child task: %w", err)
+		}
+		parent, _ := taskStorage.FindTaskByID(child.ParentTaskID)
+		if parent == nil {
+			parent = &model.TaskModel{FamilyID: child.FamilyID, RootTaskID: child.RootTaskID}
+		}
+		return h.createChildTask(taskStorage, bt, parent), nil
+	}
+
+	// Same kind — field update with extra data
 	if bt.Task.Name != "" {
 		child.Name = bt.Task.Name
 	}
@@ -237,11 +271,11 @@ func (h *handler) updateChildTask(taskStorage taskkind.TaskStorage, taskID strin
 	if bt.Task.LocationID != "" {
 		child.LocationID = bt.Task.LocationID
 	}
-	if bt.Task.Kind != "" {
-		child.Kind = bt.Task.Kind
-	}
 	child.Enabled = true
-	taskStorage.UpdateNoRootTask(child)
+	if err := taskStorage.UpdateNoRootTask(child, bt.Extra); err != nil {
+		return "", fmt.Errorf("update child task: %w", err)
+	}
+	return taskID, nil
 }
 
 func (h *handler) DeleteExtra(taskStorage taskkind.TaskStorage, task *model.TaskModel) error {
@@ -499,21 +533,12 @@ func (h *handler) ensureBranchTask(taskStorage taskkind.TaskStorage, todo *model
 	if err != nil || branchTask == nil {
 		return
 	}
-	now := time.Now()
-	db := taskStorage.DB()
-	branchTodo := &model.TodoModel{
-		TaskID:     branchTask.ID,
-		FamilyID:   branchTask.FamilyID,
-		LocationID: branchTask.LocationID,
-		DueStart:   now,
-		DueDate:    now.Add(24 * time.Hour),
-		Status:     "pending",
-	}
-	if err := db.Create(branchTodo).Error; err != nil {
+	branchTodo, err := taskStorage.CreateTodo(branchTask.ID, "")
+	if err != nil {
 		return
 	}
 	// Log the auto-generated branch todo so it appears in task logs.
-	db.Create(&model.TaskLogModel{
+	taskStorage.DB().Create(&model.TaskLogModel{
 		TaskID:  branchTask.ID,
 		TodoID:  branchTodo.ID,
 		Status:  "generated",

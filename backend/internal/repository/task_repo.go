@@ -94,6 +94,14 @@ func (r *TaskRepo) CreateTodo(todo *TodoModel) error {
 	return r.db.Create(todo).Error
 }
 
+// FindLastCompletedTodo returns the most recently completed (done/skipped) todo for a task.
+func (r *TaskRepo) FindLastCompletedTodo(taskID string) (*TodoModel, error) {
+	var t TodoModel
+	err := r.db.Where("task_id = ? AND status IN ?", taskID, []string{"done", "skipped"}).
+		Order("completed_at DESC").First(&t).Error
+	return &t, err
+}
+
 func (r *TaskRepo) FindTodoByID(id string) (*TodoModel, error) {
 	var t TodoModel
 	err := r.db.Preload("Task").Preload("User").Where("id = ?", id).First(&t).Error

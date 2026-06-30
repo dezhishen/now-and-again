@@ -15,6 +15,7 @@ const selections = ref<Record<string, { item_id: string; item_name: string; bran
 const loading = ref(false)
 const submiting = ref(false)
 const fullTask = ref<any>(null)
+const remark = ref('')
 
 async function openInspect() {
   showModal.value = true
@@ -39,7 +40,7 @@ async function submit() {
   submiting.value = true
   try {
     await api.put('/todos/' + props.todo.id, {
-      todo: { status: 'done' },
+      todo: { status: 'done', remark: remark.value },
       extra: { selections: sels, display_summary: displaySummary },
     })
     showModal.value = false
@@ -67,6 +68,10 @@ async function submit() {
           v-model:task="fullTask"
           v-model:selections="selections"
         />
+        <div class="px-4 pb-3">
+          <label class="block text-xs text-gray-400 mb-1">备注（可选）</label>
+          <input v-model="remark" class="input" placeholder="完成备注..." />
+        </div>
         <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">
           <button class="btn-primary text-sm flex-1" :disabled="submiting" @click="submit">
             {{ submiting ? t('todo.submitting') : t('todo.submitInspect') }}

@@ -240,6 +240,7 @@ export default {
   taskCard: {
     simpleKind: '任务',
     inspectKind: '巡检',
+    chainKind: '任务链',
     compositeKind: '组合',
     edit: '编辑',
     logs: '日志',
@@ -257,9 +258,11 @@ export default {
     simple: '任务',
     inspect: '巡检',
     inspection: '巡检',
+    chain: '任务链',
     composite: '组合任务',
     create: '创建任务',
     createInspect: '创建巡检',
+    createChain: '创建任务链',
     createComposite: '创建组合任务',
   },
   schedule: {

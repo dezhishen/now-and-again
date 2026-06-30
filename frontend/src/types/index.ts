@@ -210,6 +210,9 @@ export interface Todo {
   assigned_to?: string
   status: 'pending' | 'done' | 'skipped'
   remark?: string
+  display_summary?: string
+  task_name?: string
+  task_kind?: string
   due_start: string
   due_date: string
   completed_at?: string

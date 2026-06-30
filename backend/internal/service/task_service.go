@@ -46,6 +46,10 @@ func newTaskOrchestrator(repo *repository.TaskRepo) *taskOrchestrator {
 	return o
 }
 
+func (s *_taskStorage) DB() *gorm.DB {
+	return s.repo.DB()
+}
+
 func (s *_taskStorage) FindTaskByID(taskID string) (*repository.TaskModel, error) {
 	return s.repo.FindTaskByID(taskID)
 }
@@ -54,7 +58,17 @@ func (s *_taskStorage) FindTaskByParentId(parentID string) (*repository.TaskMode
 	return s.repo.FindTaskByParentId(parentID)
 }
 
-func (s *_taskStorage) UpdateNoRootTask(task *repository.TaskModel) error {
+func (s *_taskStorage) UpdateNoRootTask(task *repository.TaskModel, extra any) error {
+	if err := s.repo.UpdateTask(task); err != nil {
+		return err
+	}
+	if h := s.taskManager.Get(task.Kind); h != nil {
+		return h.UpdateExtra(s, task, extra)
+	}
+	return nil
+}
+
+func (s *_taskStorage) UpdateTaskFields(task *repository.TaskModel) error {
 	return s.repo.UpdateTask(task)
 }
 
@@ -92,8 +106,28 @@ func (s *_taskStorage) DeleteNonRootTask(taskID string) error {
 	return s.repo.DeleteTask(taskID)
 }
 
-func (s *_taskStorage) DB() *gorm.DB {
-	return s.repo.DB()
+func (s *_taskStorage) CreateTodo(taskID string, displaySummary string) (*repository.TodoModel, error) {
+	task, err := s.repo.FindTaskByID(taskID)
+	if err != nil {
+		return nil, err
+	}
+	now := timeutil.Now()
+	todo := &repository.TodoModel{
+		TaskID:         taskID,
+		FamilyID:       task.FamilyID,
+		LocationID:     task.LocationID,
+		AssignedTo:     task.CreatedBy,
+		Status:         "pending",
+		DueStart:       now,
+		DueDate:        now.Add(24 * time.Hour),
+		DisplaySummary: displaySummary,
+		TaskName:       task.Name,
+		TaskKind:       task.Kind,
+	}
+	if err := s.repo.CreateTodo(todo); err != nil {
+		return nil, err
+	}
+	return todo, nil
 }
 
 func NewTaskService(repo *repository.TaskRepo) *TaskService {
@@ -200,13 +234,22 @@ func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID
 		}
 	}
 
+	// Carry forward remark from the previous completed todo as display context.
+	var displaySummary string
+	if last, err := tx.FindLastCompletedTodo(taskID); err == nil && last.Remark != "" {
+		displaySummary = fmt.Sprintf("上期备注：%s", last.Remark)
+	}
+
 	todo := &repository.TodoModel{
-		TaskID:     taskID,
-		FamilyID:   familyID,
-		LocationID: task.LocationID,
-		DueStart:   now,
-		DueDate:    now.Add(window),
-		Status:     "pending",
+		TaskID:         taskID,
+		FamilyID:       familyID,
+		LocationID:     task.LocationID,
+		DueStart:       now,
+		DueDate:        now.Add(window),
+		Status:         "pending",
+		DisplaySummary: displaySummary,
+		TaskName:       task.Name,
+		TaskKind:       task.Kind,
 	}
 	if err := tx.CreateTodo(todo); err != nil {
 		return err

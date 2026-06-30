@@ -14,10 +14,20 @@ type TaskStorage interface {
 	// CreateNoRootTask creates a non-root task AND triggers its SaveExtra handler.
 	// The caller does NOT need to look up the kind handler or call SaveExtra manually.
 	CreateNoRootTask(task *model.TaskModel, extra any) error
-	UpdateNoRootTask(task *model.TaskModel) error
+	// UpdateNoRootTask updates task fields and always triggers the kind's
+	// UpdateExtra handler. nil extra means "clear all extra data".
+	// For field-only updates without extra lifecycle, use UpdateTaskFields.
+	UpdateNoRootTask(task *model.TaskModel, extra any) error
+	// UpdateTaskFields updates task fields WITHOUT triggering any kind handler.
+	// Use for simple field changes (e.g., setting RootTaskID, display_summary).
+	UpdateTaskFields(task *model.TaskModel) error
 	// DeleteNonRootTask deletes a non-root task AND all its descendants,
 	// triggering DeleteExtra for each task in the subtree.
 	DeleteNonRootTask(taskID string) error
+	// CreateTodo creates a pending todo for the given task.
+	// displaySummary is an optional kind-specific context string shown on the todo card.
+	// Returns the created todo so callers can attach logs.
+	CreateTodo(taskID string, displaySummary string) (*model.TodoModel, error)
 	DB() *gorm.DB
 }
 

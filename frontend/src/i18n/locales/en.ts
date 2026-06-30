@@ -227,6 +227,7 @@ export default {
   taskCard: {
     simpleKind: 'Task',
     inspectKind: 'Inspect',
+    chainKind: 'Chain',
     compositeKind: 'Composite',
     edit: 'Edit',
     logs: 'Logs',
@@ -242,9 +243,10 @@ export default {
   },
   taskKind: {
     simple: 'Task',
-    inspect: 'Inspection',    inspection: 'Inspection',    composite: 'Composite Task',
+    inspect: 'Inspection',    inspection: 'Inspection',    chain: 'Task Chain',    composite: 'Composite Task',
     create: 'Create Task',
     createInspect: 'Create Inspection',
+    createChain: 'Create Chain',
     createComposite: 'Create Composite Task',
   },
   schedule: {

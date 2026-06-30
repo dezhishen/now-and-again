@@ -222,18 +222,21 @@ func (TaskModel) TableName() string { return "tasks" }
 
 type TodoModel struct {
 	BaseModel
-	TaskID      string    `gorm:"index;type:char(36);not null"`
-	FamilyID    string    `gorm:"index;type:char(36);not null"`
-	LocationID  string    `gorm:"index;type:char(36)"`
-	AssignedTo  string    `gorm:"index;type:char(36)"`
-	Status      string    `gorm:"index;size:16;not null;default:pending"` // pending/done/skipped
-	Remark      string    `gorm:"type:text"`                              // user note on completion
-	DueStart    time.Time `gorm:"not null"`
-	DueDate     time.Time `gorm:"not null"`
-	CompletedAt *time.Time
-	CompletedBy string    `gorm:"type:char(36)"`
-	Task        TaskModel `gorm:"foreignKey:TaskID"`
-	User        UserModel `gorm:"foreignKey:AssignedTo"`
+	TaskID         string    `gorm:"index;type:char(36);not null"`
+	FamilyID       string    `gorm:"index;type:char(36);not null"`
+	LocationID     string    `gorm:"index;type:char(36)"`
+	AssignedTo     string    `gorm:"index;type:char(36)"`
+	Status         string    `gorm:"index;size:16;not null;default:pending"` // pending/done/skipped
+	Remark         string    `gorm:"type:text"`                              // user note on completion
+	DisplaySummary string    `gorm:"size:256"`                               // kind-specific display text for todo cards
+	TaskName       string    `gorm:"size:128"`                               // redundant: survives task deletion
+	TaskKind       string    `gorm:"size:16"`                                // redundant: survives task deletion
+	DueStart       time.Time `gorm:"not null"`
+	DueDate        time.Time `gorm:"not null"`
+	CompletedAt    *time.Time
+	CompletedBy    string    `gorm:"type:char(36)"`
+	Task           TaskModel `gorm:"foreignKey:TaskID"`
+	User           UserModel `gorm:"foreignKey:AssignedTo"`
 }
 
 func (TodoModel) TableName() string { return "todos" }

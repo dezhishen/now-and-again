@@ -156,10 +156,10 @@ onMounted(() => { loadAll() })
         >
           <!-- Header: name + kind badge -->
           <div class="flex items-start justify-between gap-2">
-            <p class="font-medium dark:text-gray-200 text-sm leading-snug line-clamp-2">{{ todo.task?.name || todo.task_id }}</p>
-            <span v-if="getTodoBadgeKey(todo.task?.kind || '')"
+            <p class="font-medium dark:text-gray-200 text-sm leading-snug line-clamp-2">{{ todo.task?.name || todo.task_name || todo.task_id }}</p>
+            <span v-if="getTodoBadgeKey(todo.task?.kind || todo.task_kind || '')"
               class="text-[10px] px-1 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 font-medium"
-            >{{ td(getTodoBadgeKey(todo.task?.kind || '')) }}</span>
+            >{{ td(getTodoBadgeKey(todo.task?.kind || todo.task_kind || '')) }}</span>
           </div>
 
           <!-- Meta info -->
@@ -167,6 +167,11 @@ onMounted(() => { loadAll() })
             <p class="text-xs text-gray-400 flex items-center gap-1">
               <span>🕐</span>
               <span>{{ fmtRange(todo.due_start, todo.due_date) }}</span>
+            </p>
+            <!-- Todo-level display_summary (e.g., previous remark carry-over) -->
+            <p v-if="todo.display_summary" class="text-xs text-blue-400 flex items-center gap-1">
+              <span>💬</span>
+              <span>{{ todo.display_summary }}</span>
             </p>
             <component
               :is="getTodoInfo(todo.task?.kind || '')"
@@ -176,6 +181,9 @@ onMounted(() => { loadAll() })
             <p v-if="todo.location_id && getLocName(todo.location_id)" class="text-xs text-primary flex items-center gap-1">
               <span>📍</span>
               <span>{{ getLocName(todo.location_id) }}</span>
+            </p>
+            <p v-if="todo.status !== 'pending' && todo.remark" class="text-xs text-gray-400 dark:text-gray-500 italic line-clamp-2">
+              💬 {{ todo.remark }}
             </p>
           </div>
 
