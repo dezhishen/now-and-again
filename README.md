@@ -213,8 +213,6 @@ cd cli && go run .
 | `NA_FAMILY_DEFAULTS_INIT` | `true` | 新建家庭是否自动初始化地点/小组 |
 | `GIN_MODE` | `debug` | Gin 运行模式 |
 
-> 所有环境变量均支持旧名（去掉 `NA_` 前缀）作为兼容，建议使用新命名。
-
 ---
 
 ## 📚 文档索引

@@ -12,7 +12,7 @@ import (
 
 // ── Env control ───────────────────────────────────────────────────
 
-// NA_FAMILY_DEFAULTS_INIT / FAMILY_DEFAULTS_INIT: set to "false" or "0" to skip.
+// NA_FAMILY_DEFAULTS_INIT: set to "false" or "0" to skip.
 func familyDefaultsEnabled() bool {
 	v := os.Getenv("NA_FAMILY_DEFAULTS_INIT")
 	if v == "" {
