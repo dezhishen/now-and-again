@@ -94,7 +94,7 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 	// Only create log and trigger plugins if the todo was actually pending.
 	// Duplicate completions are silently ignored (idempotent).
 	if updated {
-		// Sync the in-memory todo with the just-persisted fields so OnComplete
+		// Sync the in-memory todo with the just-persisted fields so OnTodo
 		// receives the remark the user typed.
 		todo.Remark = sql.NullString{String: todoFields.Remark, Valid: todoFields.Remark != ""}
 		todo.Status = status
@@ -110,7 +110,7 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 		}
 		s.repo.CreateUserLog(todo.TaskID, todoID.String(), userID, status, msg)
 		if h := s.taskManager.Get(todo.Task.Kind); h != nil {
-			h.OnComplete(s.taskStorage, todo, req.Extra)
+			h.OnTodo(s.taskStorage, todo, req.Extra)
 		}
 
 		// Notify scheduler: handler decides if this is a terminal event

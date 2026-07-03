@@ -32,7 +32,7 @@ type Handler interface {
     SaveExtra(taskStorage TaskStorage, task *model.TaskModel, extra any) error
     UpdateExtra(taskStorage TaskStorage, task *model.TaskModel, extra any) error
     DeleteExtra(taskStorage TaskStorage, task *model.TaskModel) error
-    OnComplete(taskStorage TaskStorage, todo *model.TodoModel, extra any) error
+    OnTodo(taskStorage TaskStorage, todo *model.TodoModel, extra any) error
     GetExtra(taskStorage TaskStorage, task *model.TaskModel) (any, error)
 }
 ```
@@ -93,7 +93,7 @@ export interface TaskKindDef {
   todoActions: Component                   // REQUIRED — action buttons on todo card
   labelKey: I18nKey                        // REQUIRED — kind label i18n key (e.g. 'taskKind.simple')
   createLabelKey: I18nKey                  // REQUIRED — create-button label i18n key (e.g. 'taskKind.create')
-  inspectComponent?: Component             // optional — modal content for complex OnComplete
+  inspectComponent?: Component             // optional — modal content for complex OnTodo
   todoInfo?: Component                     // optional — extra info row below todo name
   formComponent?: Component                // optional — kind-specific form fields (v-model bound)
   todoBadgeKey?: I18nKey                   // optional — short badge label on todo card
@@ -118,7 +118,7 @@ Ask the user:
 3. **Extra data?** Does this kind have kind-specific data beyond the common task fields?
    - No extra data → follow the `simple` pattern (all handler methods return nil)
    - Has extra data → follow the `inspection` pattern
-4. **Complex OnComplete?** Does completing a todo need extra user input (like inspection selections)?
+4. **Complex OnTodo?** Does completing a todo need extra user input (like inspection selections)?
    - Simple → just "done" / "skip" / "remark" buttons
    - Complex → needs a modal workflow with `inspectComponent`
 5. **Kind-specific form fields?** Does the create/edit form need extra fields?
@@ -150,7 +150,7 @@ func (handler) Kind() string { return "<kind>" }
 func (handler) SaveExtra(_ taskkind.TaskStorage, _ *model.TaskModel, _ any) error { return nil }
 func (handler) UpdateExtra(_ taskkind.TaskStorage, _ *model.TaskModel, _ any) error { return nil }
 func (handler) DeleteExtra(_ taskkind.TaskStorage, _ *model.TaskModel) error { return nil }
-func (handler) OnComplete(_ taskkind.TaskStorage, _ *model.TodoModel, _ any) error { return nil }
+func (handler) OnTodo(_ taskkind.TaskStorage, _ *model.TodoModel, _ any) error { return nil }
 func (handler) GetExtra(_ taskkind.TaskStorage, _ *model.TaskModel) (any, error) { return nil, nil }
 ```
 
@@ -312,7 +312,7 @@ import <Kind>TodoActions from '@/components/tasks/kinds/<kind>/<Kind>TodoActions
 For complex kinds with extra data, add:
 ```typescript
     formComponent: <Kind>Form,           // v-model bound form fields
-    inspectComponent: <Kind>Inspect,     // OnComplete modal content
+    inspectComponent: <Kind>Inspect,     // OnTodo modal content
     todoInfo: <Kind>TodoInfo,            // extra info on todo card
     todoBadgeKey: 'taskKind.<kind>',
     buildDisplaySummary({ extra }) { ... },
@@ -357,7 +357,7 @@ cd frontend && npx vue-tsc --noEmit && npx vite build
 | 5 | `frontend/src/components/tasks/kinds/<kind>/<Kind>TaskBody.vue` | Task card (fixed height, ribbon badge) |
 | 6 | `frontend/src/components/tasks/kinds/<kind>/<Kind>TodoActions.vue` | Todo action buttons |
 | 7 | `frontend/src/components/tasks/kinds/<kind>/<Kind>TodoInfo.vue` | (opt) Extra info on todo card |
-| 8 | `frontend/src/components/tasks/kinds/<kind>/<Kind>Inspect.vue` | (opt) OnComplete modal content |
+| 8 | `frontend/src/components/tasks/kinds/<kind>/<Kind>Inspect.vue` | (opt) OnTodo modal content |
 | 9 | `frontend/src/components/tasks/kinds/<kind>/<Kind>Form.vue` | (opt) Create/edit form fields |
 | 10 | `frontend/src/components/tasks/init.ts` | registerTaskKind call |
 | 11 | `frontend/src/i18n/locales/zh-CN.ts` | i18n keys |
@@ -387,7 +387,7 @@ All of the above, plus:
 |------|--------|
 | `backend/pkg/taskkind/<kind>/models.go` | CREATE (if needed) — GORM models + model.RegisterModel() |
 | `backend/pkg/taskkind/<kind>/repo.go` | CREATE (if needed) — kind-specific repositories |
-| `frontend/src/components/tasks/kinds/<kind>/<Kind>Inspect.vue` | CREATE (if complex OnComplete) |
+| `frontend/src/components/tasks/kinds/<kind>/<Kind>Inspect.vue` | CREATE (if complex OnTodo) |
 | `frontend/src/components/tasks/kinds/<kind>/<Kind>TodoInfo.vue` | CREATE (if todo card extra info) |
 | `frontend/src/components/tasks/kinds/<kind>/<Kind>Form.vue` | CREATE (if kind-specific form fields) |
 

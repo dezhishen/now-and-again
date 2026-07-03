@@ -307,7 +307,7 @@ func (h *handler) DeleteExtra(taskStorage taskkind.TaskStorage, task *model.Task
 	return nil
 }
 
-func (h *handler) OnComplete(taskStorage taskkind.TaskStorage, todo *model.TodoModel, extra any) error {
+func (h *handler) OnTodo(taskStorage taskkind.TaskStorage, todo *model.TodoModel, extra any) error {
 	selections, err := parseSelections(extra)
 	if err != nil {
 		return fmt.Errorf("parse extra: %w", err)

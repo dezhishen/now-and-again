@@ -26,7 +26,7 @@ func (Handler) DeleteExtra(taskStorage taskkind.TaskStorage, task *model.TaskMod
 	return nil
 }
 
-func (Handler) OnComplete(taskStorage taskkind.TaskStorage, todo *model.TodoModel, extra any) error {
+func (Handler) OnTodo(_ taskkind.TaskStorage, _ *model.TodoModel, _ any) error {
 	return nil
 }
 

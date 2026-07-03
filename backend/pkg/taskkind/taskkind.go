@@ -42,9 +42,9 @@ type Handler interface {
 	SaveExtra(taskStorage TaskStorage, task *model.TaskModel, extra any) error
 	UpdateExtra(taskStorage TaskStorage, task *model.TaskModel, extra any) error
 	DeleteExtra(taskStorage TaskStorage, task *model.TaskModel) error
-	// OnComplete is called when a todo of this kind is completed.
-	// extra carries the kind-specific payload from CompleteTodoRequest.
-	OnComplete(taskStorage TaskStorage, todo *model.TodoModel, extra any) error
+	// OnTodo is called whenever a todo of this kind changes status (done/skipped/interrupted).
+	// Plugins inspect todo.Status internally to decide behavior. extra carries kind-specific payload.
+	OnTodo(taskStorage TaskStorage, todo *model.TodoModel, extra any) error
 	// GetExtra returns kind-specific data for the task detail page.
 	// e.g. for inspection: check_items + children
 	GetExtra(taskStorage TaskStorage, task *model.TaskModel) (any, error)
