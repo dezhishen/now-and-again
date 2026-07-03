@@ -132,19 +132,33 @@ func seedAdminUser(db *gorm.DB) {
 // GitHub repository. Idempotent — skips if the subscription already exists.
 
 func seedDefaultTaskTemplateSubscription(db *gorm.DB) {
-	sub := TaskTemplateSubscriptionModel{
-		ProviderCode:         "http",
-		URL:                  "https://raw.githubusercontent.com/dezhishen/now-and-again/main/templates/daily_inspection.yaml",
-		Name:                 "官方模板",
-		AutoRefresh:          true,
-		RefreshIntervalHours: 24,
-		Enabled:              true,
-		// FamilyID = nil → system-level subscription
+	subs := []struct {
+		url  string
+		name string
+	}{
+		{
+			url:  "https://raw.githubusercontent.com/dezhishen/now-and-again/main/templates/daily_inspection.yaml",
+			name: "官方模板-巡检",
+		},
+		{
+			url:  "https://raw.githubusercontent.com/dezhishen/now-and-again/main/templates/household.yaml",
+			name: "官方模板-家庭事务",
+		},
 	}
-	result := db.Where("provider_code = ? AND url = ?", "http", sub.URL).
-		FirstOrCreate(&sub)
-	if result.RowsAffected > 0 {
-		logger.Infof("seed: created default task template subscription: %s", sub.Name)
+	for _, s := range subs {
+		sub := TaskTemplateSubscriptionModel{
+			ProviderCode:         "http",
+			URL:                  s.url,
+			Name:                 s.name,
+			AutoRefresh:          true,
+			RefreshIntervalHours: 24,
+			Enabled:              true,
+		}
+		result := db.Where("provider_code = ? AND url = ?", "http", sub.URL).
+			FirstOrCreate(&sub)
+		if result.RowsAffected > 0 {
+			logger.Infof("seed: created default task template subscription: %s", sub.Name)
+		}
 	}
 }
 

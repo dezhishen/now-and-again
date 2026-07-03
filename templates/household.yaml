@@ -1,0 +1,203 @@
+version: 1
+provider:
+  code: http
+  name: "官方模板"
+  description: "家庭日常事务模板"
+templates:
+  - code: weekly_cleaning
+    name: "每周大扫除"
+    description: "按区域检查每周清洁情况，不合格生成跟进任务"
+    kind: inspection
+    icon: "🧹"
+    sort_order: 3
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: area_name
+        label: "区域名称"
+        type: string
+        description: "需要打扫的区域"
+        required: true
+        placeholder: "例如：客厅"
+    task_defaults:
+      name: "{{.area_name}} - 每周大扫除"
+      schedule_type: weekly
+      schedule_data:
+        day: 0
+        time: "10:00"
+      enabled: true
+    extra_schema:
+      check_items:
+        - name: "地面清洁"
+          branches:
+            - name: "合格"
+            - name: "不合格"
+              create_todo: true
+              branch_task:
+                task:
+                  name: "{{.area_name}} - 深度地面清洁"
+                  schedule_type: once
+                  kind: simple
+                extra: null
+        - name: "桌面/台面整理"
+          branches:
+            - name: "合格"
+            - name: "不合格"
+              create_todo: true
+              branch_task:
+                task:
+                  name: "{{.area_name}} - 台面整理"
+                  schedule_type: once
+                  kind: simple
+                extra: null
+        - name: "垃圾清理"
+          branches:
+            - name: "已处理"
+            - name: "未处理"
+              create_todo: true
+              branch_task:
+                task:
+                  name: "{{.area_name}} - 清理垃圾"
+                  schedule_type: once
+                  kind: simple
+                extra: null
+
+  - code: pet_care_daily
+    name: "宠物日常护理"
+    description: "每日宠物喂食、换水、清理"
+    kind: simple
+    icon: "🐱"
+    sort_order: 4
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: pet_name
+        label: "宠物名字"
+        type: string
+        description: "宠物的名字或昵称"
+        required: true
+        placeholder: "例如：咪咪"
+      - key: care_items
+        label: "护理项目"
+        type: string
+        description: "需要做的护理项目"
+        required: false
+        placeholder: "例如：喂食、换水、铲猫砂"
+    task_defaults:
+      name: "{{.pet_name}} - 每日护理"
+      schedule_type: daily
+      schedule_data:
+        time: "08:00"
+      enabled: true
+
+  - code: plant_watering
+    name: "绿植浇水"
+    description: "定期给绿植浇水养护"
+    kind: simple
+    icon: "🪴"
+    sort_order: 5
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: plant_area
+        label: "植物区域"
+        type: string
+        description: "需要浇水的区域或植物名称"
+        required: true
+        placeholder: "例如：阳台多肉"
+    task_defaults:
+      name: "{{.plant_area}} - 浇水"
+      schedule_type: interval
+      schedule_data:
+        hours: 72
+      enabled: true
+
+  - code: monthly_bills
+    name: "定期缴费提醒"
+    description: "每月固定缴费项目提醒"
+    kind: simple
+    icon: "💡"
+    sort_order: 6
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: bill_name
+        label: "缴费项目"
+        type: string
+        description: "需要缴费的项目名称"
+        required: true
+        placeholder: "例如：电费、水费、物业费"
+    task_defaults:
+      name: "缴纳{{.bill_name}}"
+      schedule_type: monthly
+      schedule_data:
+        day: 1
+        time: "09:00"
+      enabled: true
+
+  - code: bedding_change
+    name: "换洗床品"
+    description: "定期更换和清洗床单被套"
+    kind: simple
+    icon: "🛏️"
+    sort_order: 7
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: room_name
+        label: "房间"
+        type: string
+        description: "需要换洗的房间"
+        required: true
+        placeholder: "例如：主卧、次卧"
+    task_defaults:
+      name: "{{.room_name}} - 换洗床品"
+      schedule_type: interval
+      schedule_data:
+        hours: 336
+      enabled: true
+
+  - code: fridge_cleanup
+    name: "冰箱清理"
+    description: "定期清理冰箱过期食品和异味"
+    kind: simple
+    icon: "🧊"
+    sort_order: 8
+    enabled: true
+    version: "1.0.0"
+    task_defaults:
+      name: "冰箱清理"
+      schedule_type: weekly
+      schedule_data:
+        day: 6
+        time: "14:00"
+      enabled: true
+
+  - code: trash_sorting
+    name: "垃圾分类投放"
+    description: "按时投放分类垃圾"
+    kind: simple
+    icon: "🗑️"
+    sort_order: 9
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: trash_type
+        label: "垃圾类型"
+        type: select
+        description: "需要投放的垃圾类型"
+        required: true
+        default: "厨余"
+        options:
+          - label: "厨余垃圾"
+            value: "厨余"
+          - label: "可回收物"
+            value: "可回收"
+          - label: "其他垃圾"
+            value: "其他"
+    task_defaults:
+      name: "投放{{.trash_type}}垃圾"
+      schedule_type: daily
+      schedule_data:
+        time: "19:00"
+      enabled: true
