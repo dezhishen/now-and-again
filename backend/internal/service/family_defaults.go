@@ -2,6 +2,7 @@ package service
 
 import (
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -9,7 +10,15 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/logger"
 )
 
-// ── Config (loaded from YAML at startup) ──────────────────────────
+// ── Env control ───────────────────────────────────────────────────
+
+// FAMILY_DEFAULTS_INIT: set to "false" or "0" to skip default initialization.
+func familyDefaultsEnabled() bool {
+	v := strings.ToLower(os.Getenv("FAMILY_DEFAULTS_INIT"))
+	return v == "" || v == "1" || v == "true"
+}
+
+// ── Config (loaded at startup, consumed by InitFamilyDefaults) ─────
 
 type familyDefaultsConfig struct {
 	Locations []struct {
@@ -70,8 +79,13 @@ func LoadFamilyDefaults(path string) {
 }
 
 // InitFamilyDefaults creates default locations and groups for a newly created family.
-// Errors are logged but not returned — default creation failure should not block family creation.
+// Controlled by FAMILY_DEFAULTS_INIT env var (default: enabled).
+// Errors are logged but not returned.
 func InitFamilyDefaults(familyRepo *repository.FamilyRepo, floorPlanRepo *repository.FloorPlanRepo, familyID, userID string) {
+	if !familyDefaultsEnabled() {
+		logger.Infof("[family-defaults] disabled via FAMILY_DEFAULTS_INIT, skipping")
+		return
+	}
 	for _, loc := range familyDefaults.Locations {
 		l := &repository.LocationModel{
 			FamilyID: familyID,
