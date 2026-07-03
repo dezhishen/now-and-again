@@ -82,11 +82,11 @@ func LoadFamilyDefaults(path string) {
 }
 
 // InitFamilyDefaults creates default locations and groups for a newly created family.
-// Controlled by FAMILY_DEFAULTS_INIT env var (default: enabled).
+// Controlled by NA_FAMILY_DEFAULTS_INIT env var (default: enabled).
 // Errors are logged but not returned.
 func InitFamilyDefaults(familyRepo *repository.FamilyRepo, floorPlanRepo *repository.FloorPlanRepo, familyID, userID string) {
 	if !familyDefaultsEnabled() {
-		logger.Infof("[family-defaults] disabled via FAMILY_DEFAULTS_INIT, skipping")
+		logger.Infof("[family-defaults] disabled via NA_FAMILY_DEFAULTS_INIT, skipping")
 		return
 	}
 	for _, loc := range familyDefaults.Locations {

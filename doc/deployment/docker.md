@@ -47,15 +47,15 @@ docker run -d \
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `DATA_DIR` | `/data` | 数据根目录（数据库、上传文件、日志、JWT 密钥） |
+| `NA_DATA_DIR` | `/data` | 数据根目录（数据库、上传文件、日志、JWT 密钥） |
 | `GIN_MODE` | `debug` | 运行模式，生产环境设 `release` |
-| `PORT` | `8080` | HTTP 监听端口 |
-| `JWT_SECRET` | (自动生成) | JWT 签名密钥，不设置则自动生成并持久化 |
-| `ADMIN_DEFAULT_PASSWORD` | (随机生成) | 首次启动时的管理员密码 |
+| `NA_PORT` | `8080` | HTTP 监听端口 |
+| `NA_JWT_SECRET` | (自动生成) | JWT 签名密钥，不设置则自动生成并持久化 |
+| `NA_ADMIN_DEFAULT_PASSWORD` | (随机生成) | 首次启动时的管理员密码 |
 
 ## 数据持久化
 
-所有数据存放在 `DATA_DIR`（默认 `/data`）下：
+所有数据存放在 `NA_DATA_DIR`（默认 `/data`）下：
 
 ```
 /data/
@@ -84,7 +84,7 @@ volumes:
 首次启动时自动创建管理员账户：
 
 - 用户名：`admin`
-- 密码：由 `ADMIN_DEFAULT_PASSWORD` 环境变量设置，未设置则随机生成并打印到容器日志
+- 密码：由 `NA_ADMIN_DEFAULT_PASSWORD` 环境变量设置，未设置则随机生成并打印到容器日志
 
 ```bash
 # 查看生成的密码

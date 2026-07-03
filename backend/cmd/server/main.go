@@ -24,7 +24,7 @@ func main() {
 	// ── Logger (must be first — config.Load may fail and call Fatalf) ─────
 	logDir := filepath.Join(os.Getenv("NA_DATA_DIR"), "logs")
 	if logDir == "logs" || logDir == "/logs" {
-		logDir = filepath.Join("data", "logs") // default when DATA_DIR is empty
+		logDir = filepath.Join("data", "logs") // default when NA_DATA_DIR is empty
 	}
 	if _, err := logger.Init(logDir); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to init logger: %v\n", err)
@@ -46,7 +46,7 @@ func main() {
 	}
 	repository.RunAll(db)
 
-	// Load family defaults (env FAMILY_DEFAULTS_PATH overrides YAML path, FAMILY_DEFAULTS_INIT=false disables)
+	// Load family defaults (env NA_FAMILY_DEFAULTS_PATH overrides YAML path, NA_FAMILY_DEFAULTS_INIT=false disables)
 	defaultsPath := os.Getenv("NA_FAMILY_DEFAULTS_PATH")
 	if defaultsPath == "" {
 		defaultsPath = filepath.Join(cfg.DataDir, "family_defaults.yaml")

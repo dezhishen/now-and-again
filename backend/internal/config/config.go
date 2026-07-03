@@ -51,7 +51,7 @@ func Load() (*Config, error) {
 }
 
 // resolveJWTSecret returns the JWT signing key.
-// Priority: 1) JWT_SECRET env var  2) .jwt_secret file in dataDir  3) auto-generate and persist.
+// Priority: 1) NA_JWT_SECRET env var  2) .jwt_secret file in dataDir  3) auto-generate and persist.
 func resolveJWTSecret(dataDir string) (string, error) {
 	if s := envOrEmpty("JWT_SECRET"); s != "" {
 		return s, nil
