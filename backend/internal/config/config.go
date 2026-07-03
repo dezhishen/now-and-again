@@ -53,7 +53,7 @@ func Load() (*Config, error) {
 // resolveJWTSecret returns the JWT signing key.
 // Priority: 1) JWT_SECRET env var  2) .jwt_secret file in dataDir  3) auto-generate and persist.
 func resolveJWTSecret(dataDir string) (string, error) {
-	if s := os.Getenv("JWT_SECRET"); s != "" {
+	if s := envOrEmpty("JWT_SECRET"); s != "" {
 		return s, nil
 	}
 
@@ -78,10 +78,21 @@ func resolveJWTSecret(dataDir string) (string, error) {
 }
 
 func envOrDefault(key, fallback string) string {
+	// Try NA_ prefix first, then bare key for backward compat
+	if v := os.Getenv("NA_" + key); v != "" {
+		return v
+	}
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return fallback
+}
+
+func envOrEmpty(key string) string {
+	if v := os.Getenv("NA_" + key); v != "" {
+		return v
+	}
+	return os.Getenv(key)
 }
 
 // BaseDir returns the data directory or current directory.

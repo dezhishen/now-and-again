@@ -85,7 +85,10 @@ func seedAdminUser(db *gorm.DB) {
 		return
 	}
 
-	password := os.Getenv("ADMIN_DEFAULT_PASSWORD")
+	password := os.Getenv("NA_ADMIN_DEFAULT_PASSWORD")
+	if password == "" {
+		password = os.Getenv("ADMIN_DEFAULT_PASSWORD") // backward compat
+	}
 	if password == "" {
 		password = randomString(12)
 	}

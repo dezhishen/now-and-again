@@ -12,10 +12,16 @@ import (
 
 // ── Env control ───────────────────────────────────────────────────
 
-// FAMILY_DEFAULTS_INIT: set to "false" or "0" to skip default initialization.
+// NA_FAMILY_DEFAULTS_INIT / FAMILY_DEFAULTS_INIT: set to "false" or "0" to skip.
 func familyDefaultsEnabled() bool {
-	v := strings.ToLower(os.Getenv("FAMILY_DEFAULTS_INIT"))
-	return v == "" || v == "1" || v == "true"
+	v := os.Getenv("NA_FAMILY_DEFAULTS_INIT")
+	if v == "" {
+		v = os.Getenv("FAMILY_DEFAULTS_INIT") // backward compat
+	}
+	if v == "" {
+		return true // default: enabled
+	}
+	return strings.ToLower(v) == "true" || v == "1"
 }
 
 // ── Config (loaded at startup, consumed by InitFamilyDefaults) ─────

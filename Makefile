@@ -27,7 +27,7 @@ dev: ## 并行启动 backend + frontend（Ctrl+C 同时停止，自动清理子�
 	@echo "→ Frontend http://localhost:5173"
 	@trap 'echo "→ 停止子进程..."; kill -TERM -$$BPID -$$FPID 2>/dev/null; wait 2>/dev/null; rm -f .dev/backend.pid .dev/frontend.pid; echo "→ 已停止"' INT TERM EXIT; \
 		set -m; \
-		(cd backend && ADMIN_DEFAULT_PASSWORD=12345678 DATA_DIR=../data go run ./cmd/server) & BPID=$$!; \
+		(cd backend && NA_ADMIN_DEFAULT_PASSWORD=12345678 NA_DATA_DIR=../data go run ./cmd/server) & BPID=$$!; \
 		echo $$BPID > .dev/backend.pid; \
 		(cd frontend && pnpm run dev) & FPID=$$!; \
 		echo $$FPID > .dev/frontend.pid; \
@@ -37,7 +37,7 @@ dev: ## 并行启动 backend + frontend（Ctrl+C 同时停止，自动清理子�
 
 dev-backend: ## 启动后端开发服务器 (:8080)
 	@echo "→ Backend  http://localhost:8080"
-	@cd backend && ADMIN_DEFAULT_PASSWORD=12345678 DATA_DIR=../data go run ./cmd/server
+	@cd backend && NA_ADMIN_DEFAULT_PASSWORD=12345678 NA_DATA_DIR=../data go run ./cmd/server
 
 dev-frontend: ## 启动前端开发服务器 (:5173)
 	@echo "→ Frontend http://localhost:5173"

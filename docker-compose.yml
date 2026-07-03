@@ -4,9 +4,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DATA_DIR=/data
+      - NA_DATA_DIR=/data
       - GIN_MODE=release
-      # JWT_SECRET=    # 可选，不设置则自动生成并持久化到 /data/.jwt_secret
+      # NA_JWT_SECRET=    # 可选，不设置则自动生成并持久化到 /data/.jwt_secret
     volumes:
       - data:/data
     restart: unless-stopped

@@ -204,12 +204,16 @@ cd cli && go run .
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `PORT` | `8080` | 后端 HTTP 监听端口 |
-| `JWT_SECRET` | (自动生成) | JWT 签名密钥 |
-| `ADMIN_DEFAULT_PASSWORD` | (随机生成) | 首次运行时默认管理员密码 |
-| `DB_DRIVER` | `sqlite` | 数据库驱动（仅 SQLite） |
-| `DATA_DIR` | `./data` | 数据根目录 |
+| `NA_PORT` | `8080` | 后端 HTTP 监听端口 |
+| `NA_JWT_SECRET` | (自动生成) | JWT 签名密钥 |
+| `NA_ADMIN_DEFAULT_PASSWORD` | (随机生成) | 首次运行时默认管理员密码 |
+| `NA_DB_DRIVER` | `sqlite` | 数据库驱动（仅 SQLite） |
+| `NA_DATA_DIR` | `./data` | 数据根目录 |
+| `NA_DEFAULT_TIMEZONE` | `Asia/Shanghai` | 默认时区 |
+| `NA_FAMILY_DEFAULTS_INIT` | `true` | 新建家庭是否自动初始化地点/小组 |
 | `GIN_MODE` | `debug` | Gin 运行模式 |
+
+> 所有环境变量均支持旧名（去掉 `NA_` 前缀）作为兼容，建议使用新命名。
 
 ---
 
