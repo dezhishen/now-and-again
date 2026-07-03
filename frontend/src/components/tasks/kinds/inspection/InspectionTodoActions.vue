@@ -9,7 +9,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 const { t } = useI18n()
 
 const props = defineProps<{ todo: Todo }>()
-const emit = defineEmits<{ completed: [] }>()
+const emit = defineEmits<{ completed: []; done: [todo: Todo]; skip: [todo: Todo]; remark: [todo: Todo] }>()
 
 const showModal = ref(false)
 const selections = ref<Record<string, { item_id: string; item_name: string; branch_name: string }>>({})

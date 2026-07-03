@@ -302,6 +302,7 @@ func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types
 		if err := tx.SetRootTaskID(t.ID, t.ID); err != nil {
 			return err
 		}
+		t.RootTaskID = t.ID // sync in-memory so SaveExtra sees the correct root
 		if h := s.taskManager.Get(kind); h != nil {
 			if err := h.SaveExtra(&_taskStorage{repo: tx, taskManager: s.taskManager}, t, req.Extra); err != nil {
 				return err

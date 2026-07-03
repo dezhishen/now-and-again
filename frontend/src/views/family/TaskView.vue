@@ -388,12 +388,19 @@ function scheduleSummary(task: Task): string {
             </div>
             <div v-else-if="logs.length === 0" class="text-center text-gray-400 py-4 text-sm">暂无操作记录</div>
             <template v-else>
+            <!-- Header -->
+            <div class="flex items-center gap-2 py-1.5 text-xs text-gray-400 border-b dark:border-gray-700">
+              <span class="w-32 flex-shrink-0">时间</span>
+              <span class="w-20 flex-shrink-0">任务</span>
+              <span class="w-16 flex-shrink-0">状态</span>
+              <span class="flex-1 min-w-0">内容</span>
+            </div>
             <div v-for="log in logs" :key="log.id" class="flex items-start gap-2 py-1.5 text-sm border-b dark:border-gray-700 last:border-0">
               <span class="text-xs text-gray-400 w-32 flex-shrink-0">{{ new Date(log.created_at).toLocaleString() }}</span>
-              <span v-if="log.task_name" class="text-xs text-primary bg-primary/10 px-1 rounded flex-shrink-0 max-w-[80px] truncate" :title="log.task_name">{{ log.task_name }}</span>
-              <span class="font-medium w-20 flex-shrink-0" :class="LOG_CLASSES[log.status] || 'text-gray-500'">{{ LOG_LABELS[log.status] || log.status }}</span>
-              <span v-if="log.message" class="text-gray-400 truncate flex-1">{{ log.message }}</span>
-              <span v-if="log.log_type === 'system'" class="text-xs text-gray-400">系统</span>
+              <span class="text-xs text-primary bg-primary/10 px-1 rounded flex-shrink-0 w-20 truncate" :title="log.task_name">{{ log.task_name || '' }}</span>
+              <span class="font-medium w-16 flex-shrink-0" :class="LOG_CLASSES[log.status] || 'text-gray-500'">{{ LOG_LABELS[log.status] || log.status }}</span>
+              <span class="text-gray-400 truncate flex-1 min-w-0">{{ log.message || '' }}</span>
+              <span v-if="log.log_type === 'system'" class="text-xs text-gray-400 flex-shrink-0">系统</span>
             </div>
             </template>
           </div>

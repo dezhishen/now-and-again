@@ -212,12 +212,16 @@ func (h *handler) createChildTask(taskStorage taskkind.TaskStorage, bt *types.Ta
 		scheduleType = "once"
 	}
 	dataJSON, _ := json.Marshal(bt.Task.ScheduleData)
+	rootID := parent.RootTaskID
+	if rootID == "" {
+		rootID = parent.ID // legacy: root_task_id not yet backfilled on parent
+	}
 	child := &model.TaskModel{
 		FamilyID:     parent.FamilyID,
 		GroupID:      bt.Task.GroupID,
 		LocationID:   bt.Task.LocationID,
 		ParentTaskID: parent.ID,
-		RootTaskID:   parent.RootTaskID,
+		RootTaskID:   rootID,
 		Name:         bt.Task.Name,
 		ScheduleType: scheduleType,
 		ScheduleData: string(dataJSON),

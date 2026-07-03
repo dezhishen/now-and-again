@@ -5,7 +5,7 @@ import { useI18n } from '@/i18n'
 const { t } = useI18n()
 
 defineProps<{ todo: Todo }>()
-defineEmits<{ done: [todo: Todo]; skip: [todo: Todo]; remark: [todo: Todo] }>()
+defineEmits<{ done: [todo: Todo]; skip: [todo: Todo]; remark: [todo: Todo]; completed: [] }>()
 </script>
 
 <template>

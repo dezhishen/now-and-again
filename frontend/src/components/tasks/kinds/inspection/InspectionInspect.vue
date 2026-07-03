@@ -7,7 +7,24 @@ const model = defineModel<{ task: any; extra: any } | null>('task', { required: 
 /** branch_id → { item_id, item_name, branch_name } */
 const selections = defineModel<Record<string, { item_id: string; item_name: string; branch_name: string }>>('selections', { default: () => ({}) })
 
-function selectBranch(branchId: string, itemId: string, itemName: string, branchName: string) {
+function selectBranch(branchId: string, itemId: string, itemName: string, branchName: string, branches: any[]) {
+  if (isSelected(branchId)) {
+    delete selections.value[branchId]
+    return
+  }
+
+  // Mutual exclusion: "no-todo" branches vs "has-todo" branches within the same item.
+  // e.g. "正常" (create_todo=false) is mutually exclusive with "异常" (create_todo=true).
+  const selCreatesTodo = branches.find((b: any) => (b.id || b.name) === branchId)?.create_todo === true
+  for (const b of branches) {
+    const bid = b.id || b.name
+    if (bid === branchId) continue
+    const bCreatesTodo = b.create_todo === true
+    if (selCreatesTodo !== bCreatesTodo) {
+      delete selections.value[bid]
+    }
+  }
+
   selections.value[branchId] = { item_id: itemId, item_name: itemName, branch_name: branchName }
 }
 
@@ -27,7 +44,7 @@ function isSelected(branchId: string) {
           :class="isSelected(b.id || b.name)
             ? (b.create_todo ? 'bg-red-500 text-white border-red-500' : 'bg-green-500 text-white border-green-500')
             : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-primary'"
-          @click="selectBranch(b.id || b.name, item.id || item.name, item.name, b.name)"
+          @click="selectBranch(b.id || b.name, item.id || item.name, item.name, b.name, item.branches)"
         >{{ b.name }}</button>
       </div>
     </div>
