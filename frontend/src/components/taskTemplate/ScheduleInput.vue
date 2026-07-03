@@ -8,12 +8,14 @@ const scheduleType = defineModel<string>('scheduleType', { default: 'daily' })
 const scheduleTime = defineModel<string>('scheduleTime', { default: '09:00' })
 const scheduleDate = defineModel<string>('scheduleDate', { default: '' })
 const scheduleDays = defineModel<number[]>('scheduleDays', { default: () => [] })
+const scheduleYearDay = defineModel<number>('scheduleYearDay', { default: 1 })
 
 const SCHEDULE_TYPES: { value: string; labelKey: I18nKey }[] = [
   { value: 'once', labelKey: 'schedule.once' },
   { value: 'daily', labelKey: 'schedule.daily' },
   { value: 'weekly', labelKey: 'schedule.weekly' },
   { value: 'monthly', labelKey: 'schedule.monthly' },
+  { value: 'yearly', labelKey: 'schedule.yearly' },
   { value: 'interval', labelKey: 'schedule.interval' },
 ]
 
@@ -44,7 +46,7 @@ function toggleDay(d: number) {
     </div>
     <div v-if="scheduleType !== 'daily' && scheduleType !== 'once'">
       <label class="text-xs text-gray-400 block mb-1">
-        {{ scheduleType === 'weekly' ? '选择星期' : scheduleType === 'monthly' ? '选择日期' : '间隔天数' }}
+        {{ scheduleType === 'weekly' ? '选择星期' : scheduleType === 'monthly' ? '选择日期' : scheduleType === 'yearly' ? '选择月份' : '间隔天数' }}
       </label>
       <div class="flex flex-wrap gap-1">
         <template v-if="scheduleType === 'weekly'">
@@ -58,6 +60,21 @@ function toggleDay(d: number) {
             class="text-xs w-7 h-7 rounded border transition-colors flex items-center justify-center"
             :class="scheduleDays.includes(d) ? 'bg-primary text-white border-primary' : 'border-gray-200 dark:border-gray-600 dark:text-gray-400'"
             @click="toggleDay(d)">{{ d }}</button>
+        </template>
+        <template v-else-if="scheduleType === 'yearly'">
+          <div class="flex flex-wrap gap-1 mb-2">
+            <button v-for="m in 12" :key="m"
+              class="text-xs px-2 py-1 rounded border transition-colors"
+              :class="scheduleDays.includes(m) ? 'bg-primary text-white border-primary' : 'border-gray-200 dark:border-gray-600 dark:text-gray-400'"
+              @click="toggleDay(m)">{{ m }}月</button>
+          </div>
+          <label class="text-xs text-gray-400 block mb-1">选择日期</label>
+          <div class="flex flex-wrap gap-1">
+            <button v-for="d in 31" :key="d"
+              class="text-xs w-7 h-7 rounded border transition-colors flex items-center justify-center"
+              :class="scheduleYearDay === d ? 'bg-primary text-white border-primary' : 'border-gray-200 dark:border-gray-600 dark:text-gray-400'"
+              @click="scheduleYearDay = d">{{ d }}</button>
+          </div>
         </template>
         <template v-else>
           <input type="number" :model-value="scheduleDays[0] || 1" @input="scheduleDays = [$event.target ? Number(($event.target as HTMLInputElement).value) : 1]" class="w-20 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" placeholder="天数" min="1" />

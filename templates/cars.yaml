@@ -1,0 +1,144 @@
+version: 1
+provider:
+  code: http
+  name: "官方模板"
+  description: "汽车养护模板"
+templates:
+  - code: car_maintenance
+    name: "汽车保养"
+    description: "定期汽车保养检查"
+    kind: inspection
+    icon: "🚗"
+    sort_order: 1
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: car_name
+        label: "车辆名称"
+        type: string
+        description: "车辆的名称或车牌号"
+        required: true
+        placeholder: "例如：苏A·12345"
+    task_defaults:
+      name: "{{.car_name}} - 保养检查"
+      schedule_type: interval
+      schedule_data:
+        hours: 4320
+      enabled: true
+    extra_schema:
+      check_items:
+        - name: "机油"
+          branches:
+            - name: "正常"
+            - name: "需更换"
+              create_todo: true
+              branch_task:
+                task:
+                  name: "{{.car_name}} - 更换机油"
+                  schedule_type: once
+                  kind: simple
+                extra: null
+        - name: "轮胎"
+          branches:
+            - name: "正常"
+            - name: "异常"
+              create_todo: true
+              branch_task:
+                task:
+                  name: "{{.car_name}} - 轮胎检修"
+                  schedule_type: once
+                  kind: simple
+                extra: null
+        - name: "刹车片"
+          branches:
+            - name: "正常"
+            - name: "需更换"
+              create_todo: true
+              branch_task:
+                task:
+                  name: "{{.car_name}} - 更换刹车片"
+                  schedule_type: once
+                  kind: simple
+                extra: null
+        - name: "冷却液"
+          branches:
+            - name: "正常"
+            - name: "需补充"
+              create_todo: true
+              branch_task:
+                task:
+                  name: "{{.car_name}} - 补充冷却液"
+                  schedule_type: once
+                  kind: simple
+                extra: null
+
+  - code: car_insurance
+    name: "车险续保"
+    description: "年度车险到期提醒"
+    kind: simple
+    icon: "📋"
+    sort_order: 2
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: car_name
+        label: "车辆名称"
+        type: string
+        description: "车辆的名称或车牌号"
+        required: true
+        placeholder: "例如：苏A·12345"
+    task_defaults:
+      name: "{{.car_name}} - 车险续保"
+      schedule_type: yearly
+      schedule_data:
+        days: [1]
+        day: 1
+        time: "09:00"
+      enabled: true
+
+  - code: car_inspection
+    name: "车辆年检"
+    description: "车辆定期年检提醒"
+    kind: simple
+    icon: "🔍"
+    sort_order: 3
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: car_name
+        label: "车辆名称"
+        type: string
+        description: "车辆的名称或车牌号"
+        required: true
+        placeholder: "例如：苏A·12345"
+    task_defaults:
+      name: "{{.car_name}} - 年检"
+      schedule_type: yearly
+      schedule_data:
+        days: [6]
+        day: 1
+        time: "09:00"
+      enabled: true
+
+  - code: car_wash
+    name: "洗车"
+    description: "定期洗车保持清洁"
+    kind: simple
+    icon: "🧽"
+    sort_order: 4
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: car_name
+        label: "车辆名称"
+        type: string
+        description: "车辆的名称或车牌号"
+        required: true
+        placeholder: "例如：苏A·12345"
+    task_defaults:
+      name: "{{.car_name}} - 洗车"
+      schedule_type: weekly
+      schedule_data:
+        day: 6
+        time: "10:00"
+      enabled: true

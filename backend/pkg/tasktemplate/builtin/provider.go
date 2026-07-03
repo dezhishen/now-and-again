@@ -159,6 +159,11 @@ func (p *Provider) Sync(ctx context.Context, storage tasktemplate.TemplateStorag
 	return nil
 }
 
+// SyncOne is not supported for the builtin provider (no subscriptions).
+func (p *Provider) SyncOne(ctx context.Context, storage tasktemplate.TemplateStorage, subscriptionURL string) error {
+	return fmt.Errorf("builtin: SyncOne not supported, use Sync instead")
+}
+
 // ─── helpers ──────────────────────────────────────────────────────
 
 func parseYAMLDocument(data []byte) (*tasktemplate.TemplateYAMLDocument, error) {

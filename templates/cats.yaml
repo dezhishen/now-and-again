@@ -1,0 +1,107 @@
+version: 1
+provider:
+  code: http
+  name: "官方模板"
+  description: "猫咪护理模板"
+templates:
+  - code: cat_care
+    name: "猫咪日常护理"
+    description: "猫咪喂食、换水、铲猫砂"
+    kind: simple
+    icon: "🐱"
+    sort_order: 1
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: cat_name
+        label: "猫咪名字"
+        type: string
+        description: "猫咪的名字或昵称"
+        required: true
+        placeholder: "例如：咪咪"
+      - key: care_items
+        label: "护理项目"
+        type: array
+        description: "需要做的护理项目，每行一个"
+        required: true
+        placeholder: "喂食\n换水\n铲猫砂"
+    task_defaults:
+      name: "{{.cat_name}} - {{range $i, $c := .care_items}}{{if $i}}-{{end}}{{$c}}{{end}}"
+      schedule_type: daily
+      schedule_data:
+        time: "08:00"
+      enabled: true
+
+  - code: cat_litter
+    name: "猫砂更换"
+    description: "定期更换猫砂，保持卫生"
+    kind: simple
+    icon: "🐱"
+    sort_order: 2
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: cat_name
+        label: "猫咪名字"
+        type: string
+        description: "猫咪的名字或昵称"
+        required: true
+        placeholder: "例如：咪咪"
+    task_defaults:
+      name: "{{.cat_name}} - 更换猫砂"
+      schedule_type: weekly
+      schedule_data:
+        day: 0
+        time: "10:00"
+      enabled: true
+
+  - code: cat_bath
+    name: "猫咪洗澡"
+    description: "定期给猫咪洗澡清洁"
+    kind: simple
+    icon: "🛁"
+    sort_order: 3
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: cat_name
+        label: "猫咪名字"
+        type: string
+        description: "猫咪的名字或昵称"
+        required: true
+        placeholder: "例如：咪咪"
+    task_defaults:
+      name: "{{.cat_name}} - 洗澡"
+      schedule_type: monthly
+      schedule_data:
+        day: 1
+        time: "15:00"
+      enabled: true
+
+  - code: cat_vet
+    name: "猫咪体检/驱虫"
+    description: "定期带猫咪体检或驱虫"
+    kind: simple
+    icon: "🏥"
+    sort_order: 4
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: cat_name
+        label: "猫咪名字"
+        type: string
+        description: "猫咪的名字或昵称"
+        required: true
+        placeholder: "例如：咪咪"
+      - key: check_type
+        label: "检查类型"
+        type: string
+        description: "体检或驱虫等"
+        required: false
+        placeholder: "例如：体内外驱虫"
+    task_defaults:
+      name: "{{.cat_name}} - {{.check_type}}"
+      schedule_type: interval
+      schedule_data:
+        hours: 2160
+      enabled: true

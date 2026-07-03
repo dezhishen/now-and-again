@@ -137,6 +137,7 @@ type TaskTemplateContract interface {
 	CreateSubscription(ctx context.Context, familyID *uuid.UUID, req *types.CreateSubscriptionRequest) (*types.TaskTemplateSubscription, error)
 	UpdateSubscription(ctx context.Context, id string, req *types.UpdateSubscriptionRequest) (*types.TaskTemplateSubscription, error)
 	DeleteSubscription(ctx context.Context, id string) error
+	RefreshSubscription(ctx context.Context, id string) (*types.TaskTemplateSubscription, error)
 }
 
 type AllContracts struct {

@@ -66,6 +66,10 @@ export async function deleteFamilySubscription(id: string): Promise<void> {
   return api.deleteRaw<void>(`/task-template-subscriptions/${encodeURIComponent(id)}`)
 }
 
+export async function refreshFamilySubscription(id: string): Promise<TaskTemplateSubscription> {
+  return api.postRaw<TaskTemplateSubscription>(`/task-template-subscriptions/${encodeURIComponent(id)}/refresh`)
+}
+
 // ─── Subscription management (admin) ──────────────────────────────
 
 export async function listAdminSubscriptions(): Promise<TaskTemplateSubscription[]> {
@@ -82,4 +86,8 @@ export async function updateAdminSubscription(id: string, req: UpdateSubscriptio
 
 export async function deleteAdminSubscription(id: string): Promise<void> {
   return api.deleteRaw<void>(`/admin/task-template-subscriptions/${encodeURIComponent(id)}`)
+}
+
+export async function refreshAdminSubscription(id: string): Promise<TaskTemplateSubscription> {
+  return api.postRaw<TaskTemplateSubscription>(`/admin/task-template-subscriptions/${encodeURIComponent(id)}/refresh`)
 }

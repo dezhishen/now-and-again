@@ -54,6 +54,7 @@ const scheduleType = ref('daily')
 const scheduleTime = ref('09:00')
 const scheduleDate = ref('')
 const scheduleDays = ref<number[]>([])
+const scheduleYearDay = ref(1)
 
 /** Merge standard params into template params (auto-append if not already defined) */
 function mergedParams(tmpl: TaskTemplate | null): TemplateParameter[] {
@@ -118,6 +119,7 @@ async function handleRender() {
     mergedParams['_schedule_time'] = scheduleTime.value
     mergedParams['_schedule_date'] = scheduleDate.value
     mergedParams['_schedule_days'] = scheduleDays.value
+    mergedParams['_schedule_year_day'] = scheduleYearDay.value
     // Parse array params from JSON string → actual array for Go template range
     for (const [key, val] of Object.entries(mergedParams)) {
       if (typeof val === 'string' && val.startsWith('[')) {
@@ -138,7 +140,25 @@ async function handleRender() {
 
 function handleApply() {
   if (!selectedTemplate.value || !rendered.value) return
-  emit('apply', selectedTemplate.value, rendered.value.task_defaults, rendered.value.extra_schema)
+  // Merge user-selected schedule into rendered task_defaults
+  const td = { ...rendered.value.task_defaults }
+  td.schedule_type = scheduleType.value
+  const sd: Record<string, any> = { time: scheduleTime.value }
+  if (scheduleType.value === 'once' && scheduleDate.value) {
+    sd.date = scheduleDate.value
+  }
+  if (scheduleType.value === 'yearly') {
+    sd.day = scheduleYearDay.value
+    sd.days = scheduleDays.value
+  } else if (scheduleDays.value.length > 0) {
+    if (scheduleType.value === 'interval') {
+      sd.days = scheduleDays.value[0] || 1
+    } else {
+      sd.days = scheduleDays.value
+    }
+  }
+  td.schedule_data = sd
+  emit('apply', selectedTemplate.value, td, rendered.value.extra_schema)
 }
 
 function inputType(p: TemplateParameter): string {
@@ -241,6 +261,7 @@ function inputType(p: TemplateParameter): string {
             v-model:schedule-time="scheduleTime"
             v-model:schedule-date="scheduleDate"
             v-model:schedule-days="scheduleDays"
+            v-model:schedule-year-day="scheduleYearDay"
             class="mb-4"
           />
 

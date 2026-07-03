@@ -5,8 +5,8 @@ provider:
   description: "家庭日常事务模板"
 templates:
   - code: weekly_cleaning
-    name: "每周大扫除"
-    description: "按区域检查每周清洁情况，不合格生成跟进任务"
+    name: "日常大扫除"
+    description: "按区域检查清洁情况，不合格生成跟进任务"
     kind: inspection
     icon: "🧹"
     sort_order: 3
@@ -20,7 +20,7 @@ templates:
         required: true
         placeholder: "例如：客厅"
     task_defaults:
-      name: "{{.area_name}} - 每周大扫除"
+      name: "{{.area_name}} - 日常大扫除"
       schedule_type: weekly
       schedule_data:
         day: 0
@@ -62,36 +62,8 @@ templates:
                   kind: simple
                 extra: null
 
-  - code: pet_care_daily
-    name: "宠物日常护理"
-    description: "每日宠物喂食、换水、清理"
-    kind: simple
-    icon: "🐱"
-    sort_order: 4
-    enabled: true
-    version: "1.0.0"
-    parameters:
-      - key: pet_name
-        label: "宠物名字"
-        type: string
-        description: "宠物的名字或昵称"
-        required: true
-        placeholder: "例如：咪咪"
-      - key: care_items
-        label: "护理项目"
-        type: array
-        description: "需要做的护理项目，每行一个"
-        required: true
-        placeholder: "喂食\n换水\n铲猫砂"
-    task_defaults:
-      name: "{{.pet_name}} - {{range $i, $c := .care_items}}{{if $i}}-{{end}}{{$c}}{{end}}"
-      schedule_type: daily
-      schedule_data:
-        time: "08:00"
-      enabled: true
-
   - code: plant_watering
-    name: "绿植浇水"
+    name: "绿植养护"
     description: "定期给绿植浇水养护"
     kind: simple
     icon: "🪴"
@@ -112,9 +84,9 @@ templates:
         hours: 72
       enabled: true
 
-  - code: monthly_bills
-    name: "每月缴费检查"
-    description: "逐项检查每月缴费是否完成，未缴生成提醒"
+  - code: bill_check
+    name: "定期缴费检查"
+    description: "逐项检查缴费是否完成，未缴生成提醒"
     kind: inspection
     icon: "💡"
     sort_order: 6
@@ -127,6 +99,12 @@ templates:
         description: "当前缴费月份"
         required: true
         placeholder: "例如：7月"
+      - key: bill_items
+        label: "缴费项目"
+        type: array
+        description: "需要检查的缴费项目，每行一个"
+        required: true
+        placeholder: "电费\n水费\n燃气费\n物业费\n网费"
     task_defaults:
       name: "{{.bill_month}}缴费检查"
       schedule_type: monthly
@@ -134,63 +112,21 @@ templates:
         day: 1
         time: "09:00"
       enabled: true
-    extra_schema:
+    extra_schema: |
       check_items:
-        - name: "电费"
+      {{range $item := .bill_items}}
+        - name: "{{$item}}"
           branches:
             - name: "已缴"
             - name: "未缴"
               create_todo: true
               branch_task:
                 task:
-                  name: "{{.bill_month}}电费 - 尽快缴纳"
+                  name: "{{$.bill_month}}{{$item}} - 尽快缴纳"
                   schedule_type: once
                   kind: simple
                 extra: null
-        - name: "水费"
-          branches:
-            - name: "已缴"
-            - name: "未缴"
-              create_todo: true
-              branch_task:
-                task:
-                  name: "{{.bill_month}}水费 - 尽快缴纳"
-                  schedule_type: once
-                  kind: simple
-                extra: null
-        - name: "燃气费"
-          branches:
-            - name: "已缴"
-            - name: "未缴"
-              create_todo: true
-              branch_task:
-                task:
-                  name: "{{.bill_month}}燃气费 - 尽快缴纳"
-                  schedule_type: once
-                  kind: simple
-                extra: null
-        - name: "物业费"
-          branches:
-            - name: "已缴"
-            - name: "未缴"
-              create_todo: true
-              branch_task:
-                task:
-                  name: "{{.bill_month}}物业费 - 尽快缴纳"
-                  schedule_type: once
-                  kind: simple
-                extra: null
-        - name: "网费"
-          branches:
-            - name: "已缴"
-            - name: "未缴"
-              create_todo: true
-              branch_task:
-                task:
-                  name: "{{.bill_month}}网费 - 尽快缴纳"
-                  schedule_type: once
-                  kind: simple
-                extra: null
+      {{end}}
 
   - code: bedding_change
     name: "换洗床品"
@@ -231,7 +167,7 @@ templates:
 
   - code: fridge_cleanup
     name: "冰箱清理"
-    description: "定期清理冰箱过期食品和异味"
+    description: "清理冰箱过期食品和异味"
     kind: simple
     icon: "🧊"
     sort_order: 8
@@ -246,7 +182,7 @@ templates:
       enabled: true
 
   - code: trash_sorting
-    name: "垃圾分类投放"
+    name: "垃圾分类"
     description: "按时投放分类垃圾"
     kind: simple
     icon: "🗑️"

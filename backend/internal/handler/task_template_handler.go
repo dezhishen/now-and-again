@@ -277,3 +277,25 @@ func (h *TaskTemplateHandlers) FamilyDeleteSubscription(c *gin.Context) {
 	}
 	ok(c, gin.H{"status": "deleted"})
 }
+
+// FamilyRefreshSubscription triggers a single family-level subscription refresh.
+func (h *TaskTemplateHandlers) FamilyRefreshSubscription(c *gin.Context) {
+	id := c.Param("id")
+	sub, err := h.Svc.RefreshSubscription(userCtx(c), id)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, sub)
+}
+
+// AdminRefreshSubscription triggers a single system-level subscription refresh.
+func (h *TaskTemplateHandlers) AdminRefreshSubscription(c *gin.Context) {
+	id := c.Param("id")
+	sub, err := h.Svc.RefreshSubscription(userCtx(c), id)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, sub)
+}

@@ -34,15 +34,20 @@ defineEmits<{
           <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full" :class="task.enabled ? 'bg-green-500' : 'bg-gray-300'" />
         </div>
         <div class="flex items-center justify-between gap-2 mt-1 h-5">
-          <span class="text-xs text-gray-400 truncate">{{ summary(task) }}</span>
-          <span v-if="task.location_id" class="text-xs px-1.5 py-0.5 rounded flex-shrink-0" :style="{ background: locColor(task.location_id) + '20', color: locColor(task.location_id) }">
+          <span class="text-xs text-gray-400 truncate" :title="summary(task)">{{ summary(task) }}</span>
+          <span v-if="task.location_id" class="text-xs px-1.5 py-0.5 rounded flex-shrink-0 truncate max-w-[120px]" :title="locName(task.location_id)" :style="{ background: locColor(task.location_id) + '20', color: locColor(task.location_id) }">
             📍 {{ locName(task.location_id) }}
           </span>
+          <span v-else class="text-xs px-1.5 py-0.5 rounded flex-shrink-0 invisible">.</span>
         </div>
-        <div v-if="task.group_id" class="flex items-center gap-1 mt-1">
-          <span class="text-xs text-gray-400">👥 {{ groupName(task.group_id) }}</span>
+        <div class="flex items-center gap-1 h-5">
+          <span v-if="task.group_id" class="text-xs text-gray-400 truncate" :title="groupName(task.group_id)">👥 {{ groupName(task.group_id) }}</span>
+          <span v-else class="text-xs invisible">.</span>
         </div>
-        <p v-if="task.display_summary" class="text-xs text-purple-400 mt-1">🔍 {{ task.display_summary }}</p>
+        <p class="text-xs text-purple-400 h-5 truncate" :title="task.display_summary || ''">
+          <template v-if="task.display_summary">🔍 {{ task.display_summary }}</template>
+          <span v-else class="invisible">.</span>
+        </p>
       </div>
     </div>
     <div class="flex gap-1 border-t dark:border-gray-700 pt-2 mt-2">

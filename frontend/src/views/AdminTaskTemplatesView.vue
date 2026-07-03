@@ -10,6 +10,7 @@ import {
   listProviders, refreshSystemProvider,
   listAdminSubscriptions, createAdminSubscription,
   updateAdminSubscription, deleteAdminSubscription,
+  refreshAdminSubscription,
 } from '@/api/task-templates'
 import type { TemplateProvider, TaskTemplateSubscription } from '@/types'
 
@@ -93,6 +94,16 @@ async function handleRefresh(providerCode: string) {
     setError(e)
   } finally {
     refreshing.value = null
+  }
+}
+
+async function handleRefreshSub(sub: TaskTemplateSubscription) {
+  try {
+    await refreshAdminSubscription(sub.id)
+    toast.success(t('taskTemplate.subscription.refreshed'))
+    await loadData()
+  } catch (e: any) {
+    setError(e)
   }
 }
 
@@ -181,6 +192,11 @@ onMounted(() => { loadData() })
             </div>
           </div>
           <div class="flex items-center gap-1 ml-2">
+            <button
+              class="px-2 py-1 text-xs rounded hover:bg-green-50 dark:hover:bg-green-900 text-green-500 transition-colors"
+              :title="t('taskTemplate.subscription.refresh')"
+              @click="handleRefreshSub(sub)"
+            >⟳</button>
             <button
               class="px-2 py-1 text-xs rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
               @click="openEditSub(sub)"

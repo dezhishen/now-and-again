@@ -302,6 +302,36 @@ func (s *TaskTemplateService) DeleteSubscription(ctx context.Context, id string)
 	return s.repo.DeleteSubscription(id)
 }
 
+// RefreshSubscription triggers a single-subscription refresh via the appropriate provider.
+func (s *TaskTemplateService) RefreshSubscription(ctx context.Context, id string) (*types.TaskTemplateSubscription, error) {
+	m, err := s.repo.FindSubscriptionByID(id)
+	if err != nil {
+		return nil, fmt.Errorf("find subscription %s: %w", id, err)
+	}
+
+	p := tasktemplate.GetProvider(m.ProviderCode)
+	if p == nil {
+		return nil, fmt.Errorf("unknown provider: %s", m.ProviderCode)
+	}
+
+	var storage tasktemplate.TemplateStorage = s.repo
+	if m.FamilyID != nil {
+		storage = &familyScopedStorage{inner: s.repo, familyID: *m.FamilyID}
+	}
+
+	if err := p.SyncOne(ctx, storage, m.URL); err != nil {
+		return nil, fmt.Errorf("refresh subscription %s: %w", id, err)
+	}
+
+	// Reload to get updated timestamps.
+	m, err = s.repo.FindSubscriptionByID(id)
+	if err != nil {
+		return nil, fmt.Errorf("reload subscription %s: %w", id, err)
+	}
+	dto := subModelToDTO(m)
+	return &dto, nil
+}
+
 // SyncAll synchronises every registered provider at system level. Called at startup.
 // Individual provider failures are logged but do not stop the remaining providers.
 func (s *TaskTemplateService) SyncAll(ctx context.Context) error {

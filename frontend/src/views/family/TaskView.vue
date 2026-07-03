@@ -53,6 +53,7 @@ const taskSchedule = ref('daily')
 const taskTime = ref('09:00')
 const taskDate = ref('')
 const taskDays = ref<number[]>([])
+const taskYearDay = ref(1)
 const taskGroupID = ref('')
 const taskLocationID = ref('')
 const taskKind = ref('simple')
@@ -70,6 +71,7 @@ const SCHEDULE_TYPES: { value: string; labelKey: I18nKey }[] = [
   { value: 'daily', labelKey: 'schedule.daily' },
   { value: 'weekly', labelKey: 'schedule.weekly' },
   { value: 'monthly', labelKey: 'schedule.monthly' },
+  { value: 'yearly', labelKey: 'schedule.yearly' },
   { value: 'interval', labelKey: 'schedule.interval' },
 ]
 
@@ -125,6 +127,7 @@ function buildScheduleData(): any {
     case 'daily': return { time: taskTime.value }
     case 'weekly': return { days: taskDays.value, time: taskTime.value }
     case 'monthly': return { days: taskDays.value, time: taskTime.value }
+    case 'yearly': return { day: taskYearDay.value, days: taskDays.value, time: taskTime.value }
     case 'interval': return { days: taskDays.value[0] || 1, time: taskTime.value }
   }
 }
@@ -133,7 +136,7 @@ function openCreate(kind?: string) {
   kind = kind || 'simple'
   editingTask.value = null
   taskName.value = ''; taskSchedule.value = 'daily'; taskTime.value = '09:00'
-  taskDate.value = ''; taskDays.value = []; taskGroupID.value = ''; taskLocationID.value = ''
+  taskDate.value = ''; taskDays.value = []; taskYearDay.value = 1; taskGroupID.value = ''; taskLocationID.value = ''
   taskKind.value = kind
   checkItems.value = getDefaultCheckItems(kind) ? [...getDefaultCheckItems(kind)!] : []
   showTaskForm.value = true
@@ -154,11 +157,12 @@ function applyTemplate(tmpl: TaskTemplate, taskDefaults: any, extraSchema: any) 
   // Normalize: templates store singular "day", direct form uses plural "days" array
   if (sd.days) {
     taskDays.value = sd.days
-  } else if (sd.day !== undefined) {
+  } else if (sd.day !== undefined && taskSchedule.value !== 'yearly') {
     taskDays.value = [sd.day]
   } else {
     taskDays.value = []
   }
+  if (sd.day !== undefined) taskYearDay.value = sd.day
 
   // Populate check items from template extra_schema
   if (extraSchema?.check_items) {
@@ -191,6 +195,7 @@ async function openEdit(task: Task) {
   taskTime.value = data.time || '09:00'
   taskDate.value = data.date || ''
   taskDays.value = data.days || []
+  taskYearDay.value = data.day || 1
 }
 
 async function saveTask() {
@@ -323,6 +328,7 @@ function scheduleSummary(task: Task): string {
     case 'daily': return `每天 ${d.time || '09:00'}`
     case 'weekly': return `每周 ${(d.days || []).map((n: number) => WEEKDAYS[n-1] || n).join(',')} ${d.time}`
     case 'monthly': return `每月 ${(d.days || []).join(',')}日 ${d.time}`
+    case 'yearly': return `每年 ${(d.days || []).join(',')}月 ${d.day || 1}日 ${d.time}`
     case 'interval': return `每 ${d.days || 1} 天 ${d.time}`
     default: return task.schedule_type
   }
@@ -469,7 +475,7 @@ function scheduleSummary(task: Task): string {
             </div>
             <div v-if="taskSchedule !== 'daily' && taskSchedule !== 'once'">
               <label class="text-xs text-gray-400 block mb-1">
-                {{ taskSchedule === 'weekly' ? '选择星期' : taskSchedule === 'monthly' ? '选择日期' : '间隔天数' }}
+                {{ taskSchedule === 'weekly' ? '选择星期' : taskSchedule === 'monthly' ? '选择日期' : taskSchedule === 'yearly' ? '选择月份' : '间隔天数' }}
               </label>
               <div class="flex flex-wrap gap-1">
                 <template v-if="taskSchedule === 'weekly'">
@@ -483,6 +489,21 @@ function scheduleSummary(task: Task): string {
                     class="text-xs w-7 h-7 rounded border transition-colors flex items-center justify-center"
                     :class="taskDays.includes(d) ? 'bg-primary text-white border-primary' : 'border-gray-200 dark:border-gray-600 dark:text-gray-400'"
                     @click="toggleDay(d)">{{ d }}</button>
+                </template>
+                <template v-else-if="taskSchedule === 'yearly'">
+                  <div class="flex flex-wrap gap-1 mb-2">
+                    <button v-for="m in 12" :key="m"
+                      class="text-xs px-2 py-1 rounded border transition-colors"
+                      :class="taskDays.includes(m) ? 'bg-primary text-white border-primary' : 'border-gray-200 dark:border-gray-600 dark:text-gray-400'"
+                      @click="toggleDay(m)">{{ m }}月</button>
+                  </div>
+                  <label class="text-xs text-gray-400 block mb-1">选择日期</label>
+                  <div class="flex flex-wrap gap-1">
+                    <button v-for="d in 31" :key="d"
+                      class="text-xs w-7 h-7 rounded border transition-colors flex items-center justify-center"
+                      :class="taskYearDay === d ? 'bg-primary text-white border-primary' : 'border-gray-200 dark:border-gray-600 dark:text-gray-400'"
+                      @click="taskYearDay = d">{{ d }}</button>
+                  </div>
                 </template>
                 <template v-else>
                   <input type="number" v-model.number="taskDays[0]" class="input w-20" placeholder="天数" min="1" />

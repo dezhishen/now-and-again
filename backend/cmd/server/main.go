@@ -141,6 +141,7 @@ func main() {
 	adminAuth.POST("/api/admin/task-template-subscriptions", taskTemplateHandler.AdminCreateSubscription)
 	adminAuth.PUT("/api/admin/task-template-subscriptions/:id", taskTemplateHandler.AdminUpdateSubscription)
 	adminAuth.DELETE("/api/admin/task-template-subscriptions/:id", taskTemplateHandler.AdminDeleteSubscription)
+	adminAuth.POST("/api/admin/task-template-subscriptions/:id/refresh", taskTemplateHandler.AdminRefreshSubscription)
 
 	// Family-owner template CRUD
 	ownerAuth.POST("/api/task-templates", taskTemplateHandler.CreateFamily)
@@ -152,6 +153,7 @@ func main() {
 	ownerAuth.POST("/api/task-template-subscriptions", taskTemplateHandler.FamilyCreateSubscription)
 	ownerAuth.PUT("/api/task-template-subscriptions/:id", taskTemplateHandler.FamilyUpdateSubscription)
 	ownerAuth.DELETE("/api/task-template-subscriptions/:id", taskTemplateHandler.FamilyDeleteSubscription)
+	ownerAuth.POST("/api/task-template-subscriptions/:id/refresh", taskTemplateHandler.FamilyRefreshSubscription)
 
 	// ── Frontend SPA ───────────────────────────────────────────
 	webui.Serve(router)

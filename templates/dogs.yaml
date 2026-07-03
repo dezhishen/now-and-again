@@ -1,0 +1,106 @@
+version: 1
+provider:
+  code: http
+  name: "官方模板"
+  description: "狗狗护理模板"
+templates:
+  - code: dog_care
+    name: "狗狗日常护理"
+    description: "狗狗喂食、遛狗、换水"
+    kind: simple
+    icon: "🐕"
+    sort_order: 1
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: dog_name
+        label: "狗狗名字"
+        type: string
+        description: "狗狗的名字或昵称"
+        required: true
+        placeholder: "例如：旺财"
+      - key: care_items
+        label: "护理项目"
+        type: array
+        description: "需要做的护理项目，每行一个"
+        required: true
+        placeholder: "喂食\n遛狗\n换水"
+    task_defaults:
+      name: "{{.dog_name}} - {{range $i, $c := .care_items}}{{if $i}}-{{end}}{{$c}}{{end}}"
+      schedule_type: daily
+      schedule_data:
+        time: "07:00"
+      enabled: true
+
+  - code: dog_walk
+    name: "遛狗"
+    description: "每日遛狗活动"
+    kind: simple
+    icon: "🦮"
+    sort_order: 2
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: dog_name
+        label: "狗狗名字"
+        type: string
+        description: "狗狗的名字或昵称"
+        required: true
+        placeholder: "例如：旺财"
+    task_defaults:
+      name: "{{.dog_name}} - 遛狗"
+      schedule_type: daily
+      schedule_data:
+        time: "07:30"
+      enabled: true
+
+  - code: dog_bath
+    name: "狗狗洗澡"
+    description: "定期给狗狗洗澡清洁"
+    kind: simple
+    icon: "🛁"
+    sort_order: 3
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: dog_name
+        label: "狗狗名字"
+        type: string
+        description: "狗狗的名字或昵称"
+        required: true
+        placeholder: "例如：旺财"
+    task_defaults:
+      name: "{{.dog_name}} - 洗澡"
+      schedule_type: weekly
+      schedule_data:
+        day: 6
+        time: "15:00"
+      enabled: true
+
+  - code: dog_vet
+    name: "狗狗体检/驱虫"
+    description: "定期带狗狗体检或驱虫"
+    kind: simple
+    icon: "🏥"
+    sort_order: 4
+    enabled: true
+    version: "1.0.0"
+    parameters:
+      - key: dog_name
+        label: "狗狗名字"
+        type: string
+        description: "狗狗的名字或昵称"
+        required: true
+        placeholder: "例如：旺财"
+      - key: check_type
+        label: "检查类型"
+        type: string
+        description: "体检或驱虫等"
+        required: false
+        placeholder: "例如：体内外驱虫"
+    task_defaults:
+      name: "{{.dog_name}} - {{.check_type}}"
+      schedule_type: interval
+      schedule_data:
+        hours: 2160
+      enabled: true

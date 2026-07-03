@@ -165,26 +165,34 @@ onMounted(() => { loadAll() })
 
           <!-- Meta info -->
           <div class="space-y-0.5">
-            <p class="text-xs text-gray-400 flex items-center gap-1">
-              <span>🕐</span>
-              <span>{{ fmtRange(todo.due_start, todo.due_date) }}</span>
+            <p class="text-xs text-gray-400 flex items-center gap-1 h-5">
+              <span class="flex-shrink-0">🕐</span>
+              <span class="truncate" :title="fmtRange(todo.due_start, todo.due_date)">{{ fmtRange(todo.due_start, todo.due_date) }}</span>
             </p>
             <!-- System-generated context (carry-over from previous cycle) -->
-            <p v-if="todo.display_summary" class="text-xs text-blue-400 flex items-center gap-1">
-              <span>↩️</span>
-              <span>{{ todo.display_summary }}</span>
+            <p class="text-xs text-blue-400 flex items-center gap-1 h-5">
+              <template v-if="todo.display_summary">
+                <span class="flex-shrink-0">↩️</span>
+                <span class="truncate" :title="todo.display_summary">{{ todo.display_summary }}</span>
+              </template>
+              <span v-else class="invisible">.</span>
             </p>
             <component
               :is="getTodoInfo(todo.task?.kind || '')"
               v-if="getTodoInfo(todo.task?.kind || '')"
               :todo="todo"
             />
-            <p v-if="todo.location_id && getLocName(todo.location_id)" class="text-xs text-primary flex items-center gap-1">
-              <span>📍</span>
-              <span>{{ getLocName(todo.location_id) }}</span>
+            <div v-else class="h-5 invisible">.</div>
+            <p class="text-xs text-primary flex items-center gap-1 h-5">
+              <template v-if="todo.location_id && getLocName(todo.location_id)">
+                <span class="flex-shrink-0">📍</span>
+                <span class="truncate" :title="getLocName(todo.location_id)">{{ getLocName(todo.location_id) }}</span>
+              </template>
+              <span v-else class="invisible">.</span>
             </p>
-            <p v-if="todo.status !== 'pending' && todo.remark" class="text-xs text-gray-400 dark:text-gray-500 italic line-clamp-2">
-              💬 {{ todo.remark }}
+            <p class="text-xs text-gray-400 dark:text-gray-500 italic h-5 truncate" :title="todo.remark || ''">
+              <template v-if="todo.status !== 'pending' && todo.remark">💬 {{ todo.remark }}</template>
+              <span v-else class="invisible">.</span>
             </p>
           </div>
 

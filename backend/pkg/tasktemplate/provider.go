@@ -51,6 +51,10 @@ type Provider interface {
 	// format and call the same storage methods.
 	Sync(ctx context.Context, storage TemplateStorage) error
 
+	// SyncOne fetches templates from a single subscription URL and upserts them.
+	// Used when the user manually refreshes one subscription record.
+	SyncOne(ctx context.Context, storage TemplateStorage, subscriptionURL string) error
+
 	// LastSyncAt returns the timestamp of the last successful sync.
 	LastSyncAt() *time.Time
 

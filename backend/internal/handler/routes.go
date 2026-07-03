@@ -126,4 +126,7 @@ func RegisterRoutes(public *gin.Engine, auth, adminAuth, familyAuth, ownerAuth *
 
 	// ── Task Template Subscriptions (family-visible) ────────────
 	familyAuth.GET("/api/task-template-subscriptions", taskTemplateHandler.FamilyListSubscriptions)
+
+	// ── Admin Task Template Subscriptions ───────────────────────
+	adminAuth.GET("/api/admin/task-template-subscriptions", taskTemplateHandler.AdminListSubscriptions)
 }

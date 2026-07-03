@@ -8,7 +8,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import { useRouter } from 'vue-router'
-import { listTemplates, deleteFamilyTemplate, listFamilySubscriptions, createFamilySubscription, updateFamilySubscription, deleteFamilySubscription } from '@/api/task-templates'
+import { listTemplates, deleteFamilyTemplate, listFamilySubscriptions, createFamilySubscription, updateFamilySubscription, deleteFamilySubscription, refreshFamilySubscription } from '@/api/task-templates'
 import type { TaskTemplate, TaskTemplateSubscription } from '@/types'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import TemplateRenderDialog from '@/components/taskTemplate/TemplateRenderDialog.vue'
@@ -127,6 +127,16 @@ async function handleSaveSub() {
       toast.success(t('taskTemplate.subscription.created'))
     }
     showSubForm.value = false
+    await loadData()
+  } catch (e: any) {
+    setError(e)
+  }
+}
+
+async function handleRefreshSub(sub: TaskTemplateSubscription) {
+  try {
+    await refreshFamilySubscription(sub.id)
+    toast.success(t('taskTemplate.subscription.refreshed'))
     await loadData()
   } catch (e: any) {
     setError(e)
@@ -273,6 +283,11 @@ watch(refreshKey, (newVal) => {
             </div>
           </div>
           <div class="flex items-center gap-1 ml-2">
+            <button
+              class="px-2 py-1 text-xs rounded hover:bg-green-50 dark:hover:bg-green-900 text-green-500 transition-colors"
+              :title="t('taskTemplate.subscription.refresh')"
+              @click="handleRefreshSub(sub)"
+            >⟳</button>
             <button
               class="px-2 py-1 text-xs rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
               @click="openEditSub(sub)"

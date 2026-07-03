@@ -261,6 +261,7 @@ export default {
     daily: 'Daily',
     weekly: 'Weekly',
     monthly: 'Monthly',
+    yearly: 'Yearly',
     interval: 'Interval',
   },
   todo: {
@@ -422,6 +423,8 @@ export default {
       created: 'Subscription added',
       updated: 'Subscription updated',
       deleted: 'Subscription deleted',
+      refresh: 'Refresh this subscription',
+      refreshed: 'Subscription refreshed',
     },
   },
 }

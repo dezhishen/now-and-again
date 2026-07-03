@@ -277,6 +277,7 @@ export default {
     daily: '每天',
     weekly: '每周',
     monthly: '每月',
+    yearly: '每年',
     interval: '间隔天数',
   },
   todo: {
@@ -438,6 +439,8 @@ export default {
       created: '订阅已添加',
       updated: '订阅已更新',
       deleted: '订阅已删除',
+      refresh: '刷新此订阅',
+      refreshed: '订阅已刷新',
     },
   },
 }

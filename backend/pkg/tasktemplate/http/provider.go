@@ -130,6 +130,42 @@ func (p *Provider) Sync(ctx context.Context, storage tasktemplate.TemplateStorag
 	return nil
 }
 
+// SyncOne fetches templates from a single subscription URL and upserts them.
+// Unlike Sync, it does not delete stale templates — it only adds/updates.
+func (p *Provider) SyncOne(ctx context.Context, storage tasktemplate.TemplateStorage, subscriptionURL string) error {
+	p.mu.Lock()
+	p.syncStatus = "syncing"
+	p.mu.Unlock()
+
+	defer func() {
+		p.mu.Lock()
+		p.syncStatus = "idle"
+		p.lastSync = time.Now()
+		p.mu.Unlock()
+	}()
+
+	logger.Infof("[http] syncing single subscription from %s", subscriptionURL)
+	data, err := fetchURL(ctx, subscriptionURL)
+	if err != nil {
+		return fmt.Errorf("http: fetch %s: %w", subscriptionURL, err)
+	}
+
+	doc, err := parseYAMLDocument(data)
+	if err != nil {
+		return fmt.Errorf("http: parse %s: %w", subscriptionURL, err)
+	}
+
+	for _, t := range doc.Templates {
+		m := yamlEntryToModel("http", &t, subscriptionURL)
+		if err := storage.UpsertTemplate(m); err != nil {
+			logger.Warnf("[http] upsert %s from %s failed: %v", t.Code, subscriptionURL, err)
+			continue
+		}
+	}
+	logger.Infof("[http] single subscription synced successfully (%d templates)", len(doc.Templates))
+	return nil
+}
+
 // ─── helpers ──────────────────────────────────────────────────────
 
 var httpClient = &http.Client{Timeout: 30 * time.Second}
