@@ -208,7 +208,7 @@ templates:
         required: true
         placeholder: "主卧\n次卧\n儿童房"
     task_defaults:
-      name: "换洗床品"
+      name: "{{range $i, $r := .rooms}}{{if $i}}、{{end}}{{$r}}{{end}} - 换洗床品"
       schedule_type: interval
       schedule_data:
         hours: 336
