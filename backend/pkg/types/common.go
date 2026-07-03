@@ -1,6 +1,15 @@
 package types
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+// ─── Sentinel errors ──────────────────────────────────────────────
+
+// ErrRefreshTokenInvalid is returned when a refresh token is not found,
+// has been revoked, or has expired. Callers should respond with 401.
+var ErrRefreshTokenInvalid = errors.New("refresh token is invalid or expired")
 
 // ─── Enums ────────────────────────────────────────────────────────
 
@@ -47,13 +56,14 @@ type Pagination struct {
 type ErrorCode string
 
 const (
-	ErrBadRequest   ErrorCode = "BAD_REQUEST"
-	ErrValidation   ErrorCode = "VALIDATION_ERROR"
-	ErrUnauthorized ErrorCode = "UNAUTHORIZED"
-	ErrForbidden    ErrorCode = "FORBIDDEN"
-	ErrNotFound     ErrorCode = "NOT_FOUND"
-	ErrConflict     ErrorCode = "CONFLICT"
-	ErrInternal     ErrorCode = "INTERNAL_ERROR"
+	ErrBadRequest     ErrorCode = "BAD_REQUEST"
+	ErrValidation     ErrorCode = "VALIDATION_ERROR"
+	ErrUnauthorized   ErrorCode = "UNAUTHORIZED"
+	ErrForbidden      ErrorCode = "FORBIDDEN"
+	ErrNotFound       ErrorCode = "NOT_FOUND"
+	ErrConflict       ErrorCode = "CONFLICT"
+	ErrInternal       ErrorCode = "INTERNAL_ERROR"
+	ErrFamilyNotFound ErrorCode = "FAMILY_NOT_FOUND"
 )
 
 // FieldError describes a single field-level validation failure.

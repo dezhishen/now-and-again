@@ -78,6 +78,7 @@ export const ERROR_HANDLERS: Record<ErrorCode, ErrorMessageHandler> = {
   UNAUTHORIZED: (_e, t) => t('error.summary.unauthorized'),
   FORBIDDEN: (_e, t) => t('error.summary.forbidden'),
   NOT_FOUND: (_e, t) => t('error.summary.notFound'),
+  FAMILY_NOT_FOUND: (_e, t) => t('error.summary.familyNotFound'),
   CONFLICT: (_e, t) => t('error.summary.conflict'),
   INTERNAL_ERROR: (_e, t) => t('error.summary.internal'),
 }

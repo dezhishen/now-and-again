@@ -165,7 +165,7 @@ function inputType(p: TemplateParameter): string {
             class="w-full py-2 rounded-md bg-green-500 hover:bg-green-600 text-white text-sm font-medium disabled:opacity-50 transition-colors"
             :disabled="rendering"
             @click="handleRender"
-          >{{ rendering ? '生成中...' : '预览' }}</button>
+          >{{ rendering ? td('app.rendering') : '预览' }}</button>
         </template>
 
         <!-- Step 3: Preview & Confirm -->

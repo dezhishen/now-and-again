@@ -175,7 +175,7 @@ function copyKey() {
         <label class="text-xs text-gray-400 block mb-1">{{ t('apiKey.expiresLabel') }}</label>
         <input v-model="newExpires" type="datetime-local" class="input" />
       </div>
-      <button class="btn-primary" :disabled="!newName || creating" @click="create">{{ creating ? '...' : t('apiKey.create') }}</button>
+      <button class="btn-primary" :disabled="!newName || creating" @click="create">{{ creating ? t('app.creating') : t('apiKey.create') }}</button>
     </div>
 
     <!-- Key list -->

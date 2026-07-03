@@ -48,5 +48,7 @@ export function initTaskKinds() {
       return extra?.check_items || []
     },
     defaultCheckItems: [],
+    templateWizardStep: TaskFormCheckItems,
+    wizardStepLabel: '巡检项配置',
   })
 }

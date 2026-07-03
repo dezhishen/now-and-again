@@ -21,6 +21,13 @@ export interface TaskKindDef {
   buildDisplaySummary?: (taskWithExtra: { task: any; extra: any }) => string
   serializeExtra?: (formData: any[]) => any
   parseExtra?: (extra: any) => any[]
+
+  // ── Template wizard (new) ───────────────────────────────────
+  /** Component for kind-specific Step 2 in the template wizard.
+   *  Receives v-model with extra data. If undefined, wizard falls back to raw YAML editor. */
+  templateWizardStep?: Component
+  /** Label for the wizard's kind-specific step */
+  wizardStepLabel?: string
 }
 
 const kinds: Record<string, TaskKindDef> = {}

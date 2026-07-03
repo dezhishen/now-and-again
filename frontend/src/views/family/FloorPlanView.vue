@@ -166,7 +166,7 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
     <div class="flex items-center justify-between mb-4">
       <div class="relative" @click.stop>
         <button class="btn-primary text-sm" :class="{ 'opacity-50': uploading }" @click="showUploadMenu = !showUploadMenu">
-          {{ uploading ? '...' : '+ ' + t('floorPlan.upload') }} ▾
+          {{ uploading ? t('app.uploading') : '+ ' + t('floorPlan.upload') }} ▾
         </button>
         <div v-if="showUploadMenu" class="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 z-30 py-1">
           <label class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">

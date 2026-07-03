@@ -174,7 +174,7 @@ async function submitPassword() {
           <div class="flex justify-end gap-2 mt-4">
             <button class="btn-secondary text-sm" @click="closePwdDialog">{{ t('confirm.cancel') }}</button>
             <button class="btn-primary text-sm" :disabled="!canSubmitPwd || pwdSubmitting" @click="submitPassword">
-              {{ pwdSubmitting ? '...' : t('profile.confirmChange') }}
+              {{ pwdSubmitting ? t('app.submitting') : t('profile.confirmChange') }}
             </button>
           </div>
         </div>

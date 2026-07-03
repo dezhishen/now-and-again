@@ -98,7 +98,7 @@ async function copyInviteCode() {
       <div class="flex gap-2">
         <input v-model="editName" class="input flex-1" :placeholder="t('settingsPage.namePlaceholder')" @keyup.enter="saveName" />
         <button :disabled="saving" class="btn-primary text-sm whitespace-nowrap" @click="saveName">
-          {{ saved ? t('settingsPage.saved') : t('settingsPage.save') }}
+          {{ saving ? t('app.saving') : saved ? t('settingsPage.saved') : t('settingsPage.save') }}
         </button>
       </div>
     </div>

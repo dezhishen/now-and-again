@@ -178,7 +178,7 @@ async function leaveFamily() {
       </div>
 
       <!-- Tab content -->
-      <div class="flex-1 p-4 md:p-6 overflow-auto">
+      <div class="flex-1 px-4 md:px-6 pt-3 pb-4 overflow-auto">
         <component
           v-for="tab in tabs" :key="tab.id"
           :is="tab.component"

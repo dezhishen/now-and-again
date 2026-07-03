@@ -58,7 +58,7 @@ async function handleLogin() {
         />
         <ErrorDisplay :error="error" @close="clearError" />
         <button type="submit" class="btn-primary w-full mt-2" :disabled="submitting">
-          {{ submitting ? '...' : t('login.submit') }}
+          {{ submitting ? t('app.submitting') : t('login.submit') }}
         </button>
       </form>
       <p class="text-center text-sm text-gray-400 dark:text-gray-500 mt-4">

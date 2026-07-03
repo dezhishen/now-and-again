@@ -58,6 +58,8 @@ class ApiClient {
   private refreshPromise: Promise<boolean> | null = null
   private onSessionExpired: (() => void) | null = null
   private sessionExpiredFired = false
+  private onFamilyNotFoundCb: (() => void) | null = null
+  private familyNotFoundFired = false
   private familyId: string | null = null
 
   constructor() {
@@ -90,7 +92,10 @@ class ApiClient {
   getAccessToken() { return this.accessToken }
 
   /** Set the active family ID, sent via X-Family-Id header on every request. */
-  setFamilyId(id: string | null) { this.familyId = id }
+  setFamilyId(id: string | null) {
+    this.familyId = id
+    if (id) this.familyNotFoundFired = false
+  }
 
   /** True if we hold a non-expired access token (no JWT decode needed). */
   hasValidToken(): boolean {
@@ -105,6 +110,9 @@ class ApiClient {
 
   /** Register callback: fired exactly once when session is confirmed expired (refresh returned 401). */
   onExpired(fn: () => void) { this.onSessionExpired = fn }
+
+  /** Register callback: fired exactly once when the active family is not found (404 with FAMILY_NOT_FOUND). */
+  onFamilyNotFound(fn: () => void) { this.onFamilyNotFoundCb = fn }
 
   /**
    * Try to restore session from refresh token cookie.
@@ -243,6 +251,11 @@ class ApiClient {
     const json: APIResponse<T> = await res.json()
     if (!json.success) {
       if (json.error) {
+        // Family not found — redirect to family management (fire once)
+        if (json.error.code === 'FAMILY_NOT_FOUND' && !this.familyNotFoundFired) {
+          this.familyNotFoundFired = true
+          this.onFamilyNotFoundCb?.()
+        }
         throw new ApiRequestError(json.error)
       }
       throw new ApiRequestError({ code: 'INTERNAL_ERROR', summary: 'Unknown error' })
@@ -299,7 +312,13 @@ class ApiClient {
 
     const json: APIResponse<T> = await res.json()
     if (!json.success) {
-      if (json.error) throw new ApiRequestError(json.error)
+      if (json.error) {
+        if (json.error.code === 'FAMILY_NOT_FOUND' && !this.familyNotFoundFired) {
+          this.familyNotFoundFired = true
+          this.onFamilyNotFoundCb?.()
+        }
+        throw new ApiRequestError(json.error)
+      }
       throw new ApiRequestError({ code: 'INTERNAL_ERROR', summary: 'Unknown error' })
     }
     return json.data as T

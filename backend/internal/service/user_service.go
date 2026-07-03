@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -144,7 +145,10 @@ func (s *UserService) Login(ctx context.Context, req *types.LoginRequest) (*type
 func (s *UserService) Refresh(ctx context.Context, refreshToken string) (*types.TokenPair, error) {
 	userID, err := s.repo.ValidateRefreshToken(refreshToken)
 	if err != nil {
-		return nil, fmt.Errorf("invalid refresh token")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, types.ErrRefreshTokenInvalid
+		}
+		return nil, fmt.Errorf("validate refresh token: %w", err)
 	}
 
 	_ = s.repo.RevokeRefreshToken(refreshToken)

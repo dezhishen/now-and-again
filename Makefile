@@ -17,11 +17,22 @@ help: ## 显示所有可用目标
 
 # ─── Development ──────────────────────────────────────────────────
 
-dev: ## 并行启动 backend + frontend（使用 Ctrl+C 同时停止）
+dev: ## 并行启动 backend + frontend（Ctrl+C 同时停止，自动清理子进程）
+	@echo "→ 清理残留进程..."
+	@-fuser -k 8080/tcp 2>/dev/null || true
+	@-fuser -k 5173/tcp 2>/dev/null || true
+	@sleep 0.5
+	@mkdir -p .dev
 	@echo "→ Backend  http://localhost:8080"
 	@echo "→ Frontend http://localhost:5173"
-	@cd backend && ADMIN_DEFAULT_PASSWORD=12345678 DATA_DIR=../data go run ./cmd/server & \
-		cd frontend && pnpm run dev & \
+	@trap 'echo "→ 停止子进程..."; kill -TERM -$$BPID -$$FPID 2>/dev/null; wait 2>/dev/null; rm -f .dev/backend.pid .dev/frontend.pid; echo "→ 已停止"' INT TERM EXIT; \
+		set -m; \
+		(cd backend && ADMIN_DEFAULT_PASSWORD=12345678 DATA_DIR=../data go run ./cmd/server) & BPID=$$!; \
+		echo $$BPID > .dev/backend.pid; \
+		(cd frontend && pnpm run dev) & FPID=$$!; \
+		echo $$FPID > .dev/frontend.pid; \
+		echo "  Backend  PID: $$BPID"; \
+		echo "  Frontend PID: $$FPID"; \
 		wait
 
 dev-backend: ## 启动后端开发服务器 (:8080)

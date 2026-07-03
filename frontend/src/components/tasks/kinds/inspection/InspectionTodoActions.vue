@@ -4,6 +4,7 @@ import { useI18n } from '@/i18n'
 import { api } from '@/api/client'
 import type { Todo } from '@/types'
 import InspectionInspect from './InspectionInspect.vue'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 
 const { t } = useI18n()
 
@@ -61,7 +62,7 @@ async function submit() {
           <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showModal = false">✕</button>
         </div>
         <div v-if="loading" class="flex-1 flex items-center justify-center py-8">
-          <span class="animate-spin text-2xl">⏳</span>
+          <LoadingSpinner :text="t('app.loading')" />
         </div>
         <InspectionInspect
           v-else-if="fullTask"

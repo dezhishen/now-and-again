@@ -384,7 +384,7 @@ function scheduleSummary(task: Task): string {
           </div>
           <div class="flex-1 overflow-auto p-4" style="min-height: 300px; max-height: 340px">
             <div v-if="logsLoading" class="flex items-center justify-center py-8">
-              <span class="animate-spin text-xl">⏳</span>
+              <LoadingSpinner :text="t('app.loadingLogs')" />
             </div>
             <div v-else-if="logs.length === 0" class="text-center text-gray-400 py-4 text-sm">暂无操作记录</div>
             <template v-else>
@@ -503,7 +503,7 @@ function scheduleSummary(task: Task): string {
             />
           </div>
           <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">
-            <button class="btn-primary flex-1" :disabled="saving" @click="saveTask">{{ saving ? '...' : editingTask ? '保存' : '创建' }}</button>
+            <button class="btn-primary flex-1" :disabled="saving" @click="saveTask">{{ saving ? t('app.saving') : editingTask ? '保存' : '创建' }}</button>
             <button class="btn-secondary" @click="showTaskForm = false">取消</button>
           </div>
         </div>

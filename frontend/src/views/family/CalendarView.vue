@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const auth = useAuthStore()
 const familyId = () => auth.activeFamilyId || ''
@@ -229,7 +232,7 @@ onBeforeUnmount(() => {
 
     <!-- Loading -->
     <div v-if="loading" class="flex items-center justify-center py-20">
-      <span class="animate-spin text-2xl">⏳</span>
+      <LoadingSpinner :text="t('app.loadingCalendar')" />
     </div>
 
     <!-- Calendar Grid -->

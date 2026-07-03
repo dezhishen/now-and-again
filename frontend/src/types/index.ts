@@ -69,7 +69,7 @@ export interface ApiKey {
 
 // ─── Unified error types ─────────────────────────────────────────
 
-export type ErrorCode = 'BAD_REQUEST' | 'VALIDATION_ERROR' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'INTERNAL_ERROR'
+export type ErrorCode = 'BAD_REQUEST' | 'VALIDATION_ERROR' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'NOT_FOUND' | 'FAMILY_NOT_FOUND' | 'CONFLICT' | 'INTERNAL_ERROR'
 
 export interface FieldError {
   field: string
@@ -105,6 +105,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, MessageBuilder> = {
   UNAUTHORIZED:      () => '请先登录',
   FORBIDDEN:         () => '没有权限执行此操作',
   NOT_FOUND:         () => '请求的资源不存在',
+  FAMILY_NOT_FOUND:  () => '家庭不存在或已解散',
   CONFLICT:          () => '数据冲突',
   INTERNAL_ERROR:    () => '服务器内部错误，请稍后重试',
 }

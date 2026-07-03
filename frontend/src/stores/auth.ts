@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import type { User, Family } from '@/types'
 import { api } from '@/api/client'
 
@@ -34,7 +33,13 @@ export const useAuthStore = defineStore('auth', () => {
   // ── Session expiry callback (registered once) ──────────────
   api.onExpired(() => {
     user.value = null
-    useRouter().push('/login')
+    window.location.href = '/login'
+  })
+
+  // ── Family not found callback (registered once) ────────────
+  api.onFamilyNotFound(() => {
+    activeFamilyId.value = null
+    window.location.href = '/families'
   })
 
   // ── silent token restore (called by router guard) ──────────

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -53,6 +54,10 @@ func (h *UserHandlers) Refresh(c *gin.Context) {
 	pair, err := h.C.Refresh(c.Request.Context(), rt)
 	if err != nil {
 		c.SetCookie("refresh_token", "", -1, "/", "", true, true)
+		if errors.Is(err, types.ErrRefreshTokenInvalid) {
+			unauthorized(c, "refresh token已失效，请重新登录")
+			return
+		}
 		serverError(c, err)
 		return
 	}

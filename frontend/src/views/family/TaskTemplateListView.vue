@@ -12,7 +12,7 @@ import { listTemplates, deleteFamilyTemplate, listFamilySubscriptions, createFam
 import type { TaskTemplate, TaskTemplateSubscription } from '@/types'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import TemplateRenderDialog from '@/components/taskTemplate/TemplateRenderDialog.vue'
-import TemplateFormDialog from '@/components/taskTemplate/TemplateFormDialog.vue'
+import TemplateWizard from '@/components/taskTemplate/TemplateWizard.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -330,7 +330,7 @@ watch(refreshKey, (newVal) => {
     />
 
     <!-- Create/Edit Form Dialog -->
-    <TemplateFormDialog
+    <TemplateWizard
       v-if="showFormDialog"
       :editing="editingTemplate"
       @close="showFormDialog = false; editingTemplate = null"

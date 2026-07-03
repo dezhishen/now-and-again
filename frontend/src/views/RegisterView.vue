@@ -38,7 +38,7 @@ async function handleRegister() {
         <input v-model="form.email" type="email" class="input" :placeholder="t('register.emailPlaceholder')" required />
         <input v-model="form.password" type="password" class="input" :placeholder="t('register.passwordPlaceholder')" required minlength="8" autocomplete="new-password" />
         <ErrorDisplay :error="error" @close="clearError" />
-        <button type="submit" class="btn-primary w-full mt-2" :disabled="submitting">{{ submitting ? '...' : t('register.submit') }}</button>
+        <button type="submit" class="btn-primary w-full mt-2" :disabled="submitting">{{ submitting ? t('app.submitting') : t('register.submit') }}</button>
       </form>
       <p class="text-center text-sm text-gray-400 dark:text-gray-500 mt-4">
         {{ t('register.hasAccount') }}<router-link to="/login" class="text-primary hover:underline ml-1">{{ t('register.toLogin') }}</router-link>

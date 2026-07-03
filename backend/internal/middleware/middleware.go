@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/scopes"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -163,7 +164,10 @@ func FamilyGuard(fv FamilyValidator) gin.HandlerFunc {
 
 		if familyID != "" {
 			if err := fv.ValidateMembership(uid, familyID); err != nil {
-				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "family not found or not a member"})
+				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+					"success": false,
+					"error":   types.APIError{Code: types.ErrFamilyNotFound, Summary: "family not found or not a member"},
+				})
 				return
 			}
 		} else {
