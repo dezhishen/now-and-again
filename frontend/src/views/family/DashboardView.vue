@@ -229,7 +229,7 @@ onMounted(() => { loadAll() })
 
     <!-- Remark Modal -->
     <Teleport to="body">
-      <div v-if="showRemark" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showRemark = false">
+      <div v-if="showRemark" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-md">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <h3 class="font-bold dark:text-gray-200">📝 {{ t('dashboard.remarkTitle') }}</h3>

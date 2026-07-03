@@ -76,18 +76,21 @@ func (p *Provider) Sync(ctx context.Context, storage tasktemplate.TemplateStorag
 	}()
 
 	seen := make(map[string]bool)
+	hadFailure := false
 
 	for _, sub := range subs {
 		logger.Infof("[http] syncing subscription %q from %s", sub.Name, sub.URL)
 		data, err := fetchURL(ctx, sub.URL)
 		if err != nil {
-			logger.Warnf("[http] fetch %s failed: %v (continuing with next subscription)", sub.URL, err)
-			continue // don't fail-fast — try remaining subscriptions
+			logger.Warnf("[http] fetch %s failed: %v (keeping existing data)", sub.URL, err)
+			hadFailure = true
+			continue
 		}
 
 		doc, err := parseYAMLDocument(data)
 		if err != nil {
 			logger.Warnf("[http] parse %s failed: %v (skipping)", sub.URL, err)
+			hadFailure = true
 			continue
 		}
 
@@ -100,6 +103,13 @@ func (p *Provider) Sync(ctx context.Context, storage tasktemplate.TemplateStorag
 			seen[t.Code] = true
 		}
 		logger.Infof("[http] subscription %q synced successfully (%d templates)", sub.Name, len(doc.Templates))
+	}
+
+	// Only remove stale templates when ALL subscriptions succeeded.
+	// A single fetch failure means we keep existing data.
+	if hadFailure {
+		logger.Warnf("[http] one or more subscriptions failed, keeping existing template data")
+		return nil
 	}
 
 	// Remove templates that are no longer in any subscription.

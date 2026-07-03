@@ -151,11 +151,21 @@ function applyTemplate(tmpl: TaskTemplate, taskDefaults: any, extraSchema: any) 
   const sd = taskDefaults?.schedule_data || {}
   taskTime.value = sd.time || '09:00'
   taskDate.value = sd.date || ''
-  taskDays.value = sd.days || []
+  // Normalize: templates store singular "day", direct form uses plural "days" array
+  if (sd.days) {
+    taskDays.value = sd.days
+  } else if (sd.day !== undefined) {
+    taskDays.value = [sd.day]
+  } else {
+    taskDays.value = []
+  }
 
-  checkItems.value = extraSchema?.check_items
-    ? JSON.parse(JSON.stringify(extraSchema.check_items))
-    : getDefaultCheckItems(tmpl.kind) ? [...getDefaultCheckItems(tmpl.kind)!] : []
+  // Populate check items from template extra_schema
+  if (extraSchema?.check_items) {
+    checkItems.value = JSON.parse(JSON.stringify(extraSchema.check_items))
+  } else {
+    checkItems.value = getDefaultCheckItems(tmpl.kind) ? [...getDefaultCheckItems(tmpl.kind)!] : []
+  }
 
   showTaskForm.value = true
 }
@@ -364,7 +374,7 @@ function scheduleSummary(task: Task): string {
 
     <!-- Log Modal -->
     <Teleport to="body">
-      <div v-if="showLogs" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showLogs = false">
+      <div v-if="showLogs" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-2xl max-h-[75vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700 flex-shrink-0">
             <h3 class="font-bold dark:text-gray-200 truncate mr-2">📋 {{ logTaskName }}</h3>
@@ -423,7 +433,7 @@ function scheduleSummary(task: Task): string {
 
     <!-- Create/Edit Task Modal — main panel owns common fields + save/cancel -->
     <Teleport to="body">
-      <div v-if="showTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showTaskForm = false">
+      <div v-if="showTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-2xl max-h-[85vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <h3 class="font-bold dark:text-gray-200">{{ editingTask ? t('taskCard.edit') : t('taskKind.create') }}</h3>

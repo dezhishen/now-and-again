@@ -101,6 +101,7 @@ func (p *Provider) Sync(ctx context.Context, storage tasktemplate.TemplateStorag
 	}
 
 	seen := make(map[string]bool)
+	hadFailure := false
 
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -113,12 +114,14 @@ func (p *Provider) Sync(ctx context.Context, storage tasktemplate.TemplateStorag
 		data, err := os.ReadFile(path)
 		if err != nil {
 			logger.Warnf("[builtin] read %s: %v (skipping)", entry.Name(), err)
+			hadFailure = true
 			continue
 		}
 
 		doc, err := parseYAMLDocument(data)
 		if err != nil {
 			logger.Warnf("[builtin] parse %s: %v (skipping)", entry.Name(), err)
+			hadFailure = true
 			continue
 		}
 
@@ -131,6 +134,11 @@ func (p *Provider) Sync(ctx context.Context, storage tasktemplate.TemplateStorag
 			seen[t.Code] = true
 		}
 		logger.Infof("[builtin] synced %s (%d templates)", entry.Name(), len(doc.Templates))
+	}
+
+	if hadFailure {
+		logger.Warnf("[builtin] one or more files failed, keeping existing template data")
+		return nil
 	}
 
 	// Remove templates that are no longer in the templates directory.

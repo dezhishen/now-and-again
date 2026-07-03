@@ -300,7 +300,7 @@ const showingText = computed(() => {
 
     <!-- ── Reset Password Modal ──────────────────────────────── -->
     <Teleport to="body">
-      <div v-if="resetTarget" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="closeResetDialog">
+      <div v-if="resetTarget" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6">
           <h3 class="text-lg font-semibold mb-2 dark:text-gray-100">{{ t('admin.resetPasswordTitle') }}</h3>
           <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">

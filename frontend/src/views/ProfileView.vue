@@ -150,7 +150,7 @@ async function submitPassword() {
 
     <!-- ── Change Password Modal ──────────────────────────────── -->
     <Teleport to="body">
-      <div v-if="showPwdDialog" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="closePwdDialog">
+      <div v-if="showPwdDialog" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6">
           <h3 class="text-lg font-semibold mb-4 dark:text-gray-100">{{ t('profile.changePassword') }}</h3>
 

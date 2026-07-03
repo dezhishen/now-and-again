@@ -186,19 +186,23 @@ now-and-again/
 ### 一键启动
 
 ```bash
-git clone <repo-url> && cd now-and-again
+git clone https://github.com/dezhishen/now-and-again.git && cd now-and-again
 
-# Terminal 1: 后端
-cd backend && go run ./cmd/server
-# ✅ 监听 :8080 | 自动建表 | 默认 SQLite
-
-# Terminal 2: 前端
-cd frontend && pnpm install && pnpm run dev
-# ✅ 监听 :5173 | API 自动代理到 :8080
-
-# Terminal 3: CLI
-cd cli && go run .
+# 推荐：一键并行启动后端 + 前端（Ctrl+C 同时停止，自动清理子进程）
+make dev
 ```
+
+> **Windows 用户**：`make` 不原生支持，请使用以下替代方式：
+
+```powershell
+# PowerShell 终端 1: 后端
+cd backend; $env:NA_ADMIN_DEFAULT_PASSWORD="12345678"; $env:NA_DATA_DIR="../data"; go run ./cmd/server
+
+# PowerShell 终端 2: 前端
+cd frontend; pnpm install; pnpm run dev
+```
+
+> 或使用 [WSL](https://learn.microsoft.com/windows/wsl/) / [Git Bash](https://git-scm.com/) 直接运行 `make dev`。
 
 ### 环境变量
 

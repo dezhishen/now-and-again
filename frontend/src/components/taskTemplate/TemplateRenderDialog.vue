@@ -66,7 +66,7 @@ function inputType(p: TemplateParameter): string {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="emit('close')">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-4 p-6">
       <ErrorDisplay :error="error" @close="clearError" />
       <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">

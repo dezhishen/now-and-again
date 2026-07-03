@@ -27,12 +27,15 @@ export const useAuthStore = defineStore('auth', () => {
     saveFamilyId(id)
   }, { immediate: true })
 
-  const isLoggedIn = computed(() => api.hasValidToken())
+  // Use a ref synced explicitly (api.hasValidToken is not reactive)
+  const isLoggedIn = ref(api.hasValidToken())
+  function syncLoginState() { isLoggedIn.value = api.hasValidToken() }
   const isAdmin = computed(() => user.value?.roles?.includes('admin') ?? false)
 
   // ── Session expiry callback (registered once) ──────────────
   api.onExpired(() => {
     user.value = null
+    isLoggedIn.value = false
     window.location.href = '/login'
   })
 
@@ -47,13 +50,14 @@ export const useAuthStore = defineStore('auth', () => {
     if (sessionChecked.value) return
     sessionChecked.value = true
     const u = await api.initSession()
-    if (u) user.value = u
+    if (u) { user.value = u; syncLoginState() }
   }
 
   async function fetchUser() {
     if (user.value) return
     try {
       user.value = await api.get<User>('/users/me')
+      syncLoginState()
     } catch {
       // Token is valid but user doesn't exist (e.g. db-reset).
       // Clear the stale token so the guard redirects to login.
@@ -80,6 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
     )
     api.setAccessToken(data.access_token)
     user.value = data.user
+    syncLoginState()
     sessionChecked.value = true
   }
 
@@ -145,6 +150,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     api.setAccessToken(null)
     user.value = null
+    isLoggedIn.value = false
     families.value = []
     activeFamilyId.value = null
     sessionChecked.value = false
