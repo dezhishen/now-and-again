@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm"
 
 	// Blank imports trigger init() registration of task kind handlers.
+	_ "github.com/dezhishen/now-and-again/backend/pkg/taskkind/chain"
 	_ "github.com/dezhishen/now-and-again/backend/pkg/taskkind/inspection"
 	_ "github.com/dezhishen/now-and-again/backend/pkg/taskkind/simple"
 )

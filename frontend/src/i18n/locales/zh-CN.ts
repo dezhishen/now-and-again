@@ -290,6 +290,7 @@ export default {
     quickDone: '快速完成',
     remark: '备注',
     skip: '跳过',
+    interrupt: '中断',
     inspect: '巡检',
     submitInspect: '提交巡检',
     submitting: '提交中...',

@@ -6,6 +6,9 @@ import InspectionInspect from '@/components/tasks/kinds/inspection/InspectionIns
 import InspectionTodoActions from '@/components/tasks/kinds/inspection/InspectionTodoActions.vue'
 import InspectionTodoInfo from '@/components/tasks/kinds/inspection/InspectionTodoInfo.vue'
 import TaskFormCheckItems from '@/components/tasks/TaskFormCheckItems.vue'
+import ChainTaskBody from '@/components/tasks/kinds/chain/ChainTaskBody.vue'
+import ChainTodoActions from '@/components/tasks/kinds/chain/ChainTodoActions.vue'
+import ChainForm from '@/components/tasks/kinds/chain/ChainForm.vue'
 
 export function initTaskKinds() {
   registerTaskKind('simple', {
@@ -50,5 +53,49 @@ export function initTaskKinds() {
     defaultCheckItems: [],
     templateWizardStep: TaskFormCheckItems,
     wizardStepLabel: '巡检项配置',
+  })
+
+  registerTaskKind('chain', {
+    card: ChainTaskBody,
+    todoActions: ChainTodoActions,
+    formComponent: ChainForm,
+    labelKey: 'taskKind.chain',
+    createLabelKey: 'taskKind.createChain',
+    todoBadgeKey: 'taskKind.chain',
+    buildDisplaySummary({ extra }) {
+      const steps: any[] = extra?.steps || []
+      if (steps.length === 0) return ''
+      const names = steps.map((s: any) => s.name).filter(Boolean)
+      if (names.length <= 3) {
+        return names.join(' → ')
+      }
+      return names.slice(0, 3).join(' → ') + ` → 等${steps.length}项`
+    },
+    serializeExtra(formData) {
+      return {
+        steps: (formData || []).map((s: any) => ({
+          name: s.task?.task?.name || '',
+          kind: s.task?.task?.kind || 'simple',
+          group_id: s.task?.task?.group_id || '',
+          location_id: s.task?.task?.location_id || '',
+        }))
+      }
+    },
+    parseExtra(extra) {
+      return (extra?.steps || []).map((s: any) => ({
+        name: s.name,
+        task: {
+          task: {
+            name: s.name,
+            kind: s.kind || 'simple',
+            schedule_type: 'once',
+            schedule_data: { time: '09:00' },
+            group_id: s.group_id || '',
+            location_id: s.location_id || '',
+          },
+        },
+      }))
+    },
+    defaultCheckItems: [],
   })
 }
