@@ -149,12 +149,14 @@ func (s *FamilyService) ListMyFamilies(ctx context.Context) ([]types.Family, err
 	result := make([]types.Family, len(families))
 	for i, f := range families {
 		thumb := ""
-		if f.FloorPlanImagePath != "" {
-			thumb = "/api/images/" + f.FloorPlanImagePath
+		var coverID *string
+		if f.CoverImage != nil && f.CoverImage.ID != "" {
+			thumb = "/api/images/" + f.CoverImage.ID
+			coverID = &f.CoverImage.ID
 		}
 		result[i] = types.Family{
 			ID: f.ID, Name: f.Name, InviteCode: f.InviteCode,
-			CreatedBy: f.CreatedBy, ThumbnailURL: thumb,
+			CreatedBy: f.CreatedBy, CoverImageID: coverID, ThumbnailURL: thumb,
 			CreatedAt: f.CreatedAt, UpdatedAt: f.UpdatedAt,
 		}
 	}

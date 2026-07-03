@@ -17,7 +17,9 @@ type UserContract interface {
 	Logout(ctx context.Context) error
 	GetMe(ctx context.Context) (*types.User, error)
 	UpdateMe(ctx context.Context, req *types.UpdateUserRequest) (*types.User, error)
-	ListUsers(ctx context.Context) ([]types.User, error)
+	ListUsers(ctx context.Context, req *types.ListUsersRequest) (*types.ListUsersResponse, error)
+	ResetPassword(ctx context.Context, req *types.ResetPasswordRequest) (string, error)
+	ChangePassword(ctx context.Context, req *types.ChangePasswordRequest) error
 	IsAdmin(userID string) bool
 }
 

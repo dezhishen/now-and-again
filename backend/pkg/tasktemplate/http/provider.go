@@ -12,6 +12,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/dezhishen/now-and-again/backend/pkg/logger"
 	"github.com/dezhishen/now-and-again/backend/pkg/model"
 	"github.com/dezhishen/now-and-again/backend/pkg/tasktemplate"
 )
@@ -77,26 +78,28 @@ func (p *Provider) Sync(ctx context.Context, storage tasktemplate.TemplateStorag
 	seen := make(map[string]bool)
 
 	for _, sub := range subs {
+		logger.Infof("[http] syncing subscription %q from %s", sub.Name, sub.URL)
 		data, err := fetchURL(ctx, sub.URL)
 		if err != nil {
-			syncErr = fmt.Errorf("http: fetch %s: %w", sub.URL, err)
-			return syncErr
+			logger.Warnf("[http] fetch %s failed: %v (continuing with next subscription)", sub.URL, err)
+			continue // don't fail-fast — try remaining subscriptions
 		}
 
 		doc, err := parseYAMLDocument(data)
 		if err != nil {
-			syncErr = fmt.Errorf("http: parse %s: %w", sub.URL, err)
-			return syncErr
+			logger.Warnf("[http] parse %s failed: %v (skipping)", sub.URL, err)
+			continue
 		}
 
 		for _, t := range doc.Templates {
 			m := yamlEntryToModel("http", &t, sub.URL)
 			if err := storage.UpsertTemplate(m); err != nil {
-				syncErr = fmt.Errorf("http: upsert %s from %s: %w", t.Code, sub.URL, err)
-				return syncErr
+				logger.Warnf("[http] upsert %s from %s failed: %v", t.Code, sub.URL, err)
+				continue
 			}
 			seen[t.Code] = true
 		}
+		logger.Infof("[http] subscription %q synced successfully (%d templates)", sub.Name, len(doc.Templates))
 	}
 
 	// Remove templates that are no longer in any subscription.

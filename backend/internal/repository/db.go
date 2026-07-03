@@ -2,18 +2,15 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"math/rand"
-	"os"
 	"time"
 
 	"github.com/dezhishen/now-and-again/backend/internal/config"
-	"github.com/dezhishen/now-and-again/backend/internal/logger"
+	"github.com/dezhishen/now-and-again/backend/pkg/logger"
 	"github.com/dezhishen/now-and-again/backend/pkg/model"
-	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
 
 	"github.com/glebarez/sqlite"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
@@ -48,8 +45,7 @@ func (l gormZapLogger) Error(ctx context.Context, msg string, data ...interface{
 func (l gormZapLogger) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
 	elapsed := time.Since(begin)
 	sql, rows := fc()
-	if err != nil {
-		// Only log the error message, not the full SQL
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		logger.Errorf("gorm error: %v [%.2fms, %d rows]", err, float64(elapsed.Microseconds())/1000.0, rows)
 		return
 	}
@@ -106,97 +102,4 @@ func Migrate(db *gorm.DB) error {
 	}
 	models = append(models, model.MigrationModels()...)
 	return db.AutoMigrate(models...)
-}
-
-// Seed inserts default roles.
-func Seed(db *gorm.DB) error {
-	logger.Infof("seeding default data...")
-
-	roles := []RoleModel{
-		{Name: "admin", Description: "系统管理员"},
-		{Name: "user", Description: "普通用户"},
-	}
-	for _, r := range roles {
-		db.Where("name = ?", r.Name).FirstOrCreate(&r)
-	}
-
-	// Default system settings
-	settingsDefaults := map[string]string{
-		"storage.type": "local",
-	}
-	for k, v := range settingsDefaults {
-		var existing SystemSettingModel
-		if err := db.Where("key = ?", k).First(&existing).Error; err != nil {
-			db.Create(&SystemSettingModel{Key: k, Value: v})
-		}
-	}
-
-	logger.Infof("seed complete")
-	return nil
-}
-
-// SeedAdmin creates a default admin user if none exists.
-func SeedAdmin(db *gorm.DB) (password string, err error) {
-	var count int64
-	if err := db.Model(&UserModel{}).Count(&count).Error; err != nil || count > 0 {
-		return "", nil
-	}
-
-	password = os.Getenv("ADMIN_DEFAULT_PASSWORD")
-	if password == "" {
-		password = randomPassword(12)
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", fmt.Errorf("hash admin password: %w", err)
-	}
-
-	err = db.Transaction(func(tx *gorm.DB) error {
-		user := &UserModel{DisplayName: "管理员", Email: "admin@now-and-again.local"}
-		if err := tx.Create(user).Error; err != nil {
-			return err
-		}
-		acc := &AccountModel{
-			UserID: user.ID, Provider: "local",
-			Username: "admin", PasswordHash: string(hash),
-		}
-		if err := tx.Create(acc).Error; err != nil {
-			return err
-		}
-		var adminRole RoleModel
-		if err := tx.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
-			return err
-		}
-		return tx.Create(&UserRoleModel{UserID: user.ID, RoleID: adminRole.ID}).Error
-	})
-	if err != nil {
-		return "", err
-	}
-
-	logger.Infof("========================================")
-	logger.Infof("  Default admin account created")
-	logger.Infof("  Username: admin")
-	logger.Infof("  Password: %s", password)
-	logger.Infof("========================================")
-	return password, nil
-}
-
-func randomPassword(length int) string {
-	const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = chars[rand.Intn(len(chars))]
-	}
-	return string(b)
-}
-
-// GenInviteCode generates an 8-char alphanumeric invite code.
-func GenInviteCode() string {
-	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	rng := rand.New(rand.NewSource(timeutil.Now().UnixNano()))
-	b := make([]byte, 8)
-	for i := range b {
-		b[i] = chars[rng.Intn(len(chars))]
-	}
-	return string(b)
 }

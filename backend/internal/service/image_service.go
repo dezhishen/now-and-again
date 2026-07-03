@@ -25,7 +25,7 @@ func NewImageService(repo *repository.ImageRepo, uploadDir string, settingsRepo 
 
 func (s *ImageService) getStorageType() string {
 	setting, err := s.settingsRepo.Get("storage.type")
-	if err != nil || setting.Value == "" {
+	if err != nil || setting == nil || setting.Value == "" {
 		return "local"
 	}
 	return setting.Value

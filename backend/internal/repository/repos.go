@@ -1,6 +1,19 @@
 package repository
 
-import "gorm.io/gorm"
+import (
+	"errors"
+
+	"gorm.io/gorm"
+)
+
+// ignoreNotFound returns nil if err is gorm.ErrRecordNotFound.
+// Use this when "not found" is a valid result, not an error.
+func ignoreNotFound(err error) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil
+	}
+	return err
+}
 
 // ─── Repository Definitions ───────────────────────────────────────
 

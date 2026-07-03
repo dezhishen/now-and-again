@@ -179,15 +179,20 @@ class ApiClient {
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    // Proactively refresh if token is about to expire.
-    // If refresh fails (network error), keep the old token and let the actual
-    // API call decide — it might still be valid, or it will return 401.
+    // ── Proactive refresh ────────────────────────────────────
+    // Save token before refresh so we can detect if it was cleared.
+    const hadToken = !!this.accessToken
     if (this.accessToken && this.isTokenExpiringSoon(120)) {
       await this.refreshAccessToken()
-      // Note: we do NOT check the result here. If refresh cleared the token
-      // (401), the next API call will get 401 and the handler below will
-      // trigger the logout flow. If refresh failed due to network, the old
-      // token might still work.
+    }
+    // If proactive refresh cleared our token (refresh token expired),
+    // don't even attempt the API call — session is over.
+    if (hadToken && !this.accessToken) {
+      if (!this.sessionExpiredFired) {
+        this.sessionExpiredFired = true
+        this.onSessionExpired?.()
+      }
+      throw new Error('Session expired')
     }
 
     const doFetch = async () => {
@@ -205,28 +210,34 @@ class ApiClient {
 
     let res = await doFetch()
 
-    // ── 401: token expired → try refresh once ─────────────────
-    // Guards:
-    //  - Only on 401 (not 403, 5xx, etc.)
-    //  - Must have a token to refresh (otherwise we'd loop on public endpoints)
-    //  - Never refresh the refresh endpoint itself
+    // ── 401: try refresh once, then retry ────────────────────
     if (res.status === SESSION_EXPIRED_CODE && this.accessToken && path !== '/auth/refresh') {
       const refreshed = await this.refreshAccessToken()
 
       if (refreshed) {
-        // New token obtained → retry the original request once
+        // New token obtained → retry the original request
         res = await doFetch()
+
+        // If the retry STILL returns 401 (e.g. user was deleted, token is
+        // structurally invalid), session is confirmed dead.
+        if (res.status === SESSION_EXPIRED_CODE) {
+          this.setToken(null)
+          if (!this.sessionExpiredFired) {
+            this.sessionExpiredFired = true
+            this.onSessionExpired?.()
+          }
+          throw new Error('Session expired')
+        }
       } else if (!this.accessToken) {
-        // Token was cleared by refreshAccessToken (received 401 from /auth/refresh).
-        // Session is confirmed expired — redirect to login exactly once.
+        // refreshAccessToken cleared the token (received 401 itself)
         if (!this.sessionExpiredFired) {
           this.sessionExpiredFired = true
           this.onSessionExpired?.()
         }
         throw new Error('Session expired')
       }
-      // else: refresh failed due to network/server error, token kept.
-      // Fall through to let the original 401 response propagate naturally.
+      // else: refresh failed due to network — keep old token, fall through
+      // to let the original 401 propagate.
     }
 
     const json: APIResponse<T> = await res.json()
@@ -248,8 +259,16 @@ class ApiClient {
   /** Same as request() but skips requestToUTC / responseToLocal timezone conversion.
    *  Use for configuration data (templates, settings) that is not actual datetimes. */
   private async rawRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const hadToken = !!this.accessToken
     if (this.accessToken && this.isTokenExpiringSoon(120)) {
       await this.refreshAccessToken()
+    }
+    if (hadToken && !this.accessToken) {
+      if (!this.sessionExpiredFired) {
+        this.sessionExpiredFired = true
+        this.onSessionExpired?.()
+      }
+      throw new Error('Session expired')
     }
 
     const headers: Record<string, string> = {
@@ -267,6 +286,11 @@ class ApiClient {
       const refreshed = await this.refreshAccessToken()
       if (refreshed) {
         res = await fetch(`${BASE_URL}${path}`, { method, headers, credentials: 'include', body: body ? JSON.stringify(body) : undefined })
+        if (res.status === SESSION_EXPIRED_CODE) {
+          this.setToken(null)
+          if (!this.sessionExpiredFired) { this.sessionExpiredFired = true; this.onSessionExpired?.() }
+          throw new Error('Session expired')
+        }
       } else if (!this.accessToken) {
         if (!this.sessionExpiredFired) { this.sessionExpiredFired = true; this.onSessionExpired?.() }
         throw new Error('Session expired')

@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // ─── User ─────────────────────────────────────────────────────────
 
@@ -50,11 +53,36 @@ type TokenPair struct {
 }
 
 type UpdateUserRequest struct {
-	DisplayName     *string `json:"display_name,omitempty" binding:"omitempty,max=128"`
-	Email           *string `json:"email,omitempty" binding:"omitempty,email,max=255"`
-	Phone           *string `json:"phone,omitempty" binding:"omitempty,max=20"`
-	AvatarURL       *string `json:"avatar_url,omitempty"`
-	DefaultFamilyID *string `json:"default_family_id,omitempty"`
+	DisplayName     *string         `json:"display_name,omitempty" binding:"omitempty,max=128"`
+	Email           *string         `json:"email,omitempty" binding:"omitempty,email,max=255"`
+	Phone           *string         `json:"phone,omitempty" binding:"omitempty,max=20"`
+	AvatarURL       *string         `json:"avatar_url,omitempty"`
+	DefaultFamilyID json.RawMessage `json:"default_family_id,omitempty"`
+}
+
+// ─── Admin ────────────────────────────────────────────────────────
+
+type ListUsersRequest struct {
+	Query    string `json:"query" form:"q"`
+	Page     int    `json:"page" form:"page"`
+	PageSize int    `json:"page_size" form:"page_size"`
+}
+
+type ListUsersResponse struct {
+	Users      []User `json:"users"`
+	Total      int64  `json:"total"`
+	Page       int    `json:"page"`
+	PageSize   int    `json:"page_size"`
+	TotalPages int    `json:"total_pages"`
+}
+
+type ResetPasswordRequest struct {
+	UserID string `json:"user_id" binding:"required,uuid"`
+}
+
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required,min=1"`
+	NewPassword string `json:"new_password" binding:"required,min=8,max=255"`
 }
 
 // ─── API Key ──────────────────────────────────────────────────────

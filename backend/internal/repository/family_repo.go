@@ -40,14 +40,27 @@ func (r *FamilyRepo) FindFamilyByCreator(userID string) (*FamilyModel, error) {
 
 func (r *FamilyRepo) ListFamiliesByUserID(userID string) ([]FamilyModel, error) {
 	var families []FamilyModel
+
+	familyIDSub := r.db.Model(&FamilyMemberModel{}).Select("family_id").
+		Where("user_id = ? AND status = ?", userID, "active")
+
 	err := r.db.
-		Select("families.*, (SELECT floor_plans.image_id FROM floor_plans WHERE floor_plans.family_id = families.id AND floor_plans.is_cover = true LIMIT 1) AS floor_plan_image_path").
-		Where("families.id IN (?)",
-			r.db.Model(&FamilyMemberModel{}).Select("family_id").
-				Where("user_id = ? AND status = ?", userID, "active"),
-		).
+		Preload("CoverImage").
+		Where("id IN (?)", familyIDSub).
 		Find(&families).Error
 	return families, err
+}
+
+// SetFamilyCoverImage syncs the family's cover_image_id column.
+func (r *FamilyRepo) SetFamilyCoverImage(familyID, imageID string) error {
+	return r.db.Model(&FamilyModel{}).Where("id = ?", familyID).
+		Update("cover_image_id", imageID).Error
+}
+
+// ClearFamilyCoverImage removes the cover image reference from a family.
+func (r *FamilyRepo) ClearFamilyCoverImage(familyID string) error {
+	return r.db.Model(&FamilyModel{}).Where("id = ?", familyID).
+		Update("cover_image_id", nil).Error
 }
 
 // ─── Family Member ────────────────────────────────────────────────

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -99,7 +100,10 @@ func (s *UserService) Register(ctx context.Context, req *types.CreateUserRequest
 
 	loaded, err := s.repo.FindUserByID(userID)
 	if err != nil {
-		return nil, fmt.Errorf("reload user: %w", err)
+		return nil, err
+	}
+	if loaded == nil {
+		return nil, fmt.Errorf("reload user: user not found")
 	}
 	return userModelToUser(loaded), nil
 }
@@ -109,6 +113,9 @@ func (s *UserService) Register(ctx context.Context, req *types.CreateUserRequest
 func (s *UserService) Login(ctx context.Context, req *types.LoginRequest) (*types.TokenPair, error) {
 	acc, err := s.repo.FindAccountByUsername(req.Username)
 	if err != nil {
+		return nil, err
+	}
+	if acc == nil {
 		return nil, fmt.Errorf("invalid credentials")
 	}
 
@@ -118,6 +125,9 @@ func (s *UserService) Login(ctx context.Context, req *types.LoginRequest) (*type
 
 	user, err := s.repo.FindUserByID(acc.UserID)
 	if err != nil {
+		return nil, err
+	}
+	if user == nil {
 		return nil, fmt.Errorf("user not found")
 	}
 
@@ -146,6 +156,9 @@ func (s *UserService) Refresh(ctx context.Context, refreshToken string) (*types.
 
 	user, err := s.repo.FindUserByID(userID)
 	if err != nil {
+		return nil, err
+	}
+	if user == nil {
 		return nil, fmt.Errorf("user not found")
 	}
 	pair.User = userModelToUser(user)
@@ -168,6 +181,9 @@ func (s *UserService) GetMe(ctx context.Context) (*types.User, error) {
 
 	user, err := s.repo.FindUserByID(userID.(string))
 	if err != nil {
+		return nil, err
+	}
+	if user == nil {
 		return nil, fmt.Errorf("user not found")
 	}
 	return userModelToUser(user), nil
@@ -183,6 +199,9 @@ func (s *UserService) UpdateMe(ctx context.Context, req *types.UpdateUserRequest
 
 	user, err := s.repo.FindUserByID(userID.(string))
 	if err != nil {
+		return nil, err
+	}
+	if user == nil {
 		return nil, fmt.Errorf("user not found")
 	}
 
@@ -198,8 +217,16 @@ func (s *UserService) UpdateMe(ctx context.Context, req *types.UpdateUserRequest
 	if req.AvatarURL != nil {
 		user.AvatarURL = *req.AvatarURL
 	}
-	if req.DefaultFamilyID != nil {
-		user.DefaultFamilyID = req.DefaultFamilyID
+	if len(req.DefaultFamilyID) > 0 {
+		if string(req.DefaultFamilyID) == "null" {
+			// Explicitly cleared — set to nil
+			user.DefaultFamilyID = nil
+		} else {
+			var id string
+			if err := json.Unmarshal(req.DefaultFamilyID, &id); err == nil && id != "" {
+				user.DefaultFamilyID = &id
+			}
+		}
 	}
 
 	if err := s.repo.UpdateUser(user); err != nil {
@@ -208,10 +235,17 @@ func (s *UserService) UpdateMe(ctx context.Context, req *types.UpdateUserRequest
 	return userModelToUser(user), nil
 }
 
-// ─── ListUsers ────────────────────────────────────────────────────
+// ─── ListUsers (admin) ────────────────────────────────────────────
 
-func (s *UserService) ListUsers(ctx context.Context) ([]types.User, error) {
-	users, err := s.repo.ListUsers()
+func (s *UserService) ListUsers(ctx context.Context, req *types.ListUsersRequest) (*types.ListUsersResponse, error) {
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.PageSize < 1 || req.PageSize > 100 {
+		req.PageSize = 20
+	}
+
+	users, total, err := s.repo.SearchUsers(req.Query, req.Page, req.PageSize)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
@@ -220,7 +254,77 @@ func (s *UserService) ListUsers(ctx context.Context) ([]types.User, error) {
 	for i, u := range users {
 		result[i] = *userModelToUser(&u)
 	}
-	return result, nil
+
+	totalPages := int(total) / req.PageSize
+	if int(total)%req.PageSize > 0 {
+		totalPages++
+	}
+
+	return &types.ListUsersResponse{
+		Users:      result,
+		Total:      total,
+		Page:       req.Page,
+		PageSize:   req.PageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+// ─── ResetPassword (admin) ────────────────────────────────────────
+
+func (s *UserService) ResetPassword(ctx context.Context, req *types.ResetPasswordRequest) (string, error) {
+	acc, err := s.repo.FindAccountByUserID(req.UserID)
+	if err != nil {
+		return "", err
+	}
+	if acc == nil {
+		return "", fmt.Errorf("account not found for user")
+	}
+
+	// Read default password from system settings
+	setting, err := s.settingsRepo.Get("default_password")
+	if err != nil || setting == nil || setting.Value == "" {
+		return "", fmt.Errorf("default password not configured")
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(setting.Value), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("hash password: %w", err)
+	}
+
+	acc.PasswordHash = string(hash)
+	if err := s.repo.UpdateAccount(acc); err != nil {
+		return "", fmt.Errorf("update account: %w", err)
+	}
+	return setting.Value, nil
+}
+
+// ─── ChangePassword ───────────────────────────────────────────────
+
+func (s *UserService) ChangePassword(ctx context.Context, req *types.ChangePasswordRequest) error {
+	userID := ctx.Value("user_id")
+	if userID == nil {
+		return fmt.Errorf("not authenticated")
+	}
+
+	acc, err := s.repo.FindAccountByUserID(userID.(string))
+	if err != nil {
+		return err
+	}
+	if acc == nil {
+		return fmt.Errorf("account not found")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(acc.PasswordHash), []byte(req.OldPassword)); err != nil {
+		return fmt.Errorf("current password is incorrect")
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	acc.PasswordHash = string(hash)
+	return s.repo.UpdateAccount(acc)
 }
 
 // ─── IsAdmin ──────────────────────────────────────────────────────

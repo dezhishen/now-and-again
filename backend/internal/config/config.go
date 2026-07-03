@@ -12,6 +12,7 @@ type Config struct {
 	Port            string
 	JWTSecret       string
 	Database        DatabaseConfig
+	DataDir         string // absolute path to the data directory
 	UploadDir       string
 	DefaultTimezone string // IANA timezone, e.g. "Asia/Shanghai". Used as fallback.
 }
@@ -42,6 +43,7 @@ func Load() (*Config, error) {
 		Database: DatabaseConfig{
 			DSN: dbDSN,
 		},
+		DataDir:         abs,
 		UploadDir:       uploadDir,
 		DefaultTimezone: envOrDefault("DEFAULT_TIMEZONE", "Asia/Shanghai"),
 	}

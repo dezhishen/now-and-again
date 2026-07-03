@@ -23,12 +23,13 @@ var (
 // ─── User ─────────────────────────────────────────────────────────
 
 type UserService struct {
-	repo      *repository.UserRepo
-	jwtSecret string
+	repo         *repository.UserRepo
+	settingsRepo *repository.SettingsRepo
+	jwtSecret    string
 }
 
-func NewUserService(repo *repository.UserRepo, jwtSecret string) *UserService {
-	return &UserService{repo: repo, jwtSecret: jwtSecret}
+func NewUserService(repo *repository.UserRepo, settingsRepo *repository.SettingsRepo, jwtSecret string) *UserService {
+	return &UserService{repo: repo, settingsRepo: settingsRepo, jwtSecret: jwtSecret}
 }
 
 // ─── Family ───────────────────────────────────────────────────────
@@ -55,14 +56,15 @@ func NewApiKeyService(repo *repository.ApiKeyRepo) *ApiKeyService {
 // ─── Floor Plan ──────────────────────────────────────────────────
 
 type FloorPlanService struct {
-	repo      *repository.FloorPlanRepo
-	userRepo  *repository.UserRepo
-	imageSvc  *ImageService
-	imageRepo *repository.ImageRepo
+	repo       *repository.FloorPlanRepo
+	familyRepo *repository.FamilyRepo
+	userRepo   *repository.UserRepo
+	imageSvc   *ImageService
+	imageRepo  *repository.ImageRepo
 }
 
-func NewFloorPlanService(repo *repository.FloorPlanRepo, userRepo *repository.UserRepo, imageSvc *ImageService, imageRepo *repository.ImageRepo) *FloorPlanService {
-	return &FloorPlanService{repo: repo, userRepo: userRepo, imageSvc: imageSvc, imageRepo: imageRepo}
+func NewFloorPlanService(repo *repository.FloorPlanRepo, familyRepo *repository.FamilyRepo, userRepo *repository.UserRepo, imageSvc *ImageService, imageRepo *repository.ImageRepo) *FloorPlanService {
+	return &FloorPlanService{repo: repo, familyRepo: familyRepo, userRepo: userRepo, imageSvc: imageSvc, imageRepo: imageRepo}
 }
 
 // ─── All Contracts ────────────────────────────────────────────────

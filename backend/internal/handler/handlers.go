@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dezhishen/now-and-again/backend/internal/logger"
 	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
+	"github.com/dezhishen/now-and-again/backend/pkg/logger"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"

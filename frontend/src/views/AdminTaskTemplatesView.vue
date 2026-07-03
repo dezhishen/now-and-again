@@ -137,7 +137,7 @@ onMounted(() => { loadData() })
             </span>
           </div>
           <button
-            class="px-3 py-1 text-xs rounded-md bg-green-500 hover:bg-green-600 text-white disabled:opacity-50 transition-colors"
+            class="btn-primary text-xs"
             :disabled="refreshing === prov.code"
             @click="handleRefresh(prov.code)"
           >
@@ -154,7 +154,7 @@ onMounted(() => { loadData() })
           {{ t('taskTemplate.subscription.heading') }}
         </h3>
         <button
-          class="px-3 py-1 text-xs rounded-md bg-green-500 hover:bg-green-600 text-white transition-colors"
+          class="btn-primary text-sm"
           @click="openCreateSub"
         >
           + {{ t('taskTemplate.subscription.create') }}
@@ -206,7 +206,7 @@ onMounted(() => { loadData() })
             <input
               v-model="subForm.name"
               :placeholder="t('taskTemplate.subscription.namePlaceholder')"
-              class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm"
+              class="input"
             />
           </div>
           <div>
@@ -214,7 +214,7 @@ onMounted(() => { loadData() })
             <input
               v-model="subForm.url"
               :placeholder="t('taskTemplate.subscription.urlPlaceholder')"
-              class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm"
+              class="input"
             />
           </div>
           <label class="flex items-center gap-2 cursor-pointer">
@@ -223,16 +223,12 @@ onMounted(() => { loadData() })
           </label>
           <div v-if="subForm.auto_refresh">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('taskTemplate.subscription.intervalHours') }}</label>
-            <input v-model.number="subForm.refresh_interval_hours" type="number" min="1" class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" />
+            <input v-model.number="subForm.refresh_interval_hours" type="number" min="1" class="input" />
           </div>
         </div>
         <div class="flex justify-end gap-2 mt-4">
-          <button class="px-4 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="showSubForm = false">
-            {{ t('confirm.cancel') }}
-          </button>
-          <button class="px-4 py-2 text-sm rounded-md bg-green-500 hover:bg-green-600 text-white font-medium transition-colors" @click="handleSaveSub">
-            {{ t('confirm.ok') }}
-          </button>
+          <button class="btn-secondary text-sm" @click="showSubForm = false">{{ t('confirm.cancel') }}</button>
+          <button class="btn-primary text-sm" @click="handleSaveSub">{{ t('confirm.ok') }}</button>
         </div>
       </div>
     </div>

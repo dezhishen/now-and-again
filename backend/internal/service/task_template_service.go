@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/dezhishen/now-and-again/backend/pkg/logger"
 	"github.com/dezhishen/now-and-again/backend/pkg/model"
 
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
@@ -289,13 +290,18 @@ func (s *TaskTemplateService) DeleteSubscription(ctx context.Context, id string)
 }
 
 // SyncAll synchronises every registered provider at system level. Called at startup.
+// Individual provider failures are logged but do not stop the remaining providers.
 func (s *TaskTemplateService) SyncAll(ctx context.Context) error {
+	var firstErr error
 	for _, p := range tasktemplate.AllProviders() {
 		if err := p.Sync(ctx, s.repo); err != nil {
-			return fmt.Errorf("sync provider %s: %w", p.Code(), err)
+			logger.Warnf("[task-template] sync provider %s failed: %v", p.Code(), err)
+			if firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
-	return nil
+	return firstErr
 }
 
 // ─── helpers ──────────────────────────────────────────────────────

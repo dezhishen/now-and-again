@@ -60,4 +60,57 @@
            focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary
            dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200;
   }
+
+  /* ── Tab system (3 visual levels) ────────────────────────── */
+
+  /* L1: Primary navigation (sidebar pills) */
+  .nav-item {
+    @apply px-3 py-2 rounded-lg text-left text-sm transition-colors
+           text-gray-700 dark:text-gray-300
+           hover:bg-primary hover:text-white;
+  }
+  .nav-item.active {
+    @apply bg-primary/10 text-primary font-medium;
+  }
+
+  /* L2: Chrome tab bar (layout-level, FamilyView top bar) */
+  .tab-bar {
+    @apply flex items-center border-b border-gray-200 dark:border-gray-700
+           bg-gray-50 dark:bg-gray-800/50 px-2 overflow-x-auto flex-shrink-0;
+  }
+  .tab-bar .tab {
+    @apply flex items-center gap-1 px-3 py-2 text-sm border-b-2
+           transition-colors flex-shrink-0 max-w-[160px]
+           border-transparent text-gray-400
+           hover:text-gray-600 dark:hover:text-gray-300;
+  }
+  .tab-bar .tab.active {
+    @apply border-primary text-primary font-medium;
+  }
+
+  /* L3: Content tabs (sub-section switching within pages) */
+  .tabs {
+    @apply flex gap-1 mb-4 border-b dark:border-gray-700;
+  }
+  .tab {
+    @apply px-4 py-2 text-sm font-medium border-b-2 transition-colors
+           border-transparent text-gray-400
+           hover:text-gray-600 dark:hover:text-gray-300;
+  }
+  .tab.active {
+    @apply border-primary text-primary;
+  }
+
+  /* Compact variant for modals */
+  .tabs-sm {
+    @apply flex gap-1 mb-3 border-b dark:border-gray-700;
+  }
+  .tab-sm {
+    @apply px-3 py-1.5 text-xs font-medium border-b-2 transition-colors
+           border-transparent text-gray-400
+           hover:text-gray-600;
+  }
+  .tab-sm.active {
+    @apply border-primary text-primary;
+  }
 }

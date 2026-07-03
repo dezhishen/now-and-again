@@ -10,12 +10,13 @@ import (
 
 	"github.com/dezhishen/now-and-again/backend/internal/config"
 	"github.com/dezhishen/now-and-again/backend/internal/handler"
-	"github.com/dezhishen/now-and-again/backend/internal/logger"
 	"github.com/dezhishen/now-and-again/backend/internal/middleware"
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/backend/internal/service"
 	"github.com/dezhishen/now-and-again/backend/internal/webui"
+	"github.com/dezhishen/now-and-again/backend/pkg/logger"
 	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
+	"github.com/dezhishen/now-and-again/backend/pkg/tasktemplate/builtin"
 	"github.com/gin-gonic/gin"
 )
 
@@ -43,9 +44,7 @@ func main() {
 	if err := repository.Migrate(db); err != nil {
 		logger.Fatalf("failed to migrate: %v", err)
 	}
-	if err := repository.Seed(db); err != nil {
-		logger.Warnf("warning: seed failed: %v", err)
-	}
+	repository.RunAll(db)
 
 	// ── Repositories ────────────────────────────────────────────
 	userRepo := repository.NewUserRepo(db)
@@ -59,11 +58,11 @@ func main() {
 	taskTemplateRepo := repository.NewTaskTemplateRepo(db)
 
 	// ── Services ────────────────────────────────────────────────
-	userSvc := service.NewUserService(userRepo, cfg.JWTSecret)
+	userSvc := service.NewUserService(userRepo, settingsRepo, cfg.JWTSecret)
 	familySvc := service.NewFamilyService(familyRepo, userRepo)
 	apiKeySvc := service.NewApiKeyService(apiKeyRepo)
 	imageSvc := service.NewImageService(imageRepo, cfg.UploadDir, settingsRepo)
-	floorPlanSvc := service.NewFloorPlanService(floorPlanRepo, userRepo, imageSvc, imageRepo)
+	floorPlanSvc := service.NewFloorPlanService(floorPlanRepo, familyRepo, userRepo, imageSvc, imageRepo)
 
 	// Scheduler with DB log
 	if err := scheduler.Init(); err != nil {
@@ -79,14 +78,13 @@ func main() {
 	calendarSvc := service.NewCalendarService(taskRepo)
 	taskTemplateSvc := service.NewTaskTemplateService(taskTemplateRepo)
 
+	// Set data dir for builtin provider (admins can place custom .yaml in ${DATA_DIR}/templates/)
+	builtin.SetDataDir(cfg.DataDir)
+
 	// Sync all providers at startup so the DB is populated.
+	// Each provider logs its own errors; failures do not block startup.
 	if err := taskTemplateSvc.SyncAll(context.Background()); err != nil {
 		logger.Warnf("warning: initial task template sync failed: %v", err)
-	}
-
-	// ── Seed admin ──────────────────────────────────────────────
-	if _, err := repository.SeedAdmin(db); err != nil {
-		logger.Warnf("warning: seed admin failed: %v", err)
 	}
 
 	// ── Bundle contracts ────────────────────────────────────────
@@ -126,7 +124,7 @@ func main() {
 	ownerAuth := familyAuth.Group("")
 	ownerAuth.Use(middleware.OwnerGuard(familySvc))
 
-	handler.RegisterRoutes(router, auth, familyAuth, allContracts, imageHandler, settingsHandler, taskHandler, todoHandler, logHandler, icsHandler, calendarHandler, locationHandler, taskTemplateHandler)
+	handler.RegisterRoutes(router, auth, adminAuth, familyAuth, ownerAuth, allContracts, imageHandler, settingsHandler, taskHandler, todoHandler, logHandler, icsHandler, calendarHandler, locationHandler, taskTemplateHandler)
 
 	// ── Task Template: admin-only / owner-only routes ────────────
 	adminAuth.POST("/api/admin/task-templates/providers/:code/refresh", taskTemplateHandler.AdminRefreshProvider)

@@ -209,16 +209,14 @@ async function removeMember(userId: string) {
 
           <template v-else>
             <!-- Tabs -->
-            <div class="flex gap-1 px-4 pt-3 border-b dark:border-gray-700">
+            <div class="tabs-sm px-4 pt-3">
               <button
-                class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors"
-                :class="manageTab === 'members' ? 'border-primary text-primary' : 'border-transparent text-gray-400'"
+                class="tab-sm" :class="{ active: manageTab === 'members' }"
                 @click="manageTab = 'members'"
               >成员 ({{ manageDetail.members.length }})</button>
               <button
                 v-if="isGroupOwner()"
-                class="px-3 py-1.5 text-xs font-medium border-b-2 transition-colors relative"
-                :class="manageTab === 'requests' ? 'border-primary text-primary' : 'border-transparent text-gray-400'"
+                class="tab-sm relative" :class="{ active: manageTab === 'requests' }"
                 @click="manageTab = 'requests'"
               >
                 待审核

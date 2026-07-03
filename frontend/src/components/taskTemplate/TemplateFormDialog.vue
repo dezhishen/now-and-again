@@ -22,6 +22,27 @@ const emit = defineEmits<{
 }>()
 
 const saving = ref(false)
+const codeManuallyEdited = ref(false)
+
+// ── helpers ───────────────────────────────────────────────────────
+
+/** Convert a label/name to a safe lowercase key: "区域名称" → "area_name", "My Task" → "my_task" */
+function slugify(text: string): string {
+  // Try to detect if the text is purely CJK — if so, return empty
+  const hasLatin = /[a-zA-Z]/.test(text)
+  if (!hasLatin) return ''
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .replace(/_+/g, '_')
+    .substring(0, 32)
+}
+
+/** Generate a fallback key (timestamp-based, prefixed with tt_) */
+function fallbackKey(): string {
+  return 'tt_' + Date.now().toString(36)
+}
 
 const form = reactive<CreateTaskTemplateRequest>({
   template_code: '',
@@ -52,6 +73,14 @@ watch(() => props.editing, (tmpl) => {
   }
 }, { immediate: true })
 
+// Auto-generate template_code from name (only for new templates, not when editing)
+watch(() => form.name, (name) => {
+  if (props.editing) return         // never change code when editing existing
+  if (codeManuallyEdited.value) return // user already set it manually
+  const slug = slugify(name)
+  form.template_code = 'tt_' + (slug || Date.now().toString(36))
+})
+
 // Parameter editor
 function addParam() {
   form.parameters!.push({
@@ -66,6 +95,14 @@ function addParam() {
 
 function removeParam(index: number) {
   form.parameters!.splice(index, 1)
+}
+
+/** Auto-generate param key from label (if key is still empty) */
+function onParamLabelInput(idx: number) {
+  const p = form.parameters![idx]
+  if (!p.key && p.label) {
+    p.key = slugify(p.label) || 'param_' + idx
+  }
 }
 
 // YAML editors
@@ -122,6 +159,7 @@ const typeOptions = [
   { value: 'int', label: '整数' },
   { value: 'float', label: '小数' },
   { value: 'bool', label: '布尔' },
+  { value: 'time', label: '时间' },
   { value: 'select', label: '下拉选择' },
 ]
 </script>
@@ -139,9 +177,17 @@ const typeOptions = [
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code *</label>
-            <input v-model="form.template_code" required
-              class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-              :disabled="!!editing" />
+            <div class="flex gap-1">
+              <input v-model="form.template_code" required
+                class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                :disabled="!!editing"
+                @input="codeManuallyEdited = true" />
+              <button v-if="!editing" type="button"
+                class="px-2 rounded-md border border-gray-300 dark:border-gray-600 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
+                title="根据名称重新生成"
+                @click="codeManuallyEdited = false; form.template_code = 'tt_' + (slugify(form.name) || Date.now().toString(36))">↻</button>
+            </div>
+            <p v-if="!editing && !codeManuallyEdited" class="text-xs text-gray-400 mt-0.5">根据名称自动生成，也可手动修改</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">名称 *</label>
@@ -191,7 +237,7 @@ const typeOptions = [
           <div v-for="(p, i) in form.parameters" :key="i" class="border dark:border-gray-700 rounded-md p-3 mb-2">
             <div class="grid grid-cols-4 gap-2 mb-2">
               <input v-model="p.key" placeholder="key" class="col-span-1 rounded border dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-xs" />
-              <input v-model="p.label" placeholder="标签" class="col-span-1 rounded border dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-xs" />
+              <input v-model="p.label" placeholder="标签" class="col-span-1 rounded border dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-xs" @input="onParamLabelInput(i)" />
               <select v-model="p.type" class="col-span-1 rounded border dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-xs">
                 <option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
               </select>

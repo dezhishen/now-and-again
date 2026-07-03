@@ -70,20 +70,17 @@ router.beforeEach(async (to, _from, next) => {
     return next('/families')
   }
 
-  // ── Home redirect: skip family selection if a family is already active ──
+  // ── Home redirect: resolve family, then enter or go to selection ──
   if (to.name === 'home' && auth.isLoggedIn) {
     // Ensure user profile is loaded (contains default_family_id)
     if (!auth.user) await auth.fetchUser()
 
-    if (auth.activeFamilyId) {
-      // Local storage has a family → go straight in
+    const familyId = await auth.resolveFamily()
+    if (familyId) {
       return next('/family')
     }
-    if (auth.user?.default_family_id) {
-      // User has a default family → activate and enter
-      auth.switchFamily(auth.user.default_family_id)
-      return next('/family')
-    }
+    // No valid family — redirect to family management for selection
+    return next('/families')
   }
 
   // Already logged in — don't show login/register

@@ -1,7 +1,7 @@
 version: 1
 provider:
-  code: builtin
-  name: "内置模板"
+  code: http
+  name: "官方模板"
   description: "系统预置任务模板"
 templates:
   - code: daily_inspection

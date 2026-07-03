@@ -8,7 +8,7 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
 )
 
-func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, familyAuth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers, taskHandler *TaskHandlers, todoHandler *TodoHandlers, logHandler *LogHandlers, icsHandler *IcsHandlers, calendarHandler *CalendarHandlers, locationHandler *LocationHandlers, taskTemplateHandler *TaskTemplateHandlers) {
+func RegisterRoutes(public *gin.Engine, auth, adminAuth, familyAuth, ownerAuth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers, taskHandler *TaskHandlers, todoHandler *TodoHandlers, logHandler *LogHandlers, icsHandler *IcsHandlers, calendarHandler *CalendarHandlers, locationHandler *LocationHandlers, taskTemplateHandler *TaskTemplateHandlers) {
 	h := NewHandlers(c)
 
 	// ── Public ──────────────────────────────────────────────────
@@ -22,16 +22,23 @@ func RegisterRoutes(public *gin.Engine, auth *gin.RouterGroup, familyAuth *gin.R
 	// Image serving (public)
 	public.GET("/api/images/:id", imgHandler.Serve)
 
+	// Public settings (scope=public only, no auth required)
+	public.GET("/api/public/settings", settingsHandler.GetPublic)
+
 	// ── Protected (no family required) ──────────────────────────
 	auth.POST("/api/auth/logout", h.User.Logout)
-	auth.GET("/api/admin/users", h.User.ListUsers)
-	auth.GET("/api/admin/settings", settingsHandler.GetAll)
-	auth.PUT("/api/admin/settings", settingsHandler.Update)
 
 	// User
 	auth.GET("/api/users/me", h.User.GetMe)
 	auth.PUT("/api/users/me", h.User.UpdateMe)
+	auth.PUT("/api/users/me/password", h.User.ChangePassword)
 	auth.GET("/api/users/me/families", h.Family.ListMyFamilies)
+
+	// ── Admin-only ──────────────────────────────────────────────
+	adminAuth.GET("/api/admin/users", h.User.ListUsers)
+	adminAuth.POST("/api/admin/users/reset-password", h.User.ResetPassword)
+	adminAuth.GET("/api/admin/settings", settingsHandler.GetAll)
+	adminAuth.PUT("/api/admin/settings", settingsHandler.Update)
 
 	// Family CRUD (no active family needed)
 	auth.POST("/api/families", h.Family.Create)

@@ -88,6 +88,52 @@ export const useAuthStore = defineStore('auth', () => {
     activeFamilyId.value = id
   }
 
+  /**
+   * Resolve the active family after login / session restore.
+   *
+   * 1. If localStorage holds a previously-used family ID:
+   *    - Fetch that family via GET /api/families/:id
+   *    - If archived or 404 → clear the saved ID, return null
+   *    - Otherwise keep it as the active family
+   * 2. If no saved ID: fall back to the user's default_family_id
+   *    from /users/me
+   *
+   * Returns the resolved family ID, or null if none could be determined.
+   * Caller should redirect to /families when null.
+   */
+  async function resolveFamily(): Promise<string | null> {
+    // ── Case 1: localStorage has a saved family ID → validate it ──
+    if (activeFamilyId.value) {
+      try {
+        const family = await api.get<Family>(`/families/${activeFamilyId.value}`)
+        if (family.archived) {
+          activeFamilyId.value = null
+          return null
+        }
+        return activeFamilyId.value
+      } catch {
+        // 404 (family deleted) or network error → clear stale ID
+        activeFamilyId.value = null
+        return null
+      }
+    }
+
+    // ── Case 2: no saved ID → use default from /me ──
+    if (user.value?.default_family_id) {
+      // Also validate the default family (it might be archived too)
+      try {
+        const family = await api.get<Family>(`/families/${user.value.default_family_id}`)
+        if (family.archived) return null
+        activeFamilyId.value = user.value.default_family_id
+        return user.value.default_family_id
+      } catch {
+        return null
+      }
+    }
+
+    return null
+  }
+
   // ── logout ─────────────────────────────────────────────────
 
   /** Clear local state immediately, then invalidate server-side (best-effort). */
@@ -104,6 +150,6 @@ export const useAuthStore = defineStore('auth', () => {
     user, families, activeFamilyId, sessionChecked,
     isLoggedIn, isAdmin,
     initSession, fetchUser, register, login, logout,
-    loadFamilies, switchFamily,
+    loadFamilies, switchFamily, resolveFamily,
   }
 })

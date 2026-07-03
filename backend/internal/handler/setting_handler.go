@@ -22,6 +22,19 @@ func (h *SettingsHandlers) GetAll(c *gin.Context) {
 	ok(c, settings)
 }
 
+func (h *SettingsHandlers) GetPublic(c *gin.Context) {
+	settings, err := h.repo.GetByScope("public")
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	// Ensure non-nil slice in JSON
+	if settings == nil {
+		settings = []repository.SystemSettingModel{}
+	}
+	ok(c, settings)
+}
+
 func (h *SettingsHandlers) Update(c *gin.Context) {
 	var updates map[string]string
 	if err := c.ShouldBindJSON(&updates); err != nil {

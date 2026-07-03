@@ -128,7 +128,7 @@ function copyKey() {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-4">
+  <div class="max-w-3xl mx-auto p-4">
     <h2 class="text-xl md:text-2xl font-bold mb-4 dark:text-gray-200">API Keys</h2>
     <p class="text-sm text-gray-400 mb-4">API Key 用于 CLI 或第三方工具访问系统。每个 Key 可设置权限范围和过期时间。</p>
 

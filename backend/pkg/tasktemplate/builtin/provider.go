@@ -3,23 +3,33 @@ package builtin
 import (
 	"bytes"
 	"context"
-	"embed"
 	"encoding/json"
 	"fmt"
-	"io/fs"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/dezhishen/now-and-again/backend/pkg/logger"
 	"github.com/dezhishen/now-and-again/backend/pkg/model"
 	"github.com/dezhishen/now-and-again/backend/pkg/tasktemplate"
 )
 
-//go:embed templates/*.yaml
-var embeddedYAML embed.FS
+// dataDir is set once at startup via SetDataDir.
+var dataDir string
 
-// Provider loads templates from embedded YAML files and syncs them into the DB.
+// SetDataDir sets the runtime data directory for reading templates from disk.
+// Must be called before Sync().
+func SetDataDir(dir string) { dataDir = dir }
+
+// templatesDir returns the path where administrators can place custom .yaml templates.
+// This is NOT populated by the application — admins manage files manually.
+func templatesDir() string { return filepath.Join(dataDir, "templates") }
+
+// ─── Provider ─────────────────────────────────────────────────────
+
 type Provider struct {
 	mu         sync.Mutex
 	lastSync   time.Time
@@ -51,6 +61,10 @@ func (p *Provider) SyncStatus() string {
 }
 
 func (p *Provider) Sync(ctx context.Context, storage tasktemplate.TemplateStorage) error {
+	if dataDir == "" {
+		return fmt.Errorf("builtin: data dir not set, call SetDataDir before Sync")
+	}
+
 	p.mu.Lock()
 	p.syncStatus = "syncing"
 	p.mu.Unlock()
@@ -67,10 +81,23 @@ func (p *Provider) Sync(ctx context.Context, storage tasktemplate.TemplateStorag
 		p.mu.Unlock()
 	}()
 
-	entries, err := readEmbeddedDir("templates")
-	if err != nil {
-		syncErr = fmt.Errorf("builtin: read embedded dir: %w", err)
+	dir := templatesDir()
+
+	// Ensure the templates directory exists (admins put .yaml files here).
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		syncErr = fmt.Errorf("builtin: create templates dir %s: %w", dir, err)
 		return syncErr
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		logger.Infof("[builtin] no templates directory at %s, skipping (this is normal if no custom templates)", dir)
+		return nil
+	}
+
+	if len(entries) == 0 {
+		logger.Infof("[builtin] templates directory %s is empty, skipping", dir)
+		return nil
 	}
 
 	seen := make(map[string]bool)
@@ -79,29 +106,34 @@ func (p *Provider) Sync(ctx context.Context, storage tasktemplate.TemplateStorag
 		if entry.IsDir() {
 			continue
 		}
-		data, err := embeddedYAML.ReadFile("templates/" + entry.Name())
+		if filepath.Ext(entry.Name()) != ".yaml" && filepath.Ext(entry.Name()) != ".yml" {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
+		data, err := os.ReadFile(path)
 		if err != nil {
-			syncErr = fmt.Errorf("builtin: read %s: %w", entry.Name(), err)
-			return syncErr
+			logger.Warnf("[builtin] read %s: %v (skipping)", entry.Name(), err)
+			continue
 		}
 
 		doc, err := parseYAMLDocument(data)
 		if err != nil {
-			syncErr = fmt.Errorf("builtin: parse %s: %w", entry.Name(), err)
-			return syncErr
+			logger.Warnf("[builtin] parse %s: %v (skipping)", entry.Name(), err)
+			continue
 		}
 
 		for _, t := range doc.Templates {
 			m := yamlEntryToModel("builtin", &t)
 			if err := storage.UpsertTemplate(m); err != nil {
-				syncErr = fmt.Errorf("builtin: upsert %s: %w", t.Code, err)
-				return syncErr
+				logger.Warnf("[builtin] upsert %s: %v", t.Code, err)
+				continue
 			}
 			seen[t.Code] = true
 		}
+		logger.Infof("[builtin] synced %s (%d templates)", entry.Name(), len(doc.Templates))
 	}
 
-	// Remove templates that are no longer in the embedded YAML.
+	// Remove templates that are no longer in the templates directory.
 	existing, err := storage.FindByProvider("builtin")
 	if err != nil {
 		syncErr = fmt.Errorf("builtin: list existing: %w", err)
@@ -120,10 +152,6 @@ func (p *Provider) Sync(ctx context.Context, storage tasktemplate.TemplateStorag
 }
 
 // ─── helpers ──────────────────────────────────────────────────────
-
-func readEmbeddedDir(dir string) ([]fs.DirEntry, error) {
-	return embeddedYAML.ReadDir("templates")
-}
 
 func parseYAMLDocument(data []byte) (*tasktemplate.TemplateYAMLDocument, error) {
 	dec := yaml.NewDecoder(bytes.NewReader(data))

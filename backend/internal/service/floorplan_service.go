@@ -46,6 +46,11 @@ func (s *FloorPlanService) Upload(ctx context.Context, familyID uuid.UUID, label
 		return nil, fmt.Errorf("create floor plan: %w", err)
 	}
 
+	// Sync family's cover_image_id
+	if isCover {
+		_ = s.familyRepo.SetFamilyCoverImage(familyID.String(), img.ID)
+	}
+
 	result := floorPlanModelToType(fp)
 	result.ImageURL = "/api/images/" + img.ID
 	return &result, nil
@@ -66,6 +71,9 @@ func (s *FloorPlanService) ListByFamily(ctx context.Context, familyID uuid.UUID)
 func (s *FloorPlanService) GetByID(ctx context.Context, planID uuid.UUID) (*types.FloorPlan, error) {
 	fp, err := s.repo.FindFloorPlanByID(planID.String())
 	if err != nil {
+		return nil, err
+	}
+	if fp == nil {
 		return nil, fmt.Errorf("floor plan not found")
 	}
 
@@ -83,24 +91,54 @@ func (s *FloorPlanService) GetByID(ctx context.Context, planID uuid.UUID) (*type
 func (s *FloorPlanService) Delete(ctx context.Context, planID uuid.UUID) error {
 	fp, err := s.repo.FindFloorPlanByID(planID.String())
 	if err != nil {
+		return err
+	}
+	if fp == nil {
 		return fmt.Errorf("floor plan not found")
 	}
+
+	wasCover := fp.IsCover
+
 	// Delete image file from disk
 	if fp.Image.ID != "" {
 		imgPath, _ := s.imageSvc.GetFilePath(ctx, fp.ImageID)
 		os.Remove(imgPath)
 		s.imageRepo.DeleteImage(fp.ImageID)
 	}
-	return s.repo.DeleteFloorPlanByID(planID.String())
+
+	if err := s.repo.DeleteFloorPlanByID(planID.String()); err != nil {
+		return err
+	}
+
+	// If the deleted floor plan was the cover, try to find a new cover
+	if wasCover {
+		remaining, _ := s.repo.ListFloorPlansByFamilyID(fp.FamilyID)
+		if len(remaining) > 0 {
+			// Set first remaining as cover and sync family
+			_ = s.repo.SetCover(remaining[0].ID)
+			_ = s.familyRepo.SetFamilyCoverImage(fp.FamilyID, remaining[0].ImageID)
+		} else {
+			_ = s.familyRepo.ClearFamilyCoverImage(fp.FamilyID)
+		}
+	}
+
+	return nil
 }
 
 func (s *FloorPlanService) SetCover(ctx context.Context, planID uuid.UUID) error {
 	fp, err := s.repo.FindFloorPlanByID(planID.String())
 	if err != nil {
+		return err
+	}
+	if fp == nil {
 		return fmt.Errorf("floor plan not found")
 	}
 	s.repo.ClearCoverForFamily(fp.FamilyID)
-	return s.repo.SetCover(planID.String())
+	if err := s.repo.SetCover(planID.String()); err != nil {
+		return err
+	}
+	// Sync family's cover_image_id
+	return s.familyRepo.SetFamilyCoverImage(fp.FamilyID, fp.ImageID)
 }
 
 // ─── Locations (first-class entity) ──────────────────────────────
@@ -163,6 +201,9 @@ func (s *FloorPlanService) ListFloorPlanLocations(ctx context.Context, floorPlan
 func (s *FloorPlanService) UpdateLocation(ctx context.Context, locationID uuid.UUID, req *types.UpdateLocationRequest) (*types.Location, error) {
 	l, err := s.repo.FindLocationByID(locationID.String())
 	if err != nil {
+		return nil, err
+	}
+	if l == nil {
 		return nil, fmt.Errorf("location not found")
 	}
 	if req.Name != "" {

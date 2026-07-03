@@ -40,7 +40,7 @@ type TemplateYAMLEntry struct {
 type TemplateParameterYAML struct {
 	Key         string         `yaml:"key"`
 	Label       string         `yaml:"label"`
-	Type        string         `yaml:"type"` // string, int, float, bool, select
+	Type        string         `yaml:"type"` // string, int, float, bool, time, select
 	Description string         `yaml:"description,omitempty"`
 	Required    bool           `yaml:"required,omitempty"`
 	Default     any            `yaml:"default,omitempty"`

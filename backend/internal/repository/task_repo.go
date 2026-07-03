@@ -179,10 +179,13 @@ func (r *TaskRepo) CreateUserLog(taskID, todoID, userID, action, message string)
 // If root_task_id is not set (legacy data), falls back to querying only the task's own logs.
 func (r *TaskRepo) ListLogs(taskID string, limit, offset int) ([]TaskLogModel, error) {
 	rootID := r.resolveRootID(taskID)
+	descendantSub := r.db.Model(&TaskModel{}).Select("id").
+		Where("root_task_id = ?", rootID)
+
 	var logs []TaskLogModel
 	err := r.db.
 		Preload("Task").
-		Where("task_id IN (SELECT id FROM tasks WHERE root_task_id = ?)", rootID).
+		Where("task_id IN (?)", descendantSub).
 		Order("created_at DESC").
 		Limit(limit).Offset(offset).
 		Find(&logs).Error
@@ -192,10 +195,13 @@ func (r *TaskRepo) ListLogs(taskID string, limit, offset int) ([]TaskLogModel, e
 // ListUserLogs returns user-generated logs for a task AND all descendants.
 func (r *TaskRepo) ListUserLogs(taskID string, limit, offset int) ([]TaskLogModel, error) {
 	rootID := r.resolveRootID(taskID)
+	descendantSub := r.db.Model(&TaskModel{}).Select("id").
+		Where("root_task_id = ?", rootID)
+
 	var logs []TaskLogModel
 	err := r.db.
 		Preload("Task").
-		Where("task_id IN (SELECT id FROM tasks WHERE root_task_id = ?) AND log_type = ?", rootID, "user").
+		Where("task_id IN (?) AND log_type = ?", descendantSub, "user").
 		Order("created_at DESC").
 		Limit(limit).Offset(offset).
 		Find(&logs).Error

@@ -136,13 +136,11 @@ onMounted(() => { loadAll() })
     <template v-else>
 
     <!-- Tabs -->
-    <div class="flex gap-1 mb-4 border-b dark:border-gray-700">
-      <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
-        :class="activeTab === 'todos' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+    <div class="tabs">
+      <button class="tab" :class="{ active: activeTab === 'todos' }"
         @click="activeTab = 'todos'"
       >{{ t('dashboard.todos') }} ({{ todos.length }})</button>
-      <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
-        :class="activeTab === 'overview' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+      <button class="tab" :class="{ active: activeTab === 'overview' }"
         @click="activeTab = 'overview'"
       >{{ t('dashboard.overview') }}</button>
     </div>

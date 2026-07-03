@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
@@ -98,12 +99,48 @@ func (h *UserHandlers) UpdateMe(c *gin.Context) {
 }
 
 func (h *UserHandlers) ListUsers(c *gin.Context) {
-	users, err := h.C.ListUsers(userCtx(c))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+
+	req := &types.ListUsersRequest{
+		Query:    c.Query("q"),
+		Page:     page,
+		PageSize: pageSize,
+	}
+
+	resp, err := h.C.ListUsers(userCtx(c), req)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
-	ok(c, users)
+	ok(c, resp)
+}
+
+func (h *UserHandlers) ResetPassword(c *gin.Context) {
+	req, err := bindJSON[types.ResetPasswordRequest](c)
+	if err != nil {
+		validationError(c, err)
+		return
+	}
+	pwd, err := h.C.ResetPassword(userCtx(c), req)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, gin.H{"message": "password reset successfully", "password": pwd})
+}
+
+func (h *UserHandlers) ChangePassword(c *gin.Context) {
+	req, err := bindJSON[types.ChangePasswordRequest](c)
+	if err != nil {
+		validationError(c, err)
+		return
+	}
+	if err := h.C.ChangePassword(userCtx(c), req); err != nil {
+		serverError(c, err)
+		return
+	}
+	ok(c, gin.H{"message": "password changed"})
 }
 
 func setRefreshCookie(c *gin.Context, token string) {

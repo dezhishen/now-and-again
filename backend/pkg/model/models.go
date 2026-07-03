@@ -58,11 +58,15 @@ type UserModel struct {
 	Roles    []UserRoleModel `gorm:"foreignKey:UserID"`
 }
 
+func (UserModel) TableName() string { return "users" }
+
 type RoleModel struct {
 	BaseModel
 	Name        string `gorm:"uniqueIndex;size:64;not null"`
 	Description string `gorm:"type:text"`
 }
+
+func (RoleModel) TableName() string { return "roles" }
 
 type UserRoleModel struct {
 	UserID string    `gorm:"primaryKey;type:char(36)"`
@@ -76,13 +80,14 @@ func (UserRoleModel) TableName() string { return "user_roles" }
 
 type FamilyModel struct {
 	BaseModel
-	Name               string              `gorm:"size:128;not null"`
-	InviteCode         string              `gorm:"uniqueIndex;size:32;not null"`
-	CreatedBy          string              `gorm:"type:char(36);not null"`
-	Timezone           string              `gorm:"size:64;not null;default:Asia/Shanghai"`
-	Archived           bool                `gorm:"not null;default:false"`
-	FloorPlanImagePath string              `gorm:"->"`
-	Members            []FamilyMemberModel `gorm:"foreignKey:FamilyID"`
+	Name         string              `gorm:"size:128;not null"`
+	InviteCode   string              `gorm:"uniqueIndex;size:32;not null"`
+	CreatedBy    string              `gorm:"type:char(36);not null"`
+	Timezone     string              `gorm:"size:64;not null;default:Asia/Shanghai"`
+	Archived     bool                `gorm:"not null;default:false"`
+	CoverImageID *string             `gorm:"type:char(36)"`
+	CoverImage   *ImageModel         `gorm:"foreignKey:CoverImageID"`
+	Members      []FamilyMemberModel `gorm:"foreignKey:FamilyID"`
 }
 
 func (FamilyModel) TableName() string { return "families" }
@@ -166,6 +171,7 @@ func (ImageModel) TableName() string { return "images" }
 type SystemSettingModel struct {
 	Key   string `gorm:"primaryKey;size:128"`
 	Value string `gorm:"type:text;not null"`
+	Scope string `gorm:"size:16;not null;default:admin"` // "public" or "admin"
 }
 
 func (SystemSettingModel) TableName() string { return "system_settings" }

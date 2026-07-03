@@ -20,6 +20,7 @@ export interface Family {
   invite_code: string
   created_by: string
   archived: boolean
+  cover_image_id?: string
   thumbnail_url?: string
   created_at: string
   updated_at: string

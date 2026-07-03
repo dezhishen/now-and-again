@@ -8,7 +8,7 @@ import "time"
 type TemplateParameter struct {
 	Key         string         `json:"key"`
 	Label       string         `json:"label"`
-	Type        string         `json:"type"` // string, int, float, bool, select
+	Type        string         `json:"type"` // string, int, float, bool, time, select
 	Description string         `json:"description,omitempty"`
 	Required    bool           `json:"required"`
 	Default     any            `json:"default,omitempty"`

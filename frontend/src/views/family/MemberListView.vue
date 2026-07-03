@@ -99,18 +99,16 @@ const ROLE_LABELS: Record<string, I18nKey> = {
     <template v-else>
 
     <!-- Tabs -->
-    <div class="flex gap-1 mb-4 border-b dark:border-gray-700">
+    <div class="tabs">
       <button
-        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
-        :class="activeTab === 'members' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+        class="tab" :class="{ active: activeTab === 'members' }"
         @click="activeTab = 'members'"
       >
         {{ t('members.tabMembers') }}
       </button>
       <button
         v-if="canManage"
-        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors relative"
-        :class="activeTab === 'requests' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+        class="tab relative" :class="{ active: activeTab === 'requests' }"
         @click="activeTab = 'requests'"
       >
         {{ t('members.tabRequests') }}

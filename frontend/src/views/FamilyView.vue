@@ -150,8 +150,8 @@ async function leaveFamily() {
         <button
           v-for="nav in NAV_ITEMS.filter(n => !n.adminOnly || isFamilyAdmin)"
           :key="nav.id"
-          class="px-3 py-2 rounded-lg text-left text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-white transition-colors text-sm"
-          :class="activeTabId === nav.id ? 'bg-primary/10 text-primary font-medium' : ''"
+          class="nav-item"
+          :class="{ active: activeTabId === nav.id }"
           @click="openTab(nav.id)"
         >{{ nav.icon }} {{ t(nav.labelKey) }}</button>
         <hr class="my-2 border-gray-200 dark:border-gray-700" />
@@ -165,11 +165,11 @@ async function leaveFamily() {
     <!-- Content -->
     <main class="flex-1 flex flex-col pt-14 md:pt-0 min-w-0 overflow-hidden">
       <!-- Tab bar -->
-      <div class="flex items-center border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-2 overflow-x-auto flex-shrink-0">
+      <div class="tab-bar">
         <button
           v-for="tab in tabs" :key="tab.id"
-          class="group flex items-center gap-1 px-3 py-2 text-sm border-b-2 transition-colors flex-shrink-0 max-w-[160px]"
-          :class="activeTabId === tab.id ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+          class="tab group"
+          :class="{ active: activeTabId === tab.id }"
           @click="activeTabId = tab.id"
         >
           <span class="truncate">{{ tab.icon }} {{ t(tab.labelKey) }}</span>

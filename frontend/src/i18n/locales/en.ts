@@ -305,6 +305,9 @@ export default {
     heading: 'Profile', displayName: 'Display Name', displayNamePlaceholder: 'Your display name',
     email: 'Email', phone: 'Phone', phoneOptional: 'Optional',
     saving: 'Saving...', saved: 'Saved ✓', save: 'Save Changes', adminRole: 'System Admin',
+    changePassword: 'Change Password', oldPassword: 'Current Password', newPassword: 'New Password',
+    confirmPassword: 'Confirm New Password', passwordMismatch: 'Passwords do not match',
+    confirmChange: 'Confirm', passwordChanged: 'Password changed successfully',
   },
   error: {
     summary: {
@@ -342,8 +345,21 @@ export default {
     },
   },
   admin: {
-    heading: 'Admin Panel', users: 'User Management', storage: 'Storage Config',
+    heading: 'Admin Panel', users: 'User Management', storage: 'System Settings',
     usersDisplayName: 'Display Name', usersEmail: 'Email', usersRoles: 'Roles', usersCreated: 'Registered',
+    actions: 'Actions', resetPassword: 'Reset Password',
+    searchPlaceholder: 'Search by username, email...',
+    noUsers: 'No users', noResults: 'No matching users found',
+    showingFrom: 'Showing', showingOf: 'of',
+    resetPasswordTitle: 'Reset Password',
+    resetPasswordConfirm: 'Reset {user}\'s password to the system default?',
+    resetPasswordIs: 'New password',
+    resetConfirm: 'Confirm Reset',
+    resetSuccess: 'Password reset successfully',
+    defaultPasswordHeading: 'Default Password',
+    defaultPasswordDesc: 'Default password used when resetting user passwords. Changes take effect immediately and do not affect existing passwords.',
+    show: 'Show', hide: 'Hide',
+    regenerate: 'Regenerate',
     storageHeading: 'Image Storage Config',
     storageDesc: 'Select the storage backend for image files. New uploads will use the new backend; existing images are unaffected.',
     storageType: 'Storage Type', storageSaved: 'Saved', storageSave: 'Save Config',
@@ -355,6 +371,7 @@ export default {
     archiveConfirm: 'Archive this family? Members will lose access.', archive: 'Archive', archived: 'Archived', restore: 'Restore', restored: 'Family restored' },
   taskTemplate: {
     heading: 'Task Templates',
+    builtinTab: 'Built-in Templates',
     empty: 'No templates available',
     systemProvider: 'Built-in',
     httpProvider: 'Remote Subscription',
@@ -381,6 +398,7 @@ export default {
     refreshed: 'Sync completed',
     subscription: {
       heading: 'Subscriptions',
+      adminOnly: 'Only family admins can manage subscriptions',
       empty: 'No subscriptions',
       create: 'Add Subscription',
       edit: 'Edit Subscription',

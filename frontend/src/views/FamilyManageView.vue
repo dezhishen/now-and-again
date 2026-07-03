@@ -9,6 +9,7 @@ import { useToast } from '@/composables/useToast'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import type { Family } from '@/types'
 
 const { t } = useI18n()
@@ -102,7 +103,7 @@ async function restoreFamily(family: Family) {
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto p-4">
+  <div class="max-w-5xl mx-auto p-4">
     <div class="mb-8">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg md:text-xl font-bold dark:text-gray-200">{{ t('familyManage.heading') }}</h2>
@@ -151,12 +152,12 @@ async function restoreFamily(family: Family) {
             </div>
 
             <!-- Thumbnail -->
-            <div v-if="f.thumbnail_url" class="mb-3 -mx-4 -mt-4 overflow-hidden rounded-t-lg aspect-video bg-gray-200 dark:bg-gray-700">
-              <img :src="f.thumbnail_url" class="w-full h-full object-cover" />
-            </div>
-            <div v-else class="mb-3 -mx-4 -mt-4 aspect-video bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-gray-800 flex items-center justify-center rounded-t-lg">
-              <span class="text-4xl opacity-30">{{ f.name[0] }}</span>
-            </div>
+            <ImageWithFallback
+              :image-id="f.cover_image_id"
+              :fallback-text="f.name"
+              class="mb-3 -mx-4 -mt-4 rounded-t-lg"
+              rounded="rounded-t-lg"
+            />
 
             <div class="flex items-center justify-between">
               <button class="font-medium dark:text-gray-200 hover:text-primary transition-colors text-left" @click="auth.switchFamily(f.id); router.push('/family')">
