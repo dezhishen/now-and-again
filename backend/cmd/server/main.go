@@ -22,11 +22,7 @@ import (
 
 func main() {
 	// ── Logger (must be first — config.Load may fail and call Fatalf) ─────
-	dataDir := os.Getenv("NA_DATA_DIR")
-	if dataDir == "" {
-		dataDir = os.Getenv("DATA_DIR") // backward compat
-	}
-	logDir := filepath.Join(dataDir, "logs")
+	logDir := filepath.Join(os.Getenv("NA_DATA_DIR"), "logs")
 	if logDir == "logs" || logDir == "/logs" {
 		logDir = filepath.Join("data", "logs") // default when DATA_DIR is empty
 	}
@@ -52,9 +48,6 @@ func main() {
 
 	// Load family defaults (env FAMILY_DEFAULTS_PATH overrides YAML path, FAMILY_DEFAULTS_INIT=false disables)
 	defaultsPath := os.Getenv("NA_FAMILY_DEFAULTS_PATH")
-	if defaultsPath == "" {
-		defaultsPath = os.Getenv("FAMILY_DEFAULTS_PATH") // backward compat
-	}
 	if defaultsPath == "" {
 		defaultsPath = filepath.Join(cfg.DataDir, "family_defaults.yaml")
 	}

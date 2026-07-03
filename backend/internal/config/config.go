@@ -78,21 +78,14 @@ func resolveJWTSecret(dataDir string) (string, error) {
 }
 
 func envOrDefault(key, fallback string) string {
-	// Try NA_ prefix first, then bare key for backward compat
 	if v := os.Getenv("NA_" + key); v != "" {
-		return v
-	}
-	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return fallback
 }
 
 func envOrEmpty(key string) string {
-	if v := os.Getenv("NA_" + key); v != "" {
-		return v
-	}
-	return os.Getenv(key)
+	return os.Getenv("NA_" + key)
 }
 
 // BaseDir returns the data directory or current directory.

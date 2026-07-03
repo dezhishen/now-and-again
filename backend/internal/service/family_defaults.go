@@ -16,9 +16,6 @@ import (
 func familyDefaultsEnabled() bool {
 	v := os.Getenv("NA_FAMILY_DEFAULTS_INIT")
 	if v == "" {
-		v = os.Getenv("FAMILY_DEFAULTS_INIT") // backward compat
-	}
-	if v == "" {
 		return true // default: enabled
 	}
 	return strings.ToLower(v) == "true" || v == "1"
