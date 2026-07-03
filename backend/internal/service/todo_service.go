@@ -79,7 +79,11 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 		todo.Status = status
 		todo.CompletedBy = userID
 
-		msg := fmt.Sprintf("完成待办: %s", todo.Task.Name)
+		action := "完成待办"
+		if status == "skipped" {
+			action = "跳过待办"
+		}
+		msg := fmt.Sprintf("%s: %s", action, todo.Task.Name)
 		if todoFields.Remark != "" {
 			msg += fmt.Sprintf(" | 备注: %s", todoFields.Remark)
 		}

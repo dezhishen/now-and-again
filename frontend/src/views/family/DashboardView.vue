@@ -49,6 +49,7 @@ async function copyInviteCode() {
 
 async function completeTodo(todo: Todo, _status: string) {
   remarkTodo.value = todo
+  remarkStatus.value = _status
   remarkText.value = ''
   showRemark.value = true
 }
@@ -57,6 +58,7 @@ async function completeTodo(todo: Todo, _status: string) {
 
 const showRemark = ref(false)
 const remarkTodo = ref<Todo | null>(null)
+const remarkStatus = ref<string>('done')
 const remarkText = ref('')
 const remarkSubmitting = ref(false)
 
@@ -65,9 +67,10 @@ async function submitRemark() {
   if (!todo || remarkSubmitting.value) return
   remarkSubmitting.value = true
   try {
-    await api.put('/todos/' + todo.id, { todo: { status: 'done', remark: remarkText.value } })
+    const status = remarkStatus.value as 'done' | 'skipped'
+    await api.put('/todos/' + todo.id, { todo: { status, remark: remarkText.value } })
     await withLoading(loadTodos)
-    toast.success(t('dashboard.completed'))
+    toast.success(status === 'done' ? t('dashboard.completed') : t('dashboard.skipped'))
     showRemark.value = false
   } catch (e: any) { setError(e) }
   finally { remarkSubmitting.value = false }
