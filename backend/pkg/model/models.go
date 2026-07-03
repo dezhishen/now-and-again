@@ -234,7 +234,7 @@ type TodoModel struct {
 	GroupID        sql.NullString `gorm:"index;type:char(36)"` // redundant copy from Task
 	LocationID     sql.NullString `gorm:"index;type:char(36)"`
 	AssignedTo     sql.NullString `gorm:"index;type:char(36)"`
-	Status         string         `gorm:"index;size:16;not null;default:pending"` // pending/done/skipped
+	Status         string         `gorm:"index;size:16;not null;default:pending"` // pending/done/skipped/interrupted
 	Remark         sql.NullString `gorm:"type:text"`                              // user note on completion
 	DisplaySummary sql.NullString `gorm:"size:256"`                               // kind-specific display text for todo cards
 	TaskName       string         `gorm:"size:128;not null"`                      // redundant: survives task deletion

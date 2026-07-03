@@ -36,6 +36,15 @@ const (
 	MemberStatusRejected MemberStatus = "rejected"
 )
 
+type TodoStatus string
+
+const (
+	TodoStatusPending     TodoStatus = "pending"
+	TodoStatusDone        TodoStatus = "done"
+	TodoStatusSkipped     TodoStatus = "skipped"
+	TodoStatusInterrupted TodoStatus = "interrupted"
+)
+
 // ─── Common ───────────────────────────────────────────────────────
 
 type Timestamps struct {

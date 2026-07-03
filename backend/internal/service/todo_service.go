@@ -101,7 +101,7 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 		todo.CompletedBy = sql.NullString{String: userID, Valid: userID != ""}
 
 		action := "完成待办"
-		if status == "skipped" {
+		if status == string(types.TodoStatusSkipped) {
 			action = "跳过待办"
 		}
 		msg := fmt.Sprintf("%s: %s", action, todo.Task.Name)

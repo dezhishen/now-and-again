@@ -365,7 +365,7 @@ func (h *handler) OnTodo(taskStorage taskkind.TaskStorage, todo *model.TodoModel
 		taskStorage.DB().Create(&model.TaskLogModel{
 			TaskID:     todo.TaskID,
 			TodoID:     todo.ID,
-			Status:     "done",
+			Status:     string(types.TodoStatusDone),
 			Message:    fmt.Sprintf("巡检结果: %s", strings.Join(details, ", ")),
 			LogType:    "user",
 			OperatorID: todo.CompletedBy.String,

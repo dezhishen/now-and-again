@@ -121,7 +121,7 @@ func (s *_taskStorage) CreateTodo(taskID string, displaySummary string) (*reposi
 		GroupID:        task.GroupID,
 		LocationID:     task.LocationID,
 		AssignedTo:     sql.NullString{String: task.CreatedBy, Valid: task.CreatedBy != ""},
-		Status:         "pending",
+		Status:         string(types.TodoStatusPending),
 		DueStart:       now,
 		DueDate:        now.Add(24 * time.Hour),
 		DisplaySummary: sql.NullString{String: displaySummary, Valid: displaySummary != ""},
@@ -245,7 +245,7 @@ func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID
 		LocationID: task.LocationID,
 		DueStart:   now,
 		DueDate:    now.Add(window),
-		Status:     "pending",
+		Status:     string(types.TodoStatusPending),
 		TaskName:   task.Name,
 		TaskKind:   task.Kind,
 	}

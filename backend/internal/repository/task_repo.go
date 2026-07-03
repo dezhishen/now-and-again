@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"gorm.io/gorm"
 )
 
@@ -97,7 +98,7 @@ func (r *TaskRepo) CreateTodo(todo *TodoModel) error {
 // FindLastCompletedTodo returns the most recently completed (done/skipped) todo for a task.
 func (r *TaskRepo) FindLastCompletedTodo(taskID string) (*TodoModel, error) {
 	var t TodoModel
-	err := r.db.Where("task_id = ? AND status IN ?", taskID, []string{"done", "skipped"}).
+	err := r.db.Where("task_id = ? AND status IN ?", taskID, []string{string(types.TodoStatusDone), string(types.TodoStatusSkipped)}).
 		Order("completed_at DESC").First(&t).Error
 	return &t, err
 }
@@ -156,7 +157,7 @@ func (r *TaskRepo) ListTodosByUser(userID string, status string) ([]TodoModel, e
 func (r *TaskRepo) CompleteTodo(id, userID, status, remark string) (bool, error) {
 	now := timeutil.Now()
 	result := r.db.Model(&TodoModel{}).
-		Where("id = ? AND status = ?", id, "pending").
+		Where("id = ? AND status = ?", id, string(types.TodoStatusPending)).
 		Updates(map[string]interface{}{
 			"status":       status,
 			"remark":       remark,
