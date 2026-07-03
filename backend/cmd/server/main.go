@@ -46,6 +46,9 @@ func main() {
 	}
 	repository.RunAll(db)
 
+	// Load family defaults from YAML file (falls back to built-in)
+	service.LoadFamilyDefaults(filepath.Join(cfg.DataDir, "family_defaults.yaml"))
+
 	// ── Repositories ────────────────────────────────────────────
 	userRepo := repository.NewUserRepo(db)
 	familyRepo := repository.NewFamilyRepo(db)
