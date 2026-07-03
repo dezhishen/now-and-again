@@ -174,7 +174,7 @@ function inputType(p: TemplateParameter): string {
 
 <template>
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[85vh] flex flex-col">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[85vh] flex flex-col">
       <!-- Header -->
       <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700 flex-shrink-0">
         <h3 class="font-bold dark:text-gray-200">
@@ -192,18 +192,23 @@ function inputType(p: TemplateParameter): string {
           <div v-if="templates.length === 0" class="text-center text-gray-400 py-8">
             暂无可用模板
           </div>
-          <div v-else class="space-y-2">
+          <div v-else class="grid grid-cols-2 gap-2">
             <div
               v-for="tmpl in templates" :key="tmpl.id"
-              class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+              class="relative flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors overflow-hidden"
               @click="selectTemplate(tmpl)"
             >
+              <!-- Kind badge (top-right corner) -->
+              <div class="absolute -top-0.5 -right-0.5 w-14 h-14 overflow-hidden z-10">
+                <div class="absolute top-2.5 -right-[18px] w-16 text-white text-[10px] font-medium text-center leading-4 rotate-45 shadow-sm"
+                  :class="tmpl.kind === 'inspection' ? 'bg-purple-500' : 'bg-blue-400'"
+                >{{ td('taskKind.' + tmpl.kind) || tmpl.kind }}</div>
+              </div>
               <span class="text-xl">{{ tmpl.icon || '📋' }}</span>
               <div class="flex-1 min-w-0">
                 <div class="font-medium text-sm text-gray-900 dark:text-gray-100">{{ tmpl.name }}</div>
-              <div class="text-xs text-gray-400 truncate">{{ tmpl.description || td('taskKind.' + tmpl.kind) || tmpl.kind }}</div>
-            </div>
-              <span class="text-xs text-gray-400">{{ td('taskKind.' + tmpl.kind) || tmpl.kind }}</span>
+                <div class="text-xs text-gray-400 truncate">{{ tmpl.description || '' }}</div>
+              </div>
             </div>
           </div>
         </template>

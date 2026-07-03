@@ -113,11 +113,22 @@ func (r *TaskRepo) FindTodoFull(id string) (*TodoModel, error) {
 	return r.FindTodoByID(id)
 }
 
-func (r *TaskRepo) ListTodosByFamily(familyID string, status string) ([]TodoModel, error) {
+func (r *TaskRepo) ListTodosByFamily(familyID string, status string, userGroupIDs []string) ([]TodoModel, error) {
 	var todos []TodoModel
 	q := r.db.Preload("Task.Group").Preload("User").Where("family_id = ?", familyID)
 	if status != "" {
 		q = q.Where("status = ?", status)
+	}
+	// Filter by user's joined groups: include todos with no group or in user's groups.
+	// When user hasn't joined any groups, only show ungrouped todos.
+	if len(userGroupIDs) > 0 {
+		ungroupedOrInGroup := r.db.Model(&TaskModel{}).Select("id").
+			Where("group_id IS NULL OR group_id IN ?", userGroupIDs)
+		q = q.Where("task_id IN (?)", ungroupedOrInGroup)
+	} else {
+		ungroupedOnly := r.db.Model(&TaskModel{}).Select("id").
+			Where("group_id IS NULL")
+		q = q.Where("task_id IN (?)", ungroupedOnly)
 	}
 	err := q.Order("due_date ASC").Find(&todos).Error
 	return todos, err

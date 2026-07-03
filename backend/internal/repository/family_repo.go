@@ -152,6 +152,16 @@ func (r *FamilyRepo) DeleteGroupMember(groupID, userID string) error {
 	return r.db.Where("group_id = ? AND user_id = ?", groupID, userID).Delete(&FamilyGroupMemberModel{}).Error
 }
 
+// ListUserGroupIDs returns the IDs of all groups the user is an active member of in the given family.
+func (r *FamilyRepo) ListUserGroupIDs(userID, familyID string) ([]string, error) {
+	var ids []string
+	familyGroupSub := r.db.Model(&FamilyGroupModel{}).Select("id").Where("family_id = ?", familyID)
+	err := r.db.Model(&FamilyGroupMemberModel{}).
+		Where("user_id = ? AND status = ? AND group_id IN (?)", userID, "active", familyGroupSub).
+		Pluck("group_id", &ids).Error
+	return ids, err
+}
+
 // ─── Validation ──────────────────────────────────────────────────
 
 func (r *FamilyRepo) ValidateMembership(userID, familyID string) error {

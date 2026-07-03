@@ -78,8 +78,8 @@ func main() {
 	scheduler.SetLogger(func(taskID, status, message string) {
 		taskRepo.CreateLog(taskID, status, message)
 	})
-	taskSvc := service.NewTaskService(taskRepo)
-	todoSvc := service.NewTodoService(taskRepo)
+	taskSvc := service.NewTaskService(taskRepo, familyRepo)
+	todoSvc := service.NewTodoService(taskRepo, familyRepo)
 	logSvc := service.NewLogService(taskRepo)
 	icsSvc := service.NewIcsService(icsRepo, taskRepo, apiKeyRepo, userRepo)
 	calendarSvc := service.NewCalendarService(taskRepo)

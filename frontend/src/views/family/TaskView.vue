@@ -149,6 +149,8 @@ function applyTemplate(tmpl: TaskTemplate, taskDefaults: any, extraSchema: any) 
   editingTask.value = null
   taskName.value = taskDefaults?.name || ''
   taskSchedule.value = taskDefaults?.schedule_type || 'daily'
+  taskGroupID.value = taskDefaults?.group_id || ''
+  taskLocationID.value = taskDefaults?.location_id || ''
   taskKind.value = tmpl.kind
 
   const sd = taskDefaults?.schedule_data || {}

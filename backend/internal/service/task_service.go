@@ -33,13 +33,15 @@ type _taskStorage struct {
 // taskOrchestrator bundles the shared dependencies for TaskService and TodoService.
 type taskOrchestrator struct {
 	repo        *repository.TaskRepo
+	familyRepo  *repository.FamilyRepo
 	taskManager *taskkind.TaskManager
 	taskStorage taskkind.TaskStorage
 }
 
-func newTaskOrchestrator(repo *repository.TaskRepo) *taskOrchestrator {
+func newTaskOrchestrator(repo *repository.TaskRepo, familyRepo *repository.FamilyRepo) *taskOrchestrator {
 	o := &taskOrchestrator{
 		repo:        repo,
+		familyRepo:  familyRepo,
 		taskManager: taskkind.GetManager(),
 	}
 	o.taskStorage = &_taskStorage{repo: repo, taskManager: o.taskManager}
@@ -130,8 +132,8 @@ func (s *_taskStorage) CreateTodo(taskID string, displaySummary string) (*reposi
 	return todo, nil
 }
 
-func NewTaskService(repo *repository.TaskRepo) *TaskService {
-	svc := &TaskService{taskOrchestrator: newTaskOrchestrator(repo)}
+func NewTaskService(repo *repository.TaskRepo, familyRepo *repository.FamilyRepo) *TaskService {
+	svc := &TaskService{taskOrchestrator: newTaskOrchestrator(repo, familyRepo)}
 	svc._init()
 	return svc
 }

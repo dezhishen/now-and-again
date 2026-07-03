@@ -49,31 +49,56 @@ type AdminValidator interface {
 	IsAdmin(userID string) bool
 }
 
-// JWTAuth validates the Bearer token (JWT or API Key).
+// JWTAuth validates the Bearer token (JWT) or API Key.
+// Priority: Authorization header (JWT) > X-API-Key header (API key) > ?key= query param (API key).
 func JWTAuth(secret string, apiKeyValidator ApiKeyValidator) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Check Authorization header first, then X-API-Key, then ?key= query param
+		// ── 1. Authorization header (Bearer JWT) ────────────
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			authHeader = c.GetHeader("X-API-Key")
-		}
-		if authHeader == "" {
-			authHeader = c.Query("key")
-		}
-
-		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+			token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+				if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, jwt.ErrSignatureInvalid
+				}
+				return []byte(secret), nil
+			}, jwt.WithLeeway(30*time.Second))
+			if err != nil || !token.Valid {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+				return
+			}
+			claims, ok := token.Claims.(jwt.MapClaims)
+			if !ok {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+				return
+			}
+			if exp, ok := claims["exp"].(float64); ok {
+				if time.Now().Unix() > int64(exp) {
+					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token expired"})
+					return
+				}
+			}
+			userID, _ := claims["sub"].(string)
+			if userID == "" {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing subject"})
+				return
+			}
+			c.Set("user_id", userID)
+			c.Set("auth_method", "jwt")
+			c.Next()
 			return
 		}
 
-		tokenStr := authHeader
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
+		// ── 2. X-API-Key header ─────────────────────────────
+		apiKey := c.GetHeader("X-API-Key")
+
+		// ── 3. ?key= query param ────────────────────────────
+		if apiKey == "" {
+			apiKey = c.Query("key")
 		}
 
-		// Try API Key first (prefix "na_")
-		if strings.HasPrefix(tokenStr, "na_") && apiKeyValidator != nil {
-			userID, scopes, err := apiKeyValidator.ValidateApiKey(tokenStr)
+		if apiKey != "" && apiKeyValidator != nil {
+			userID, scopes, err := apiKeyValidator.ValidateApiKey(apiKey)
 			if err == nil && userID != "" {
 				c.Set("user_id", userID)
 				c.Set("auth_method", "api_key")
@@ -83,41 +108,7 @@ func JWTAuth(secret string, apiKeyValidator ApiKeyValidator) gin.HandlerFunc {
 			}
 		}
 
-		// Try JWT
-		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return []byte(secret), nil
-		}, jwt.WithLeeway(30*time.Second))
-		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
-			return
-		}
-
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
-			return
-		}
-
-		// Explicit exp check (defense-in-depth)
-		if exp, ok := claims["exp"].(float64); ok {
-			if time.Now().Unix() > int64(exp) {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token expired"})
-				return
-			}
-		}
-
-		userID, _ := claims["sub"].(string)
-		if userID == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing subject"})
-			return
-		}
-
-		c.Set("user_id", userID)
-		c.Set("auth_method", "jwt")
-		c.Next()
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
 	}
 }
 

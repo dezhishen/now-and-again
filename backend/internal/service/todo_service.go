@@ -15,14 +15,22 @@ type TodoService struct {
 	*taskOrchestrator
 }
 
-func NewTodoService(repo *repository.TaskRepo) *TodoService {
-	return &TodoService{taskOrchestrator: newTaskOrchestrator(repo)}
+func NewTodoService(repo *repository.TaskRepo, familyRepo *repository.FamilyRepo) *TodoService {
+	return &TodoService{taskOrchestrator: newTaskOrchestrator(repo, familyRepo)}
 }
 
 // ─── Todo ────────────────────────────────────────────────────────
 
 func (s *TodoService) ListTodos(ctx context.Context, familyID uuid.UUID, groupID, status string) ([]types.Todo, error) {
-	todos, err := s.repo.ListTodosByFamily(familyID.String(), status)
+	userID, _ := ctx.Value("user_id").(string)
+	userGroupIDs := []string{}
+	if s.familyRepo != nil {
+		ids, err := s.familyRepo.ListUserGroupIDs(userID, familyID.String())
+		if err == nil {
+			userGroupIDs = ids
+		}
+	}
+	todos, err := s.repo.ListTodosByFamily(familyID.String(), status, userGroupIDs)
 	if err != nil {
 		return nil, err
 	}

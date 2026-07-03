@@ -214,10 +214,16 @@ watch(refreshKey, (newVal) => {
           <div
             v-for="tmpl in templates" :key="tmpl.id"
             class="relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4
-                   hover:shadow-md transition-shadow cursor-pointer group"
+                   hover:shadow-md transition-shadow cursor-pointer group overflow-hidden"
             @click="handleUseTemplate(tmpl)"
           >
-            <div v-if="isFamilyAdmin && tmpl.family_id" class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <!-- Kind badge (top-right corner) -->
+            <div class="absolute -top-0.5 -right-0.5 w-14 h-14 overflow-hidden z-10">
+              <div class="absolute top-2.5 -right-[18px] w-16 text-white text-[10px] font-medium text-center leading-4 rotate-45 shadow-sm"
+                :class="tmpl.kind === 'inspection' ? 'bg-purple-500' : 'bg-blue-400'"
+              >{{ kindLabel[tmpl.kind] || tmpl.kind }}</div>
+            </div>
+            <div v-if="isFamilyAdmin && tmpl.family_id" class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
               <button
                 class="px-2 py-0.5 text-xs rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
                 @click="handleEditTemplate(tmpl, $event)"
@@ -228,20 +234,22 @@ watch(refreshKey, (newVal) => {
               >✕</button>
             </div>
 
-            <div class="flex items-start justify-between mb-2">
-              <div class="flex items-center gap-2">
-                <span class="text-xl">{{ tmpl.icon || '📋' }}</span>
-                <h3 class="font-medium text-gray-900 dark:text-gray-100">{{ tmpl.name }}</h3>
-              </div>
+            <div class="flex items-start gap-2 mb-2">
+              <span class="text-xl flex-shrink-0 mt-0.5">{{ tmpl.icon || '📋' }}</span>
+              <h3 class="font-medium text-gray-900 dark:text-gray-100 text-sm leading-snug line-clamp-2 h-10" :title="tmpl.name">{{ tmpl.name }}</h3>
             </div>
-            <p v-if="tmpl.description" class="text-sm text-gray-500 dark:text-gray-400 mb-2 line-clamp-2">
-              {{ tmpl.description }}
+            <p class="text-xs text-gray-400 dark:text-gray-500 mb-2 h-8 line-clamp-2" :title="tmpl.description || ''">
+              <template v-if="tmpl.description">{{ tmpl.description }}</template>
+              <span v-else class="invisible">.</span>
             </p>
-            <div class="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
-              <span>{{ kindLabel[tmpl.kind] || tmpl.kind }}</span>
+            <div class="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500 h-5">
+              <span class="text-[10px] px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-700">
+                {{ tmpl.provider_code === 'family' ? '自定义' : '系统' }}
+              </span>
               <span v-if="tmpl.parameters?.length">
                 {{ tmpl.parameters.length }} {{ t('taskTemplate.parameters') }}
               </span>
+              <span v-else class="invisible">.</span>
             </div>
           </div>
         </div>
