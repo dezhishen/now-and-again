@@ -16,6 +16,7 @@ const typeOptions = [
   { value: 'location', label: '地点' },
   { value: 'schedule', label: '调度' },
   { value: 'group', label: '小组' },
+  { value: 'array', label: '数组' },
 ]
 
 function slugify(text: string): string {

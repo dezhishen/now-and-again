@@ -230,7 +230,7 @@ export interface Todo {
 export interface TemplateParameter {
   key: string
   label: string
-  type: 'string' | 'int' | 'float' | 'bool' | 'select' | 'time' | 'location' | 'schedule' | 'group'
+  type: 'string' | 'int' | 'float' | 'bool' | 'select' | 'time' | 'location' | 'schedule' | 'group' | 'array'
   description?: string
   required?: boolean
   default?: any

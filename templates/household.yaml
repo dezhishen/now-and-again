@@ -79,12 +79,12 @@ templates:
         placeholder: "例如：咪咪"
       - key: care_items
         label: "护理项目"
-        type: string
-        description: "需要做的护理项目"
-        required: false
-        placeholder: "例如：喂食、换水、铲猫砂"
+        type: array
+        description: "需要做的护理项目，每行一个"
+        required: true
+        placeholder: "喂食\n换水\n铲猫砂"
     task_defaults:
-      name: "{{.pet_name}} - 每日护理"
+      name: "{{.pet_name}} - {{range $i, $c := .care_items}}{{if $i}}-{{end}}{{$c}}{{end}}"
       schedule_type: daily
       schedule_data:
         time: "08:00"
@@ -99,14 +99,14 @@ templates:
     enabled: true
     version: "1.0.0"
     parameters:
-      - key: plant_area
+      - key: plant_areas
         label: "植物区域"
-        type: string
-        description: "需要浇水的区域或植物名称"
+        type: array
+        description: "需要浇水的区域或植物，每行一个"
         required: true
-        placeholder: "例如：阳台多肉"
+        placeholder: "阳台多肉\n客厅绿萝\n书房文竹"
     task_defaults:
-      name: "{{.plant_area}} - 浇水"
+      name: "{{range $i, $a := .plant_areas}}{{if $i}}、{{end}}{{$a}}{{end}} - 浇水"
       schedule_type: interval
       schedule_data:
         hours: 72
@@ -121,14 +121,14 @@ templates:
     enabled: true
     version: "1.0.0"
     parameters:
-      - key: bill_name
+      - key: bill_items
         label: "缴费项目"
-        type: string
-        description: "需要缴费的项目名称"
+        type: array
+        description: "需要缴费的项目，每行一个"
         required: true
-        placeholder: "例如：电费、水费、物业费"
+        placeholder: "电费\n水费\n物业费"
     task_defaults:
-      name: "缴纳{{.bill_name}}"
+      name: "缴纳：{{range $i, $b := .bill_items}}{{if $i}}、{{end}}{{$b}}{{end}}"
       schedule_type: monthly
       schedule_data:
         day: 1

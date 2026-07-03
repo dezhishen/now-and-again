@@ -69,6 +69,7 @@ function selectTemplate(tmpl: TaskTemplate) {
     else if (param.type === 'int' || param.type === 'float') p[param.key] = 0
     else if (param.type === 'location') p[param.key] = param.default || ''
     else if (param.type === 'group') p[param.key] = param.default || ''
+    else if (param.type === 'array') p[param.key] = param.default || '[]'
     else if (param.type === 'schedule') {
       p[param.key] = param.default || 'daily'
       sub[param.key] = { time: '09:00', day: 1, hours: 24 }
@@ -101,6 +102,22 @@ watch(() => scheduleKeys.value.map(k => params.value[k]), () => {
 
 // ── Step: fill params & render ────────────────────────────────────
 
+/** Convert JSON array string to newline-separated text */
+function arrayToText(val: any): string {
+  try {
+    const arr = typeof val === 'string' ? JSON.parse(val) : val
+    return Array.isArray(arr) ? arr.join('\n') : ''
+  } catch {
+    return typeof val === 'string' ? val : ''
+  }
+}
+
+/** Convert newline-separated text to JSON array string */
+function textToArray(text: string): string {
+  const items = text.split('\n').map(s => s.trim()).filter(Boolean)
+  return JSON.stringify(items)
+}
+
 const hasParameters = computed(() => mergedParams(selectedTemplate.value).length > 0)
 
 async function handleRender() {
@@ -109,6 +126,12 @@ async function handleRender() {
   try {
     // Merge schedule sub-fields into params (e.g. params["time"] from scheduleSub["my_schedule"].time)
     const mergedParams: Record<string, any> = { ...params.value }
+    // Parse array params from JSON string → actual array for Go template range
+    for (const [key, val] of Object.entries(mergedParams)) {
+      if (typeof val === 'string' && val.startsWith('[')) {
+        try { mergedParams[key] = JSON.parse(val) } catch {}
+      }
+    }
     for (const [key, sub] of Object.entries(scheduleSub.value)) {
       if (sub.time) mergedParams[key + '_time'] = sub.time
       if (sub.day !== undefined) mergedParams[key + '_day'] = sub.day
@@ -243,6 +266,11 @@ function inputType(p: TemplateParameter): string {
                   </div>
                 </div>
               </template>
+              <textarea v-else-if="p.type === 'array'" :value="arrayToText(params[p.key])"
+                @input="params[p.key] = textToArray(($event.target as HTMLTextAreaElement).value)"
+                :placeholder="p.placeholder || '每行一个值'"
+                rows="3"
+                class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" />
               <label v-else-if="p.type === 'bool'" class="flex items-center gap-2 cursor-pointer">
                 <input v-model="params[p.key]" type="checkbox" class="rounded border-gray-300 text-green-500 focus:ring-green-500" />
                 <span class="text-sm text-gray-700 dark:text-gray-300">{{ p.label }}</span>
