@@ -40,6 +40,7 @@ templates:
 | `bool` | 布尔 | 复选框 | `true` |
 | `time` | 时间 | 时间选择器 | — |
 | `select` | 下拉选择 | 静态选项下拉 | `"option1"` |
+| `array` | 数组 | 多行文本（每行一个值） | — |
 | `location` | 地点 | 从系统地点列表选择 | 地点 ID |
 | `group` | 小组 | 从系统小组列表选择 | 小组 ID |
 | `schedule` | 调度 | 下拉 + 子字段展开 | `"daily"` |
@@ -60,20 +61,21 @@ parameters:
         value: "a"
 ```
 
-### select 类型示例
+### array 类型
+
+用户每行输入一个值，存储为 JSON 数组，Go template 可用 `range` 遍历：
 
 ```yaml
 parameters:
-  - key: trash_type
-    label: "垃圾类型"
-    type: select
+  - key: rooms
+    label: "房间列表"
+    type: array
     required: true
-    default: "厨余"
-    options:
-      - label: "厨余垃圾"
-        value: "厨余"
-      - label: "可回收物"
-        value: "可回收"
+    placeholder: "主卧\n次卧\n儿童房"
+
+task_defaults:
+  name: "{{range $i, $r := .rooms}}{{if $i}}、{{end}}{{$r}}{{end}} - 大扫除"
+  # 渲染结果: "主卧、次卧、儿童房 - 大扫除"
 ```
 
 ### schedule 类型子字段
@@ -119,26 +121,66 @@ task_defaults:
 
 ## extra_schema（inspection 专属）
 
-巡检类型需配置检查项和分支：
+巡检类型需配置检查项和分支。支持两种写法：
+
+### 静态写法
+
+检查项固定不变：
 
 ```yaml
 extra_schema:
   check_items:
-    - name: "检查项名称"
+    - name: "设备运行状态"
       branches:
-        - name: "正常"                 # 无 create_todo = 正常结果
-        - name: "异常"                 # create_todo: true = 异常，生成跟进任务
+        - name: "正常"
+        - name: "异常"
           create_todo: true
           branch_task:
             task:
-              name: "跟进任务名称"
+              name: "设备异常处理"
               schedule_type: once
               kind: simple
             extra: null
 ```
 
+### 动态写法（使用 `|` 嵌入 Go template）
+
+根据参数动态生成检查项，用 `|`（YAML 字面量块）嵌入 Go template 渲染的 YAML：
+
+```yaml
+extra_schema: |
+  check_items:
+  {{range $room := .rooms}}
+    - name: "{{$room}}床品"
+      branches:
+        - name: "已换洗"
+        - name: "未换洗"
+          create_todo: true
+          branch_task:
+            task:
+              name: "{{$room}} - 换洗床品"
+              schedule_type: once
+              kind: simple
+            extra: null
+  {{end}}
+```
+
+> `|` 后的内容先经过 Go template 渲染，再解析为 YAML，最后转 JSON 传给前端。
+> `{{range}}` 等控制流语法只能在这种动态写法中使用。
+
+### branch_task 字段说明
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `task.name` | string | 跟进任务名称，支持 `{{.param}}` 模板 |
+| `task.schedule_type` | string | `once` / `daily` / `weekly` 等 |
+| `task.kind` | string | 跟进任务类型，通常为 `simple` |
+| `task.group_id` | string | 可选，指派到特定小组 |
+| `task.location_id` | string | 可选，关联特定地点 |
+| `extra` | object | 跟进任务的 extra 数据，通常为 `null` |
+
 ## 完整示例
 
 参见同目录下的：
-- `daily_inspection.yaml` — 巡检类模板示例
-- `household.yaml` — 家庭事务模板集（含 simple + inspection）
+- `daily_inspection.yaml` — 巡检类模板示例（静态 extra_schema）
+- `household.yaml` — 家庭事务模板集（含 `|` 动态写法）

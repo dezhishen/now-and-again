@@ -173,7 +173,14 @@ func yamlEntryToModel(providerCode string, e *tasktemplate.TemplateYAMLEntry) *m
 
 	paramsJSON, _ := json.Marshal(e.Parameters)
 	defaultsJSON, _ := json.Marshal(e.TaskDefaults)
-	extraJSON, _ := json.Marshal(e.ExtraSchema)
+
+	var extraJSON []byte
+	if s, ok := e.ExtraSchema.(string); ok {
+		// YAML literal block scalar (|) → raw Go template string
+		extraJSON = []byte(s)
+	} else {
+		extraJSON, _ = json.Marshal(e.ExtraSchema)
+	}
 
 	return &model.TaskTemplateModel{
 		ProviderCode: providerCode,

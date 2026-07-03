@@ -129,4 +129,36 @@ templates:
 | `task.kind` | string | 跟进任务类型，通常为 `simple` |
 | `task.group_id` | string | 可选，指派到特定小组 |
 | `task.location_id` | string | 可选，关联特定地点 |
+| `extra` | object | 跟进任务的 extra 数据，通常为 `null` |
+
+## 动态检查项（`|` 语法）
+
+当检查项需要根据参数动态生成时，使用 YAML `|` 字面量块嵌入 Go template：
+
+```yaml
+parameters:
+  - key: rooms
+    label: "房间列表"
+    type: array
+
+extra_schema: |
+  check_items:
+  {{range $room := .rooms}}
+    - name: "{{$room}}床品"
+      branches:
+        - name: "已换洗"
+        - name: "未换洗"
+          create_todo: true
+          branch_task:
+            task:
+              name: "{{$room}} - 换洗床品"
+              schedule_type: once
+              kind: simple
+            extra: null
+  {{end}}
+```
+
+> 输入 `rooms=["主卧","次卧"]` → 生成 2 个检查项，每个包含各自房间的跟进任务名称。
+> `{{range}}` 等 Go template 控制流只能在 `|` 写法中使用。详见 `templates/README.md`。
+| `task.location_id` | string | 可选，关联特定地点 |
 | `extra` | object | 跟进任务的 extra 数据 |

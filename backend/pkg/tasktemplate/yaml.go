@@ -32,7 +32,7 @@ type TemplateYAMLEntry struct {
 	Enabled      *bool                   `yaml:"enabled,omitempty"`
 	Parameters   []TemplateParameterYAML `yaml:"parameters,omitempty"`
 	TaskDefaults map[string]any          `yaml:"task_defaults,omitempty"`
-	ExtraSchema  map[string]any          `yaml:"extra_schema,omitempty"`
+	ExtraSchema  any                     `yaml:"extra_schema,omitempty"`
 	Version      string                  `yaml:"version,omitempty"`
 }
 

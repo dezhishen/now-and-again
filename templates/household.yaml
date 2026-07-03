@@ -213,52 +213,21 @@ templates:
       schedule_data:
         hours: 336
       enabled: true
-    extra_schema:
+    extra_schema: |
       check_items:
-        - name: "主卧床品"
+      {{range $room := .rooms}}
+        - name: "{{$room}}床品"
           branches:
             - name: "已换洗"
             - name: "未换洗"
               create_todo: true
               branch_task:
                 task:
-                  name: "主卧 - 换洗床品"
+                  name: "{{$room}} - 换洗床品"
                   schedule_type: once
                   kind: simple
                 extra: null
-        - name: "次卧床品"
-          branches:
-            - name: "已换洗"
-            - name: "未换洗"
-              create_todo: true
-              branch_task:
-                task:
-                  name: "次卧 - 换洗床品"
-                  schedule_type: once
-                  kind: simple
-                extra: null
-        - name: "儿童房床品"
-          branches:
-            - name: "已换洗"
-            - name: "未换洗"
-              create_todo: true
-              branch_task:
-                task:
-                  name: "儿童房 - 换洗床品"
-                  schedule_type: once
-                  kind: simple
-                extra: null
-        - name: "客卧床品"
-          branches:
-            - name: "已换洗"
-            - name: "未换洗"
-              create_todo: true
-              branch_task:
-                task:
-                  name: "客卧 - 换洗床品"
-                  schedule_type: once
-                  kind: simple
-                extra: null
+      {{end}}
 
   - code: fridge_cleanup
     name: "冰箱清理"

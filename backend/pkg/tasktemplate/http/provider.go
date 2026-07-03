@@ -160,7 +160,13 @@ func yamlEntryToModel(providerCode string, e *tasktemplate.TemplateYAMLEntry, so
 
 	paramsJSON, _ := json.Marshal(e.Parameters)
 	defaultsJSON, _ := json.Marshal(e.TaskDefaults)
-	extraJSON, _ := json.Marshal(e.ExtraSchema)
+
+	var extraJSON []byte
+	if s, ok := e.ExtraSchema.(string); ok {
+		extraJSON = []byte(s)
+	} else {
+		extraJSON, _ = json.Marshal(e.ExtraSchema)
+	}
 	meta, _ := json.Marshal(map[string]string{"source_url": sourceURL})
 
 	return &model.TaskTemplateModel{

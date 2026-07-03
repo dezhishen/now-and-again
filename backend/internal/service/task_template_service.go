@@ -8,6 +8,7 @@ import (
 	"text/template"
 
 	"github.com/google/uuid"
+	"gopkg.in/yaml.v3"
 	"gorm.io/gorm"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/logger"
@@ -78,8 +79,20 @@ func (s *TaskTemplateService) Render(ctx context.Context, familyID uuid.UUID, co
 
 	var extraSchema any
 	if m.ExtraSchema != "" {
-		if err := json.Unmarshal([]byte(m.ExtraSchema), &extraSchema); err != nil {
-			return nil, fmt.Errorf("parse extra schema: %w", err)
+		rendered, err := renderTemplate(m.ExtraSchema, params)
+		if err != nil {
+			return nil, fmt.Errorf("render extra schema: %w", err)
+		}
+		// ExtraSchema may be stored as JSON or YAML (when using | in template)
+		if err := json.Unmarshal([]byte(rendered), &extraSchema); err != nil {
+			// Fallback: try YAML
+			var yamlVal any
+			if err2 := yaml.Unmarshal([]byte(rendered), &yamlVal); err2 != nil {
+				return nil, fmt.Errorf("parse extra schema: %w", err)
+			}
+			// Convert YAML-decoded value to JSON-compatible form
+			jsonBytes, _ := json.Marshal(yamlVal)
+			json.Unmarshal(jsonBytes, &extraSchema)
 		}
 	}
 
