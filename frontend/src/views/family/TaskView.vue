@@ -93,13 +93,6 @@ const filteredTasks = computed(() =>
 )
 const allKinds = computed(() => getTaskKinds())
 
-// Reset extra data when switching task kind (only for new tasks)
-watch(taskKind, (kind) => {
-  if (!editingTask.value) {
-    checkItems.value = getDefaultCheckItems(kind) ? [...getDefaultCheckItems(kind)!] : []
-  }
-})
-
 async function loadLocations() {
   try {
     locations.value = await api.get<any[]>('/locations')
