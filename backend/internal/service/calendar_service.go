@@ -54,7 +54,7 @@ func (s *CalendarService) GetCalendar(ctx context.Context, year, month int, grou
 		if !task.Enabled {
 			continue
 		}
-		if groupID != "" && task.GroupID != "" && task.GroupID != groupID {
+		if groupID != "" && task.GroupID.Valid && task.GroupID.String != groupID {
 			continue
 		}
 

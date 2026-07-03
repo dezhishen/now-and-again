@@ -1,6 +1,7 @@
 package model
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/timeutil"
@@ -207,18 +208,18 @@ func (LocationModel) TableName() string { return "locations" }
 type TaskModel struct {
 	BaseModel
 	FamilyID       string           `gorm:"index:idx_root_family,priority:2;index;type:char(36);not null"`
-	GroupID        string           `gorm:"index;type:char(36)"`
+	GroupID        sql.NullString   `gorm:"index;type:char(36)"`
 	Group          FamilyGroupModel `gorm:"foreignKey:GroupID"`
-	LocationID     string           `gorm:"index;type:char(36)"`
-	ParentTaskID   string           `gorm:"index:idx_parent_root,priority:1;type:char(36)"`
-	RootTaskID     string           `gorm:"index;type:char(36)"` // root ancestor of the task tree, for log aggregation
+	LocationID     sql.NullString   `gorm:"index;type:char(36)"`
+	ParentTaskID   sql.NullString   `gorm:"index:idx_parent_root,priority:1;type:char(36)"`
+	RootTaskID     string           `gorm:"index;type:char(36);not null;default:''"` // root ancestor of the task tree, for log aggregation
 	IsRoot         bool             `gorm:"not null;default:false;index:idx_root_family,priority:1;index:idx_parent_root,priority:2"`
 	Name           string           `gorm:"size:128;not null"`
 	ScheduleType   string           `gorm:"size:32;not null"`   // once/daily/weekly/monthly/interval
 	ScheduleData   string           `gorm:"type:text;not null"` // JSON config
 	Enabled        bool             `gorm:"not null;default:true;index:idx_enabled_archived,priority:1"`
 	Kind           string           `gorm:"size:16;not null;default:simple"` // simple | inspection (future: chain)
-	DisplaySummary string           `gorm:"size:256"`                        // plugin-populated display text for list view
+	DisplaySummary sql.NullString   `gorm:"size:256"`                        // plugin-populated display text for list view
 	Archived       bool             `gorm:"not null;default:false;index:idx_enabled_archived,priority:2"`
 	LastTodoAt     *time.Time
 	CreatedBy      string `gorm:"type:char(36);not null"`
@@ -228,21 +229,22 @@ func (TaskModel) TableName() string { return "tasks" }
 
 type TodoModel struct {
 	BaseModel
-	TaskID         string    `gorm:"index;type:char(36);not null"`
-	FamilyID       string    `gorm:"index;type:char(36);not null"`
-	LocationID     string    `gorm:"index;type:char(36)"`
-	AssignedTo     string    `gorm:"index;type:char(36)"`
-	Status         string    `gorm:"index;size:16;not null;default:pending"` // pending/done/skipped
-	Remark         string    `gorm:"type:text"`                              // user note on completion
-	DisplaySummary string    `gorm:"size:256"`                               // kind-specific display text for todo cards
-	TaskName       string    `gorm:"size:128"`                               // redundant: survives task deletion
-	TaskKind       string    `gorm:"size:16"`                                // redundant: survives task deletion
-	DueStart       time.Time `gorm:"not null"`
-	DueDate        time.Time `gorm:"not null"`
+	TaskID         string         `gorm:"index;type:char(36);not null"`
+	FamilyID       string         `gorm:"index;type:char(36);not null"`
+	GroupID        sql.NullString `gorm:"index;type:char(36)"` // redundant copy from Task
+	LocationID     sql.NullString `gorm:"index;type:char(36)"`
+	AssignedTo     sql.NullString `gorm:"index;type:char(36)"`
+	Status         string         `gorm:"index;size:16;not null;default:pending"` // pending/done/skipped
+	Remark         sql.NullString `gorm:"type:text"`                              // user note on completion
+	DisplaySummary sql.NullString `gorm:"size:256"`                               // kind-specific display text for todo cards
+	TaskName       string         `gorm:"size:128;not null"`                      // redundant: survives task deletion
+	TaskKind       string         `gorm:"size:16;not null"`                       // redundant: survives task deletion
+	DueStart       time.Time      `gorm:"not null"`
+	DueDate        time.Time      `gorm:"not null"`
 	CompletedAt    *time.Time
-	CompletedBy    string    `gorm:"type:char(36)"`
-	Task           TaskModel `gorm:"foreignKey:TaskID"`
-	User           UserModel `gorm:"foreignKey:AssignedTo"`
+	CompletedBy    sql.NullString `gorm:"type:char(36)"`
+	Task           TaskModel      `gorm:"foreignKey:TaskID"`
+	User           UserModel      `gorm:"foreignKey:AssignedTo"`
 }
 
 func (TodoModel) TableName() string { return "todos" }

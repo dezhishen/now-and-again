@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="visible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div v-if="visible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" v-esc="() => $emit('close')">
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
         <p class="text-sm text-gray-700 dark:text-gray-200 mb-6">{{ message }}</p>
         <div class="flex gap-2 justify-end">

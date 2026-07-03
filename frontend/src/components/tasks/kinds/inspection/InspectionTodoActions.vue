@@ -55,7 +55,7 @@ async function submit() {
   <button class="flex-1 text-xs py-1.5 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors font-medium" @click="openInspect">🔍 {{ t('todo.inspect') }}</button>
 
   <Teleport to="body">
-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" v-esc="() => showModal = false">
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-lg max-h-[80vh] flex flex-col">
         <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
           <h3 class="font-bold dark:text-gray-200">🔍 {{ todo.task?.name }}</h3>

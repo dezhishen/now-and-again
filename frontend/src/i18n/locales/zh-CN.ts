@@ -279,6 +279,12 @@ export default {
     monthly: '每月',
     yearly: '每年',
     interval: '间隔天数',
+    weekdays: '一,二,三,四,五,六,日',
+    dateFormat: '{m}月{d}日',
+    dayUnit: '日',
+    monthUnit: '月',
+    dayUnitInterval: '天',
+    separator: ' · ',
   },
   todo: {
     quickDone: '快速完成',

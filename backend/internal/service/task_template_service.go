@@ -77,6 +77,46 @@ func (s *TaskTemplateService) Render(ctx context.Context, familyID uuid.UUID, co
 		}
 	}
 
+	// Merge schedule params into task_defaults so the preview matches user selections.
+	if tdMap, ok := taskDefaults.(map[string]interface{}); ok {
+		if st, ok := params["_schedule_type"].(string); ok && st != "" {
+			tdMap["schedule_type"] = st
+		}
+		// Build schedule_data from params, not from template defaults (avoid stale fields like "hours").
+		sdMap := make(map[string]interface{})
+		if t, ok := params["_schedule_time"].(string); ok && t != "" {
+			sdMap["time"] = t
+		}
+		if st, _ := tdMap["schedule_type"].(string); st == "once" {
+			if d, ok := params["_schedule_date"].(string); ok && d != "" {
+				sdMap["date"] = d
+			}
+		}
+		if days, ok := params["_schedule_days"].([]interface{}); ok && len(days) > 0 {
+			sdMap["days"] = days
+		} else if days, ok := params["_schedule_days"].([]float64); ok && len(days) > 0 {
+			// JSON numbers decode as float64
+			intDays := make([]int, len(days))
+			for i, d := range days {
+				intDays[i] = int(d)
+			}
+			sdMap["days"] = intDays
+		}
+		if st, _ := tdMap["schedule_type"].(string); st == "yearly" {
+			if day, ok := params["_schedule_year_day"].(float64); ok {
+				sdMap["day"] = int(day)
+			}
+		}
+		tdMap["schedule_data"] = sdMap
+		// Merge group and location
+		if g, ok := params["_group"].(string); ok && g != "" {
+			tdMap["group_id"] = g
+		}
+		if l, ok := params["_location"].(string); ok && l != "" {
+			tdMap["location_id"] = l
+		}
+	}
+
 	var extraSchema any
 	if m.ExtraSchema != "" {
 		rendered, err := renderTemplate(m.ExtraSchema, params)

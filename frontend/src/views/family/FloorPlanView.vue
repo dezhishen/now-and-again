@@ -212,7 +212,7 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
 
     <!-- ─── Edit Modal ────────────────────────────────────────── -->
     <Teleport to="body">
-      <div v-if="editPlan" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div v-if="editPlan" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" v-esc="() => editPlan = null">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[95vw] max-w-5xl max-h-[95vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <div class="flex items-center gap-2">
@@ -246,7 +246,7 @@ onUnmounted(() => window.removeEventListener('click', onWindowClick))
 
     <!-- ─── Drawing Modal ──────────────────────────────────────── -->
     <Teleport to="body">
-      <div v-if="showDrawer" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div v-if="showDrawer" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" v-esc="() => showDrawer = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-4xl max-h-[90vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <h3 class="font-bold dark:text-gray-200">{{ t('floorPlan.drawPlan') }}</h3>

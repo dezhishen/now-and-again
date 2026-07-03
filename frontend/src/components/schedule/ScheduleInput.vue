@@ -1,23 +1,16 @@
 <script setup lang="ts">
 import { useI18n } from '@/i18n'
-import type { I18nKey } from '@/i18n'
+import { getScheduleTypes } from './registry'
 
 const { t } = useI18n()
+
+const SCHEDULE_TYPES = getScheduleTypes()
 
 const scheduleType = defineModel<string>('scheduleType', { default: 'daily' })
 const scheduleTime = defineModel<string>('scheduleTime', { default: '09:00' })
 const scheduleDate = defineModel<string>('scheduleDate', { default: '' })
 const scheduleDays = defineModel<number[]>('scheduleDays', { default: () => [] })
 const scheduleYearDay = defineModel<number>('scheduleYearDay', { default: 1 })
-
-const SCHEDULE_TYPES: { value: string; labelKey: I18nKey }[] = [
-  { value: 'once', labelKey: 'schedule.once' },
-  { value: 'daily', labelKey: 'schedule.daily' },
-  { value: 'weekly', labelKey: 'schedule.weekly' },
-  { value: 'monthly', labelKey: 'schedule.monthly' },
-  { value: 'yearly', labelKey: 'schedule.yearly' },
-  { value: 'interval', labelKey: 'schedule.interval' },
-]
 
 const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 

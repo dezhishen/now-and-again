@@ -172,7 +172,7 @@ func (s *IcsService) GenerateICS(token, apiKey, username, password string) (stri
 			continue
 		}
 		// Filter by group
-		if feed.FilterGroupID != "" && task.GroupID != "" && task.GroupID != feed.FilterGroupID {
+		if feed.FilterGroupID != "" && task.GroupID.Valid && task.GroupID.String != feed.FilterGroupID {
 			continue
 		}
 

@@ -8,7 +8,8 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { api } from '@/api/client'
 import { listTemplates, renderTemplate } from '@/api/task-templates'
 import type { TaskTemplate, TemplateParameter, Location } from '@/types'
-import ScheduleInput from './ScheduleInput.vue'
+import ScheduleInput from '@/components/schedule/ScheduleInput.vue'
+import { scheduleLabel as buildScheduleLabel } from '@/components/schedule/registry'
 
 const { td } = useI18n()
 const { loading, withLoading } = useLoading()
@@ -79,6 +80,16 @@ function selectTemplate(tmpl: TaskTemplate) {
     else p[param.key] = ''
   })
   params.value = p
+
+  // Initialize schedule from template defaults
+  const td = tmpl.task_defaults || {} as any
+  scheduleType.value = td.schedule_type || 'daily'
+  const sd = td.schedule_data || {} as any
+  scheduleTime.value = sd.time || '09:00'
+  scheduleDate.value = sd.date || ''
+  scheduleDays.value = sd.days !== undefined ? sd.days : (sd.day !== undefined ? [sd.day] : [])
+  scheduleYearDay.value = sd.day || 1
+
   rendered.value = null
   step.value = 'params'
 }
@@ -109,24 +120,30 @@ function textToArray(text: string): string {
 
 const hasParameters = computed(() => mergedParams(selectedTemplate.value).length > 0)
 
+const scheduleLabel = computed(() => {
+  const td2 = rendered.value?.task_defaults
+  if (!td2) return ''
+  return buildScheduleLabel(td2.schedule_type || 'daily', td2.schedule_data || {}, td)
+})
+
 async function handleRender() {
   if (!selectedTemplate.value) return
   rendering.value = true
   try {
-    const mergedParams: Record<string, any> = { ...params.value }
-    // Merge schedule fields into params for template rendering
-    mergedParams['_schedule_type'] = scheduleType.value
-    mergedParams['_schedule_time'] = scheduleTime.value
-    mergedParams['_schedule_date'] = scheduleDate.value
-    mergedParams['_schedule_days'] = scheduleDays.value
-    mergedParams['_schedule_year_day'] = scheduleYearDay.value
+    const renderParams: Record<string, any> = { ...params.value }
+    // Merge schedule fields into params so the preview reflects user selections
+    renderParams['_schedule_type'] = scheduleType.value
+    renderParams['_schedule_time'] = scheduleTime.value
+    renderParams['_schedule_date'] = scheduleDate.value
+    renderParams['_schedule_days'] = scheduleDays.value
+    renderParams['_schedule_year_day'] = scheduleYearDay.value
     // Parse array params from JSON string → actual array for Go template range
-    for (const [key, val] of Object.entries(mergedParams)) {
+    for (const [key, val] of Object.entries(renderParams)) {
       if (typeof val === 'string' && val.startsWith('[')) {
-        try { mergedParams[key] = JSON.parse(val) } catch {}
+        try { renderParams[key] = JSON.parse(val) } catch {}
       }
     }
-    const result = await renderTemplate(selectedTemplate.value.template_code, mergedParams)
+    const result = await renderTemplate(selectedTemplate.value.template_code, renderParams)
     rendered.value = result
     step.value = 'preview'
   } catch (e: any) {
@@ -158,6 +175,9 @@ function handleApply() {
     }
   }
   td.schedule_data = sd
+  // Merge standard params (group, location) into task_defaults
+  if (params.value._group) td.group_id = params.value._group
+  if (params.value._location) td.location_id = params.value._location
   emit('apply', selectedTemplate.value, td, rendered.value.extra_schema)
 }
 
@@ -173,7 +193,7 @@ function inputType(p: TemplateParameter): string {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" v-esc="() => emit('close')">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[85vh] flex flex-col">
       <!-- Header -->
       <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700 flex-shrink-0">
@@ -281,20 +301,14 @@ function inputType(p: TemplateParameter): string {
         <template v-else-if="step === 'preview' && rendered">
           <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-700 mb-4">
             <h4 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">任务预览</h4>
-            <div class="space-y-1 text-sm">
-              <div v-if="rendered.task_defaults?.name" class="text-gray-900 dark:text-gray-100 font-medium">
-                {{ rendered.task_defaults.name }}
-              </div>
-              <div class="text-gray-500 dark:text-gray-400">
-                类型：{{ td('taskKind.' + (selectedTemplate?.kind || '')) || selectedTemplate?.kind }}
-              </div>
-              <div class="text-gray-500 dark:text-gray-400">
-                调度：{{ rendered.task_defaults?.schedule_type || '每天' }}
-                <span v-if="rendered.task_defaults?.schedule_data?.time">
-                  {{ rendered.task_defaults.schedule_data.time }}
-                </span>
-              </div>
+            <div v-if="rendered.task_defaults?.name" class="text-sm text-gray-900 dark:text-gray-100 font-medium mb-2">
+              {{ rendered.task_defaults.name }}
             </div>
+            <div class="text-xs text-gray-500">
+              调度：{{ scheduleLabel }}
+            </div>
+            <div v-if="rendered.task_defaults?.group_id" class="text-xs text-gray-500">小组：已指定</div>
+            <div v-if="rendered.task_defaults?.location_id" class="text-xs text-gray-500">地点：已指定</div>
           </div>
 
           <button

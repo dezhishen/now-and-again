@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -117,12 +118,13 @@ func (s *_taskStorage) CreateTodo(taskID string, displaySummary string) (*reposi
 	todo := &repository.TodoModel{
 		TaskID:         taskID,
 		FamilyID:       task.FamilyID,
+		GroupID:        task.GroupID,
 		LocationID:     task.LocationID,
-		AssignedTo:     task.CreatedBy,
+		AssignedTo:     sql.NullString{String: task.CreatedBy, Valid: task.CreatedBy != ""},
 		Status:         "pending",
 		DueStart:       now,
 		DueDate:        now.Add(24 * time.Hour),
-		DisplaySummary: displaySummary,
+		DisplaySummary: sql.NullString{String: displaySummary, Valid: displaySummary != ""},
 		TaskName:       task.Name,
 		TaskKind:       task.Kind,
 	}
@@ -239,6 +241,7 @@ func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID
 	todo := &repository.TodoModel{
 		TaskID:     taskID,
 		FamilyID:   familyID,
+		GroupID:    task.GroupID,
 		LocationID: task.LocationID,
 		DueStart:   now,
 		DueDate:    now.Add(window),
@@ -285,15 +288,15 @@ func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types
 	dataJSON, _ := json.Marshal(req.Task.ScheduleData)
 	t := &repository.TaskModel{
 		FamilyID:       familyID.String(),
-		GroupID:        req.Task.GroupID,
-		LocationID:     req.Task.LocationID,
+		GroupID:        sql.NullString{String: req.Task.GroupID, Valid: req.Task.GroupID != ""},
+		LocationID:     sql.NullString{String: req.Task.LocationID, Valid: req.Task.LocationID != ""},
 		IsRoot:         true,
 		Name:           req.Task.Name,
 		ScheduleType:   req.Task.ScheduleType,
 		ScheduleData:   string(dataJSON),
 		Enabled:        true,
 		Kind:           kind,
-		DisplaySummary: req.Task.DisplaySummary,
+		DisplaySummary: sql.NullString{String: req.Task.DisplaySummary, Valid: req.Task.DisplaySummary != ""},
 		CreatedBy:      userID,
 	}
 	if err := s.repo.Tx(func(tx *repository.TaskRepo) error {
@@ -372,16 +375,16 @@ func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.U
 			t.ScheduleData = string(dataJSON)
 		}
 		if f.GroupID != "" {
-			t.GroupID = f.GroupID
+			t.GroupID = sql.NullString{String: f.GroupID, Valid: f.GroupID != ""}
 		}
 		if f.LocationID != "" {
-			t.LocationID = f.LocationID
+			t.LocationID = sql.NullString{String: f.LocationID, Valid: f.LocationID != ""}
 		}
 		if f.Kind != "" {
 			t.Kind = f.Kind
 		}
 		if f.DisplaySummary != "" {
-			t.DisplaySummary = f.DisplaySummary
+			t.DisplaySummary = sql.NullString{String: f.DisplaySummary, Valid: f.DisplaySummary != ""}
 		}
 	}
 	if err := s.repo.Tx(func(tx *repository.TaskRepo) error {

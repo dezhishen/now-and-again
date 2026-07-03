@@ -311,7 +311,7 @@ watch(refreshKey, (newVal) => {
     </template>
 
     <!-- Subscription Form Modal -->
-    <div v-if="showSubForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div v-if="showSubForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" v-esc="() => showSubForm = false">
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
         <h4 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">
           {{ editingSub ? t('taskTemplate.subscription.edit') : t('taskTemplate.subscription.create') }}

@@ -6,6 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
+	"database/sql"
+
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
@@ -22,6 +24,20 @@ func NewTodoService(repo *repository.TaskRepo, familyRepo *repository.FamilyRepo
 // ─── Todo ────────────────────────────────────────────────────────
 
 func (s *TodoService) ListTodos(ctx context.Context, familyID uuid.UUID, groupID, status string) ([]types.Todo, error) {
+	// Explicit group filter: query only that group's todos.
+	if groupID != "" {
+		todos, err := s.repo.ListTodosByGroup(familyID.String(), groupID, status)
+		if err != nil {
+			return nil, err
+		}
+		result := make([]types.Todo, 0, len(todos))
+		for i := range todos {
+			result = append(result, *todoModelToType(&todos[i]))
+		}
+		return result, nil
+	}
+
+	// No group filter: query ungrouped todos + todos in groups the user joined.
 	userID, _ := ctx.Value("user_id").(string)
 	userGroupIDs := []string{}
 	if s.familyRepo != nil {
@@ -35,11 +51,8 @@ func (s *TodoService) ListTodos(ctx context.Context, familyID uuid.UUID, groupID
 		return nil, err
 	}
 	result := make([]types.Todo, 0, len(todos))
-	for _, t := range todos {
-		if groupID != "" && t.Task.GroupID != "" && t.Task.GroupID != groupID {
-			continue
-		}
-		result = append(result, *todoModelToType(&t))
+	for i := range todos {
+		result = append(result, *todoModelToType(&todos[i]))
 	}
 	return result, nil
 }
@@ -83,9 +96,9 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 	if updated {
 		// Sync the in-memory todo with the just-persisted fields so OnComplete
 		// receives the remark the user typed.
-		todo.Remark = todoFields.Remark
+		todo.Remark = sql.NullString{String: todoFields.Remark, Valid: todoFields.Remark != ""}
 		todo.Status = status
-		todo.CompletedBy = userID
+		todo.CompletedBy = sql.NullString{String: userID, Valid: userID != ""}
 
 		action := "完成待办"
 		if status == "skipped" {

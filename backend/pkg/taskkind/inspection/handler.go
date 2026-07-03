@@ -1,6 +1,7 @@
 package inspection
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -218,9 +219,9 @@ func (h *handler) createChildTask(taskStorage taskkind.TaskStorage, bt *types.Ta
 	}
 	child := &model.TaskModel{
 		FamilyID:     parent.FamilyID,
-		GroupID:      bt.Task.GroupID,
-		LocationID:   bt.Task.LocationID,
-		ParentTaskID: parent.ID,
+		GroupID:      sql.NullString{String: bt.Task.GroupID, Valid: bt.Task.GroupID != ""},
+		LocationID:   sql.NullString{String: bt.Task.LocationID, Valid: bt.Task.LocationID != ""},
+		ParentTaskID: sql.NullString{String: parent.ID, Valid: parent.ID != ""},
 		RootTaskID:   rootID,
 		Name:         bt.Task.Name,
 		ScheduleType: scheduleType,
@@ -251,7 +252,7 @@ func (h *handler) updateChildTask(taskStorage taskkind.TaskStorage, taskID strin
 		if err := taskStorage.DeleteNonRootTask(taskID); err != nil {
 			return "", fmt.Errorf("delete old child task: %w", err)
 		}
-		parent, _ := taskStorage.FindTaskByID(child.ParentTaskID)
+		parent, _ := taskStorage.FindTaskByID(child.ParentTaskID.String)
 		if parent == nil {
 			parent = &model.TaskModel{FamilyID: child.FamilyID, RootTaskID: child.RootTaskID}
 		}
@@ -270,10 +271,10 @@ func (h *handler) updateChildTask(taskStorage taskkind.TaskStorage, taskID strin
 		child.ScheduleData = string(dataJSON)
 	}
 	if bt.Task.GroupID != "" {
-		child.GroupID = bt.Task.GroupID
+		child.GroupID = sql.NullString{String: bt.Task.GroupID, Valid: bt.Task.GroupID != ""}
 	}
 	if bt.Task.LocationID != "" {
-		child.LocationID = bt.Task.LocationID
+		child.LocationID = sql.NullString{String: bt.Task.LocationID, Valid: bt.Task.LocationID != ""}
 	}
 	child.Enabled = true
 	if err := taskStorage.UpdateNoRootTask(child, bt.Extra); err != nil {
@@ -349,7 +350,7 @@ func (h *handler) OnComplete(taskStorage taskkind.TaskStorage, todo *model.TodoM
 			FamilyID:   todo.FamilyID,
 			ItemName:   itemName,
 			BranchName: branchName,
-			CreatedBy:  todo.CompletedBy,
+			CreatedBy:  todo.CompletedBy.String,
 		}
 		NewCheckItemRepo(taskStorage.DB()).CreateInspectionResult(result)
 
@@ -367,7 +368,7 @@ func (h *handler) OnComplete(taskStorage taskkind.TaskStorage, todo *model.TodoM
 			Status:     "done",
 			Message:    fmt.Sprintf("巡检结果: %s", strings.Join(details, ", ")),
 			LogType:    "user",
-			OperatorID: todo.CompletedBy,
+			OperatorID: todo.CompletedBy.String,
 		})
 	}
 
@@ -537,7 +538,7 @@ func (h *handler) ensureBranchTask(taskStorage taskkind.TaskStorage, todo *model
 	if err != nil || branchTask == nil {
 		return
 	}
-	branchTodo, err := taskStorage.CreateTodo(branchTask.ID, todo.Remark)
+	branchTodo, err := taskStorage.CreateTodo(branchTask.ID, todo.Remark.String)
 	if err != nil {
 		return
 	}

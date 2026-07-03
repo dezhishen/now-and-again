@@ -119,16 +119,23 @@ func (r *TaskRepo) ListTodosByFamily(familyID string, status string, userGroupID
 	if status != "" {
 		q = q.Where("status = ?", status)
 	}
-	// Filter by user's joined groups: include todos with no group or in user's groups.
-	// When user hasn't joined any groups, only show ungrouped todos.
+	// Filter by user's joined groups. Unassigned todos have group_id IS NULL.
 	if len(userGroupIDs) > 0 {
-		ungroupedOrInGroup := r.db.Model(&TaskModel{}).Select("id").
-			Where("group_id IS NULL OR group_id IN ?", userGroupIDs)
-		q = q.Where("task_id IN (?)", ungroupedOrInGroup)
+		q = q.Where("todos.group_id IS NULL OR todos.group_id IN ?", userGroupIDs)
 	} else {
-		ungroupedOnly := r.db.Model(&TaskModel{}).Select("id").
-			Where("group_id IS NULL")
-		q = q.Where("task_id IN (?)", ungroupedOnly)
+		q = q.Where("todos.group_id IS NULL")
+	}
+	err := q.Order("due_date ASC").Find(&todos).Error
+	return todos, err
+}
+
+// ListTodosByGroup returns todos for a specific group in the family.
+func (r *TaskRepo) ListTodosByGroup(familyID, groupID, status string) ([]TodoModel, error) {
+	var todos []TodoModel
+	q := r.db.Preload("Task.Group").Preload("User").
+		Where("family_id = ? AND todos.group_id = ?", familyID, groupID)
+	if status != "" {
+		q = q.Where("status = ?", status)
 	}
 	err := q.Order("due_date ASC").Find(&todos).Error
 	return todos, err

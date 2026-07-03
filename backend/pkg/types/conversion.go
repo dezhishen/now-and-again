@@ -15,11 +15,11 @@ func TaskFromModel(m *model.TaskModel) *Task {
 	var data any
 	json.Unmarshal([]byte(m.ScheduleData), &data)
 	return &Task{
-		ID: m.ID, FamilyID: m.FamilyID, GroupID: m.GroupID,
-		ParentTaskID: m.ParentTaskID, IsRoot: m.IsRoot,
-		LocationID: m.LocationID,
+		ID: m.ID, FamilyID: m.FamilyID, GroupID: m.GroupID.String,
+		ParentTaskID: m.ParentTaskID.String, IsRoot: m.IsRoot,
+		LocationID: m.LocationID.String,
 		Name:       m.Name, ScheduleType: m.ScheduleType, ScheduleData: data,
-		Enabled: m.Enabled, Kind: m.Kind, DisplaySummary: m.DisplaySummary,
+		Enabled: m.Enabled, Kind: m.Kind, DisplaySummary: m.DisplaySummary.String,
 		Archived:   m.Archived,
 		LastTodoAt: m.LastTodoAt,
 		CreatedBy:  m.CreatedBy, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
@@ -38,14 +38,14 @@ func TodoFromModel(m *model.TodoModel) *Todo {
 	}
 	return &Todo{
 		ID: m.ID, TaskID: m.TaskID, FamilyID: m.FamilyID,
-		LocationID: m.LocationID,
-		AssignedTo: m.AssignedTo, Status: m.Status, Remark: m.Remark,
-		DisplaySummary: m.DisplaySummary,
+		LocationID: m.LocationID.String,
+		AssignedTo: m.AssignedTo.String, Status: m.Status, Remark: m.Remark.String,
+		DisplaySummary: m.DisplaySummary.String,
 		TaskName:       m.TaskName,
 		TaskKind:       m.TaskKind,
 		DueStart:       m.DueStart,
 		DueDate:        m.DueDate,
-		CompletedAt:    m.CompletedAt, CompletedBy: m.CompletedBy,
+		CompletedAt:    m.CompletedAt, CompletedBy: m.CompletedBy.String,
 		Task: task, User: user,
 		CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
 	}

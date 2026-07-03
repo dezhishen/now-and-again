@@ -93,12 +93,6 @@ templates:
     enabled: true
     version: "1.0.0"
     parameters:
-      - key: bill_month
-        label: "缴费月份"
-        type: string
-        description: "当前缴费月份"
-        required: true
-        placeholder: "例如：7月"
       - key: bill_items
         label: "缴费项目"
         type: array
@@ -106,7 +100,7 @@ templates:
         required: true
         placeholder: "电费\n水费\n燃气费\n物业费\n网费"
     task_defaults:
-      name: "{{.bill_month}}缴费检查"
+      name: "缴费检查"
       schedule_type: monthly
       schedule_data:
         day: 1

@@ -263,6 +263,12 @@ export default {
     monthly: 'Monthly',
     yearly: 'Yearly',
     interval: 'Interval',
+    weekdays: 'Mon,Tue,Wed,Thu,Fri,Sat,Sun',
+    dateFormat: '{m}/{d}',
+    dayUnit: '',
+    monthUnit: '/',
+    dayUnitInterval: 'd',
+    separator: ' · ',
   },
   todo: {
     quickDone: 'Quick Done',

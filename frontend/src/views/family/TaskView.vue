@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {computed, inject, onMounted, ref, type Ref, watch} from 'vue'
 import { useI18n } from '@/i18n'
-import type { I18nKey } from '@/i18n'
 import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import TaskCard from '@/components/tasks/TaskCard.vue'
@@ -10,6 +9,7 @@ import { useLoading } from '@/composables/useLoading'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import { getDefaultCheckItems, getTaskKinds, getFormComponent, buildDisplaySummary, serializeExtra, parseExtra } from '@/composables/useTaskKinds'
+import { scheduleLabel, getScheduleTypes } from '@/components/schedule/registry'
 import { useConfirm } from '@/composables/useConfirm'
 import { initTaskKinds } from '@/components/tasks/init'
 import TemplatePickerDialog from '@/components/taskTemplate/TemplatePickerDialog.vue'
@@ -66,14 +66,7 @@ const showTemplatePicker = ref(false)
 
 const { t } = useI18n()
 
-const SCHEDULE_TYPES: { value: string; labelKey: I18nKey }[] = [
-  { value: 'once', labelKey: 'schedule.once' },
-  { value: 'daily', labelKey: 'schedule.daily' },
-  { value: 'weekly', labelKey: 'schedule.weekly' },
-  { value: 'monthly', labelKey: 'schedule.monthly' },
-  { value: 'yearly', labelKey: 'schedule.yearly' },
-  { value: 'interval', labelKey: 'schedule.interval' },
-]
+const SCHEDULE_TYPES = getScheduleTypes()
 
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
@@ -323,17 +316,7 @@ function toggleDay(d: number) {
 }
 
 function scheduleSummary(task: Task): string {
-  const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
-  const d = task.schedule_data || {}
-  switch (task.schedule_type) {
-    case 'once': return `一次性 ${d.date || ''} ${d.time || ''}`
-    case 'daily': return `每天 ${d.time || '09:00'}`
-    case 'weekly': return `每周 ${(d.days || []).map((n: number) => WEEKDAYS[n-1] || n).join(',')} ${d.time}`
-    case 'monthly': return `每月 ${(d.days || []).join(',')}日 ${d.time}`
-    case 'yearly': return `每年 ${(d.days || []).join(',')}月 ${d.day || 1}日 ${d.time}`
-    case 'interval': return `每 ${d.days || 1} 天 ${d.time}`
-    default: return task.schedule_type
-  }
+  return scheduleLabel(task.schedule_type, task.schedule_data || {}, t)
 }
 </script>
 
@@ -382,7 +365,7 @@ function scheduleSummary(task: Task): string {
 
     <!-- Log Modal -->
     <Teleport to="body">
-      <div v-if="showLogs" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div v-if="showLogs" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" v-esc="() => showLogs = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-2xl max-h-[75vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700 flex-shrink-0">
             <h3 class="font-bold dark:text-gray-200 truncate mr-2">📋 {{ logTaskName }}</h3>
@@ -441,7 +424,7 @@ function scheduleSummary(task: Task): string {
 
     <!-- Create/Edit Task Modal — main panel owns common fields + save/cancel -->
     <Teleport to="body">
-      <div v-if="showTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div v-if="showTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" v-esc="() => showTaskForm = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-2xl max-h-[85vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
             <h3 class="font-bold dark:text-gray-200">{{ editingTask ? t('taskCard.edit') : t('taskKind.create') }}</h3>
