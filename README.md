@@ -154,7 +154,9 @@ now-and-again/
 │   ├── deployment/docker.md
 │   ├── architecture/overview.md
 │   ├── api/endpoints.md
-│   └── database/schema.md
+│   ├── database/schema.md
+│   ├── cli/README.md            #   CLI 使用文档
+│   └── frontend-conventions.md  #   前端开发约定
 │
 ├── .github/agents/             # Copilot 自定义 Agent
 │   └── create-task-kind.agent.md
@@ -219,6 +221,8 @@ cd cli && go run .
 | [架构设计](doc/architecture/overview.md) | 系统架构、插件系统、分层设计 |
 | [API 文档](doc/api/endpoints.md) | 完整 RESTful API 路由表（69 个端点） |
 | [数据库 Schema](doc/database/schema.md) | 23 张表结构、索引策略 |
+| [CLI 使用](doc/cli/README.md) | 命令行工具安装、配置、命令参考 |
+| [前端约束](doc/frontend-conventions.md) | 前端开发规范（按钮/输入框/页签/弹窗） |
 
 ---
 

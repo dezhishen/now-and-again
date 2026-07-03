@@ -1,0 +1,71 @@
+name: na-tools
+description: |
+  Now & Again CLI tools for task and family management.
+  Use these skills when working with the na command-line interface.
+
+tools:
+  - name: na
+    description: |
+      Now & Again CLI — manage tasks, families, and authentication from the terminal.
+
+      Configuration:
+        Config file:  $HOME/.na.yaml  (YAML format)
+        Env vars:     NA_TOKEN        (auth token)
+                      NA_SERVER_URL   (server URL, default http://localhost:8080)
+        Flags:        --config <path>  --server <url>  --token <token>  --output table|json|yaml
+
+      Token storage:  Token is NOT auto-saved. After `na login`, export NA_TOKEN=<token>
+                      or write it to ~/.na.yaml:
+                        server_url: "http://localhost:8080"
+                        token: "eyJ..."
+
+    commands:
+      - name: login
+        usage: "na login -u <username> -p <password>"
+        description: Authenticate and get a JWT token. Prints token to stdout.
+
+      - name: family
+        description: Family management commands.
+        subcommands:
+          - name: create
+            usage: "na family create --name <name>"
+            description: Create a new family. Returns invite code.
+          - name: join
+            usage: "na family join --code <invite-code>"
+            description: Join a family by invite code.
+          - name: list
+            usage: "na family list"
+            description: List all families you belong to.
+
+      - name: task
+        description: Task and todo management commands. All require --family-id.
+        subcommands:
+          - name: create
+            usage: "na task create --family-id <id> --name <name> --schedule once|daily|weekly|monthly|interval [--data <json>]"
+            description: Create a new task.
+          - name: list
+            usage: "na task list --family-id <id>"
+            description: List all tasks in a family.
+          - name: todo
+            usage: "na task todo --family-id <id>"
+            description: List pending todos in a family.
+          - name: done
+            usage: "na task done --id <todo-id> [--status done|skipped]"
+            description: Mark a todo as completed or skipped.
+          - name: toggle
+            usage: "na task toggle --id <task-id> [--enable true|false]"
+            description: Enable or disable a task.
+          - name: delete
+            usage: "na task delete --id <task-id>"
+            description: Delete a task permanently.
+
+paths:
+  config: "$HOME/.na.yaml"
+  binary: cli/na
+  source: cli/
+
+notes: |
+  - The CLI communicates with the backend via REST API at NA_SERVER_URL.
+  - All responses use envelope format: {"success": bool, "data": ..., "error": "..."}
+  - Schedule types: once (one-time), daily, weekly, monthly, interval (custom hours).
+  - Token expiration: JWT access tokens expire; use `na login` to refresh.
