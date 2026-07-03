@@ -35,12 +35,13 @@ func NewUserService(repo *repository.UserRepo, settingsRepo *repository.Settings
 // ─── Family ───────────────────────────────────────────────────────
 
 type FamilyService struct {
-	repo     *repository.FamilyRepo
-	userRepo *repository.UserRepo
+	repo          *repository.FamilyRepo
+	floorPlanRepo *repository.FloorPlanRepo
+	userRepo      *repository.UserRepo
 }
 
-func NewFamilyService(repo *repository.FamilyRepo, userRepo *repository.UserRepo) *FamilyService {
-	return &FamilyService{repo: repo, userRepo: userRepo}
+func NewFamilyService(repo *repository.FamilyRepo, floorPlanRepo *repository.FloorPlanRepo, userRepo *repository.UserRepo) *FamilyService {
+	return &FamilyService{repo: repo, floorPlanRepo: floorPlanRepo, userRepo: userRepo}
 }
 
 // ─── API Key ──────────────────────────────────────────────────────

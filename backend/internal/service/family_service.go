@@ -41,6 +41,9 @@ func (s *FamilyService) Create(ctx context.Context, req *types.CreateFamilyReque
 		return nil, fmt.Errorf("add creator: %w", err)
 	}
 
+	// Initialize default locations and groups for the new family
+	InitFamilyDefaults(s.repo, s.floorPlanRepo, f.ID, userID)
+
 	return &types.Family{ID: f.ID, Name: f.Name, InviteCode: f.InviteCode, CreatedBy: f.CreatedBy, CreatedAt: f.CreatedAt, UpdatedAt: f.UpdatedAt}, nil
 }
 
