@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from '@/i18n'
 import { useLoading } from '@/composables/useLoading'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import { api } from '@/api/client'
 import { listTemplates, renderTemplate } from '@/api/task-templates'
-import type { TaskTemplate, TemplateParameter } from '@/types'
+import type { TaskTemplate, TemplateParameter, Location } from '@/types'
 
 const { td } = useI18n()
 const { loading, withLoading } = useLoading()
@@ -23,30 +24,59 @@ type Step = 'select' | 'params' | 'preview'
 
 const step = ref<Step>('select')
 const templates = ref<TaskTemplate[]>([])
+const locations = ref<Location[]>([])
+const groups = ref<any[]>([])
 const selectedTemplate = ref<TaskTemplate | null>(null)
 const params = ref<Record<string, any>>({})
+const scheduleSub = ref<Record<string, any>>({})  // sub-fields for schedule params
 const rendered = ref<any>(null)
 const rendering = ref(false)
 
 onMounted(() => {
   withLoading(async () => {
     try { templates.value = await listTemplates() } catch { templates.value = [] }
+    try { locations.value = await api.get<Location[]>('/locations') } catch { locations.value = [] }
+    try { groups.value = await api.get<any[]>('/groups') } catch { groups.value = [] }
   })
 })
 
 // ── Step: select template ─────────────────────────────────────────
 
+// Standard parameters auto-appended to every template
+const STANDARD_PARAMS: TemplateParameter[] = [
+  { key: '_schedule', label: '调度策略', type: 'schedule', required: true, default: 'daily' },
+  { key: '_location', label: '执行地点', type: 'location', required: false },
+  { key: '_group',    label: '指派小组', type: 'group',    required: false },
+]
+
+/** Merge standard params into template params (auto-append if not already defined) */
+function mergedParams(tmpl: TaskTemplate | null): TemplateParameter[] {
+  if (!tmpl) return STANDARD_PARAMS
+  const existing = new Set((tmpl.parameters || []).map(p => p.key))
+  const extras = STANDARD_PARAMS.filter(p => !existing.has(p.key))
+  return [...(tmpl.parameters || []), ...extras]
+}
+
 function selectTemplate(tmpl: TaskTemplate) {
   selectedTemplate.value = tmpl
+  const allParams = mergedParams(tmpl)
   // Initialize params with defaults
   const p: Record<string, any> = {}
-  tmpl.parameters?.forEach(param => {
+  const sub: Record<string, any> = {}
+  allParams.forEach(param => {
     if (param.default !== undefined) p[param.key] = param.default
     else if (param.type === 'bool') p[param.key] = false
     else if (param.type === 'int' || param.type === 'float') p[param.key] = 0
+    else if (param.type === 'location') p[param.key] = param.default || ''
+    else if (param.type === 'group') p[param.key] = param.default || ''
+    else if (param.type === 'schedule') {
+      p[param.key] = param.default || 'daily'
+      sub[param.key] = { time: '09:00', day: 1, hours: 24 }
+    }
     else p[param.key] = ''
   })
   params.value = p
+  scheduleSub.value = sub
   rendered.value = null
   step.value = 'params'
 }
@@ -57,15 +87,34 @@ function backToSelect() {
   rendered.value = null
 }
 
+// Lazy-init schedule sub-fields
+const scheduleKeys = computed(() =>
+  mergedParams(selectedTemplate.value).filter(p => p.type === 'schedule').map(p => p.key)
+)
+watch(() => scheduleKeys.value.map(k => params.value[k]), () => {
+  scheduleKeys.value.forEach(key => {
+    if (!scheduleSub.value[key]) {
+      scheduleSub.value[key] = { time: '09:00', day: 1, hours: 24 }
+    }
+  })
+})
+
 // ── Step: fill params & render ────────────────────────────────────
 
-const hasParameters = computed(() => (selectedTemplate.value?.parameters?.length || 0) > 0)
+const hasParameters = computed(() => mergedParams(selectedTemplate.value).length > 0)
 
 async function handleRender() {
   if (!selectedTemplate.value) return
   rendering.value = true
   try {
-    const result = await renderTemplate(selectedTemplate.value.template_code, params.value)
+    // Merge schedule sub-fields into params (e.g. params["time"] from scheduleSub["my_schedule"].time)
+    const mergedParams: Record<string, any> = { ...params.value }
+    for (const [key, sub] of Object.entries(scheduleSub.value)) {
+      if (sub.time) mergedParams[key + '_time'] = sub.time
+      if (sub.day !== undefined) mergedParams[key + '_day'] = sub.day
+      if (sub.hours !== undefined) mergedParams[key + '_hours'] = sub.hours
+    }
+    const result = await renderTemplate(selectedTemplate.value.template_code, mergedParams)
     rendered.value = result
     step.value = 'preview'
   } catch (e: any) {
@@ -140,7 +189,7 @@ function inputType(p: TemplateParameter): string {
 
           <div v-if="!hasParameters" class="text-sm text-gray-400 mb-4">此模板无需参数</div>
           <div v-else class="space-y-3 mb-4">
-            <div v-for="p in selectedTemplate.parameters" :key="p.key" class="flex flex-col gap-1">
+            <div v-for="p in mergedParams(selectedTemplate)" :key="p.key" class="flex flex-col gap-1">
               <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {{ p.label }}<span v-if="p.required" class="text-red-500">*</span>
               </label>
@@ -150,6 +199,50 @@ function inputType(p: TemplateParameter): string {
                 class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
                 <option v-for="opt in p.options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
               </select>
+              <select v-else-if="p.type === 'location'" v-model="params[p.key]"
+                class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                <option value="">-- 选择地点 --</option>
+                <option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
+              </select>
+              <select v-else-if="p.type === 'group'" v-model="params[p.key]"
+                class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                <option value="">-- 选择小组 --</option>
+                <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+              </select>
+              <template v-else-if="p.type === 'schedule'">
+                <select v-model="params[p.key]"
+                  class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                  <option value="once">一次性</option>
+                  <option value="daily">每天</option>
+                  <option value="weekly">每周</option>
+                  <option value="monthly">每月</option>
+                  <option value="interval">间隔</option>
+                </select>
+                <div v-if="params[p.key] && params[p.key] !== 'once'" class="flex gap-2 mt-1">
+                  <input v-if="params[p.key] === 'daily'" v-model="scheduleSub[p.key].time" type="time"
+                    class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" />
+                  <template v-if="params[p.key] === 'weekly'">
+                    <select v-model="scheduleSub[p.key].day"
+                      class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                      <option :value="1">周一</option><option :value="2">周二</option><option :value="3">周三</option>
+                      <option :value="4">周四</option><option :value="5">周五</option><option :value="6">周六</option><option :value="0">周日</option>
+                    </select>
+                    <input v-model="scheduleSub[p.key].time" type="time"
+                      class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" />
+                  </template>
+                  <template v-if="params[p.key] === 'monthly'">
+                    <input v-model.number="scheduleSub[p.key].day" type="number" min="1" max="31" placeholder="几号"
+                      class="w-20 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" />
+                    <input v-model="scheduleSub[p.key].time" type="time"
+                      class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" />
+                  </template>
+                  <div v-if="params[p.key] === 'interval'" class="flex items-center gap-1 flex-1">
+                    <input v-model.number="scheduleSub[p.key].hours" type="number" min="1" placeholder="间隔"
+                      class="w-20 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm" />
+                    <span class="text-xs text-gray-400">小时</span>
+                  </div>
+                </div>
+              </template>
               <label v-else-if="p.type === 'bool'" class="flex items-center gap-2 cursor-pointer">
                 <input v-model="params[p.key]" type="checkbox" class="rounded border-gray-300 text-green-500 focus:ring-green-500" />
                 <span class="text-sm text-gray-700 dark:text-gray-300">{{ p.label }}</span>

@@ -13,6 +13,9 @@ const typeOptions = [
   { value: 'bool', label: '布尔' },
   { value: 'time', label: '时间' },
   { value: 'select', label: '下拉选择' },
+  { value: 'location', label: '地点' },
+  { value: 'schedule', label: '调度' },
+  { value: 'group', label: '小组' },
 ]
 
 function slugify(text: string): string {
