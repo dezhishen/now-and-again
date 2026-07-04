@@ -73,12 +73,34 @@ frontend/
 
 | 系统 | 后端包 | 前端 composable | 现有类型 |
 |------|--------|-----------------|---------|
-| 任务类型 | `pkg/taskkind/` | `useTaskKinds` | simple, inspection |
+| 任务类型 | `pkg/taskkind/` | `useTaskKinds` | simple, inspection, chain |
 | 任务模板 | `pkg/tasktemplate/` | — | builtin, http |
 | 地点类型 | `pkg/locationkind/` | `useLocationKinds` | indoor |
 | 调度类型 | `pkg/scheduler/` | — | once, daily, weekly, monthly, interval |
 
 新增类型只需实现接口并注册（`init()` 自动注册），无需修改任何现有代码。
+
+### 任务类型委托系统
+
+任务类型间通过 `CreatedByKind` 字段实现复合委托：
+
+```
+TaskModel.CreatedByKind  →  记录"哪个 handler 创建了这个任务"
+  - 用户直建：DB 默认 "simple"
+  - inspection 子任务：parent.Kind（"inspection"）
+  - chain 子任务："chain"（SaveExtra 内部设置）
+
+CompleteTodo 调度优先级：
+  kind = todo.Task.CreatedByKind   // 优先创建者 handler
+  if kind == "" { kind = todo.Task.Kind }  // fallback 真实类型
+  taskManager.Get(kind).OnTodo()
+
+复合 handler（如 chain）内部委托：
+  chain.OnTodo → storage.LookupHandler(realKind).OnTodo()  // 真实逻辑
+              → CreateTodo(nextStep)                        // 链推进
+```
+
+**约束**：主流程（`todo_service.go`、`task_service.go`）永远不引用插件内部类型名和 kind 值，只通过 `TaskStorage` 接口和 `CreatedByKind` 字段名交互。
 
 ### 任务模板插件生命周期
 

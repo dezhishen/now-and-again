@@ -218,17 +218,18 @@ func (h *handler) createChildTask(taskStorage taskkind.TaskStorage, bt *types.Ta
 		rootID = parent.ID // legacy: root_task_id not yet backfilled on parent
 	}
 	child := &model.TaskModel{
-		FamilyID:     parent.FamilyID,
-		GroupID:      sql.NullString{String: bt.Task.GroupID, Valid: bt.Task.GroupID != ""},
-		LocationID:   sql.NullString{String: bt.Task.LocationID, Valid: bt.Task.LocationID != ""},
-		ParentTaskID: sql.NullString{String: parent.ID, Valid: parent.ID != ""},
-		RootTaskID:   rootID,
-		Name:         bt.Task.Name,
-		ScheduleType: scheduleType,
-		ScheduleData: string(dataJSON),
-		Enabled:      true,
-		Kind:         kind,
-		CreatedBy:    parent.CreatedBy,
+		FamilyID:      parent.FamilyID,
+		GroupID:       sql.NullString{String: bt.Task.GroupID, Valid: bt.Task.GroupID != ""},
+		LocationID:    sql.NullString{String: bt.Task.LocationID, Valid: bt.Task.LocationID != ""},
+		ParentTaskID:  sql.NullString{String: parent.ID, Valid: parent.ID != ""},
+		RootTaskID:    rootID,
+		Name:          bt.Task.Name,
+		ScheduleType:  scheduleType,
+		ScheduleData:  string(dataJSON),
+		Enabled:       true,
+		Kind:          kind,
+		CreatedByKind: parent.Kind,
+		CreatedBy:     parent.CreatedBy,
 	}
 	taskStorage.CreateNoRootTask(child, bt.Extra)
 	return child.ID

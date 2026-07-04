@@ -43,6 +43,7 @@ async function handleLogin() {
       <form @submit.prevent="handleLogin" class="flex flex-col gap-3">
         <input
           v-model="username"
+          data-testid="login-username"
           class="input"
           :placeholder="t('login.usernamePlaceholder')"
           autocomplete="username"
@@ -50,6 +51,7 @@ async function handleLogin() {
         />
         <input
           v-model="password"
+          data-testid="login-password"
           type="password"
           class="input"
           :placeholder="t('login.passwordPlaceholder')"
@@ -57,7 +59,7 @@ async function handleLogin() {
           required
         />
         <ErrorDisplay :error="error" @close="clearError" />
-        <button type="submit" class="btn-primary w-full mt-2" :disabled="submitting">
+        <button type="submit" data-testid="login-submit" class="btn-primary w-full mt-2" :disabled="submitting">
           {{ submitting ? t('app.submitting') : t('login.submit') }}
         </button>
       </form>

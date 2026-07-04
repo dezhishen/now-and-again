@@ -90,6 +90,20 @@ test-backend: ## 运行 backend 测试（含 pkg/）
 test-cli: ## 运行 CLI 测试
 	@cd cli && go test ./... -count=1 -short
 
+test-e2e: ## 运行 E2E 浏览器自动化测试（需先 make dev 或单独启动服务）
+	@echo "→ Installing E2E dependencies..."
+	@cd test && npm install --silent 2>/dev/null || true
+	@echo "→ Running Playwright tests (chromium)..."
+	@cd test && npx playwright test --project=chromium
+
+test-e2e-headed: ## 运行 E2E 测试（有头浏览器，便于调试）
+	@cd test && npm install --silent 2>/dev/null || true
+	@cd test && npx playwright test --headed --project=chromium
+
+test-e2e-install: ## 安装 Playwright 浏览器
+	@cd test && npm install
+	@cd test && npx playwright install chromium
+
 # ─── Lint / Vet ───────────────────────────────────────────────────
 
 lint: lint-backend lint-frontend ## 运行所有代码检查

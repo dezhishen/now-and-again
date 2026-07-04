@@ -135,6 +135,10 @@ func (s *_taskStorage) CreateTodo(taskID string, displaySummary string) (*reposi
 	return todo, nil
 }
 
+func (s *_taskStorage) LookupHandler(kind string) taskkind.Handler {
+	return s.taskManager.Get(kind)
+}
+
 func NewTaskService(repo *repository.TaskRepo, familyRepo *repository.FamilyRepo) *TaskService {
 	svc := &TaskService{taskOrchestrator: newTaskOrchestrator(repo, familyRepo)}
 	svc._init()

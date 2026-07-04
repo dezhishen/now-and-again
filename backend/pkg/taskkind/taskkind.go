@@ -28,6 +28,9 @@ type TaskStorage interface {
 	// displaySummary is an optional kind-specific context string shown on the todo card.
 	// Returns the created todo so callers can attach logs.
 	CreateTodo(taskID string, displaySummary string) (*model.TodoModel, error)
+	// LookupHandler returns the registered handler for the given kind.
+	// Composite kinds (e.g., chain) use this to delegate to real child-task handlers.
+	LookupHandler(kind string) Handler
 	DB() *gorm.DB
 }
 

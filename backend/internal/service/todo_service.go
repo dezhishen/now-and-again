@@ -109,7 +109,13 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 			msg += fmt.Sprintf(" | 备注: %s", todoFields.Remark)
 		}
 		s.repo.CreateUserLog(todo.TaskID, todoID.String(), userID, status, msg)
-		if h := s.taskManager.Get(todo.Task.Kind); h != nil {
+
+		// Dispatch: prefer CreatedByKind (composite/creator), fall back to Kind (real type).
+		kind := todo.Task.CreatedByKind
+		if kind == "" {
+			kind = todo.Task.Kind
+		}
+		if h := s.taskManager.Get(kind); h != nil {
 			h.OnTodo(s.taskStorage, todo, req.Extra)
 		}
 

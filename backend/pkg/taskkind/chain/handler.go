@@ -21,10 +21,11 @@ func (handler) Kind() string { return "chain" }
 // ─── Input ────────────────────────────────────────────────────────
 
 type chainStepInput struct {
-	Name       string `json:"name"`
-	Kind       string `json:"kind"`
-	GroupID    string `json:"group_id,omitempty"`
-	LocationID string `json:"location_id,omitempty"`
+	Name       string          `json:"name"`
+	Kind       string          `json:"kind"`
+	GroupID    string          `json:"group_id,omitempty"`
+	LocationID string          `json:"location_id,omitempty"`
+	Extra      json.RawMessage `json:"extra,omitempty"`
 }
 
 type chainExtraInput struct {
@@ -71,23 +72,28 @@ func (h *handler) SaveExtra(storage taskkind.TaskStorage, root *model.TaskModel,
 	// Create child tasks immediately and link them.
 	var prevTaskID string
 	for i, s := range steps {
+		kind := s.Kind
+		if kind == "" {
+			kind = "simple"
+		}
 		child := &model.TaskModel{
-			FamilyID:     root.FamilyID,
-			GroupID:      sql.NullString{String: s.GroupID, Valid: s.GroupID != ""},
-			LocationID:   sql.NullString{String: s.LocationID, Valid: s.LocationID != ""},
-			ParentTaskID: sql.NullString{String: root.ID, Valid: true},
-			RootTaskID:   root.ID,
-			Name:         s.Name,
-			ScheduleType: "once",
-			ScheduleData: `{"time":"09:00"}`,
-			Enabled:      true,
-			Kind:         "chain",
-			CreatedBy:    root.CreatedBy,
+			FamilyID:      root.FamilyID,
+			GroupID:       sql.NullString{String: s.GroupID, Valid: s.GroupID != ""},
+			LocationID:    sql.NullString{String: s.LocationID, Valid: s.LocationID != ""},
+			ParentTaskID:  sql.NullString{String: root.ID, Valid: true},
+			RootTaskID:    root.ID,
+			Name:          s.Name,
+			ScheduleType:  "once",
+			ScheduleData:  `{"time":"09:00"}`,
+			Enabled:       true,
+			Kind:          kind,
+			CreatedByKind: "chain",
+			CreatedBy:     root.CreatedBy,
 		}
 		if i > 0 {
 			child.ParentTaskID = sql.NullString{String: prevTaskID, Valid: true}
 		}
-		if err := storage.CreateNoRootTask(child, nil); err != nil {
+		if err := storage.CreateNoRootTask(child, s.Extra); err != nil {
 			return fmt.Errorf("chain: create child task %d: %w", i, err)
 		}
 		prevTaskID = child.ID
@@ -105,6 +111,13 @@ func (h *handler) SaveExtra(storage taskkind.TaskStorage, root *model.TaskModel,
 			return fmt.Errorf("chain: save step %d: %w", i, err)
 		}
 	}
+
+	// Ensure root task dispatches to this handler on todo completion (not "simple").
+	if root.CreatedByKind == "" || root.CreatedByKind == "simple" {
+		root.CreatedByKind = "chain"
+		_ = storage.UpdateTaskFields(root)
+	}
+
 	return nil
 }
 
@@ -139,6 +152,17 @@ func (h *handler) OnTodo(storage taskkind.TaskStorage, todo *model.TodoModel, ex
 		return nil
 	}
 
+	// 1. If this is a non-root chain step, delegate to the real kind handler first.
+	//    e.g., inspection step → inspection.OnTodo records results, spawns branch tasks.
+	if !todo.Task.IsRoot {
+		if realHandler := storage.LookupHandler(todo.Task.Kind); realHandler != nil {
+			if err := realHandler.OnTodo(storage, todo, extra); err != nil {
+				return err
+			}
+		}
+	}
+
+	// 2. Chain progression: create todo for the next step.
 	rootTaskID := todo.Task.RootTaskID
 	if rootTaskID == "" {
 		rootTaskID = todo.Task.ID
@@ -146,8 +170,6 @@ func (h *handler) OnTodo(storage taskkind.TaskStorage, todo *model.TodoModel, ex
 
 	db := storage.DB()
 
-	// Find next step: if this is the root, find first step (SortOrder=0).
-	// Otherwise, find the current step's sibling (SortOrder+1).
 	var nextStep ChainStepModel
 	if todo.Task.IsRoot {
 		if err := db.Where("task_id = ? AND sort_order = ?", rootTaskID, 0).First(&nextStep).Error; err != nil {
@@ -156,11 +178,11 @@ func (h *handler) OnTodo(storage taskkind.TaskStorage, todo *model.TodoModel, ex
 	} else {
 		var curStep ChainStepModel
 		if err := db.Where("child_task_id = ?", todo.Task.ID).First(&curStep).Error; err != nil {
-			return nil // not a chain step (e.g., old data)
+			return nil // not a chain step
 		}
 		err := db.Where("task_id = ? AND sort_order = ?", rootTaskID, curStep.SortOrder+1).First(&nextStep).Error
 		if err != nil {
-			return nil // no more steps
+			return nil // no more steps — chain complete
 		}
 	}
 

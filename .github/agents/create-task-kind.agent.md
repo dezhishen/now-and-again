@@ -50,11 +50,49 @@ type TaskStorage interface {
     UpdateTaskFields(task *model.TaskModel) error
     DeleteNonRootTask(taskID string) error                      // cascading delete + triggers DeleteExtra
     CreateTodo(taskID string, displaySummary string) (*model.TodoModel, error)
+    LookupHandler(kind string) Handler                          // get registered handler by kind string
     DB() *gorm.DB                                               // raw DB for kind-specific queries
 }
 ```
 
-**Important**: Always use `taskStorage.CreateNoRootTask()` / `taskStorage.DeleteNonRootTask()` to manage child tasks — they handle the full lifecycle including triggering the child's own kind handlers.
+**Important**: 
+- Always use `taskStorage.CreateNoRootTask()` / `taskStorage.DeleteNonRootTask()` to manage child tasks — they handle the full lifecycle including triggering the child's own kind handlers.
+- Use `taskStorage.LookupHandler(kind)` to find another handler for internal delegation (composite handlers like chain use this to call the real handler for each step).
+
+### CreatedByKind Delegation (CRITICAL — read before implementing)
+
+Every task has a `CreatedByKind` field (DB default `"simple"`) that records **which handler created this task**:
+
+| Scenario | CreatedByKind | Set by |
+|----------|--------------|--------|
+| User-created root task | `"simple"` (DB default) | — |
+| inspection child task | `"inspection"` | inspection handler's `createChildTask()` |
+| chain child task | `"chain"` | chain handler's `SaveExtra()` |
+
+#### OnTodo dispatch order
+
+`CompleteTodo` dispatches to `CreatedByKind` first, falling back to `Kind`:
+
+```
+kind = todo.Task.CreatedByKind   // composite handler gets first chance
+if kind == "" { kind = todo.Task.Kind }
+taskManager.Get(kind).OnTodo()
+```
+
+#### Rules for each handler type
+
+**Simple handler** (no extra data, no children):
+- `OnTodo`: empty no-op. Do NOT add dispatch logic.
+- `SaveExtra`: set `child.CreatedByKind = parent.Kind` when creating child tasks.
+
+**Composite handler** (creates sub-tasks of different kinds, e.g. chain):
+- `SaveExtra`: set `child.Kind = step.Kind` (real type), `child.CreatedByKind = "<your-kind>"`. Also update root task's `CreatedByKind` to your kind.
+- `OnTodo`: serves as the ENTRY point. First delegate to real handler via `storage.LookupHandler(todo.Task.Kind).OnTodo(...)`, then do your own logic (chain progression, etc.).
+- **Never** put dispatch logic in simple/inspection handlers. The dispatch is handled by `CompleteTodo` + `CreatedByKind`.
+
+#### Main flow constraint
+
+**NEVER** use plugin-internal kind strings (like `"chain"`, `"inspection"`) in the main flow (`todo_service.go`, `task_service.go`). The main flow only references field names (`CreatedByKind`, `Kind`) and the `TaskStorage` interface — never specific kind values.
 
 ### Model Registration (backend/pkg/model/registry.go)
 
@@ -123,14 +161,19 @@ Ask the user:
    - Complex → needs a modal workflow with `inspectComponent`
 5. **Kind-specific form fields?** Does the create/edit form need extra fields?
 6. **Child tasks?** Does this kind manage child tasks (like inspection branches with `create_todo`)?
-7. **Ribbon color** for the card badge (Tailwind color, e.g. `blue`, `purple`, `green`, `orange`)
+   - **What kind(s) are the children?** If children can be different kinds (like chain), this is a COMPOSITE handler — see composite handler rules.
+7. **Composite handler?** Does this kind wrap sub-tasks of potentially different types?
+   - Yes (like chain) → MUST set `CreatedByKind` on children + update root's `CreatedByKind` + use `LookupHandler` in OnTodo
+   - No → follow simple/inspection patterns
+8. **Ribbon color** for the card badge (Tailwind color, e.g. `blue`, `purple`, `green`, `orange`)
 
 ### Phase 2: Backend Handler
 
 Create `backend/pkg/taskkind/<kind>/handler.go`:
 
-**For a simple kind (no extra data):**
-Use a struct (either value or pointer receiver):
+#### For a simple kind (no extra data, no sub-tasks):
+
+Use a struct (either value or pointer receiver). OnTodo is a pure no-op — no dispatch logic needed:
 
 ```go
 package <kind>
@@ -153,6 +196,52 @@ func (handler) DeleteExtra(_ taskkind.TaskStorage, _ *model.TaskModel) error { r
 func (handler) OnTodo(_ taskkind.TaskStorage, _ *model.TodoModel, _ any) error { return nil }
 func (handler) GetExtra(_ taskkind.TaskStorage, _ *model.TaskModel) (any, error) { return nil, nil }
 ```
+
+#### For a handler that creates sub-tasks (e.g., inspection):
+
+When creating child tasks via `CreateNoRootTask`, always set **both** `Kind` and `CreatedByKind`:
+
+```go
+child := &model.TaskModel{
+    ...
+    Kind:          childKind,        // the child's real type (e.g., "simple")
+    CreatedByKind: parent.Kind,      // who created this child (e.g., "inspection")
+    ...
+}
+storage.CreateNoRootTask(child, childExtra)
+```
+
+The `CreateNoRootTask` call will automatically trigger the child's own `SaveExtra` with the correct handler.
+
+#### For a composite handler (manages sub-tasks of different kinds, e.g., chain):
+
+Additional requirements:
+
+1. **Set `CreatedByKind` on sub-tasks** to your kind string.
+2. **Update root task's `CreatedByKind`** from `"simple"` to your kind (so `CompleteTodo` dispatches to you):
+   ```go
+   root.CreatedByKind = "<your-kind>"
+   storage.UpdateTaskFields(root)
+   ```
+3. **Pass through extra data** when creating sub-tasks so their own handlers get it:
+   ```go
+   storage.CreateNoRootTask(child, step.Extra)  // not nil!
+   ```
+4. **OnTodo delegates to real handler** before doing chain/logic progression:
+   ```go
+   func (h *handler) OnTodo(storage taskkind.TaskStorage, todo *model.TodoModel, extra any) error {
+       // 1. Delegate to real handler
+       if realHandler := storage.LookupHandler(todo.Task.Kind); realHandler != nil {
+           realHandler.OnTodo(storage, todo, extra)
+       }
+       // 2. Your progression logic here
+       ...
+   }
+   ```
+
+Reference implementations:
+- `backend/pkg/taskkind/inspection/handler.go` — creates sub-tasks with `CreatedByKind`
+- `backend/pkg/taskkind/chain/handler.go` — composite handler with internal delegation
 
 ### Phase 3: Register Backend Import
 
