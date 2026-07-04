@@ -64,7 +64,17 @@ export const db = {
 
   /** Get branches for a check item */
   getBranches(checkItemId: string) {
-    return sql("SELECT id, name, create_todo, check_item_id FROM check_item_branches WHERE check_item_id = '" + checkItemId + "'");
+    return sql("SELECT id, name, create_todo, branch_task_id, check_item_id FROM check_item_branches WHERE check_item_id = '" + checkItemId + "'");
+  },
+
+  /** Get inspection results for a task */
+  getInspectionResults(taskId: string) {
+    return sql("SELECT id, task_id, item_name, branch_name FROM inspection_results WHERE task_id = '" + taskId + "'");
+  },
+
+  /** Get chain steps for a root task */
+  getChainSteps(rootTaskId: string) {
+    return sql("SELECT id, task_id, sort_order, name, kind, child_task_id FROM chain_steps WHERE task_id = '" + rootTaskId + "' ORDER BY sort_order");
   },
 
   /**
