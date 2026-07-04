@@ -199,7 +199,7 @@ onMounted(() => { loadAll() })
           <!-- Actions -->
           <div class="flex gap-1.5 pt-1.5 border-t border-gray-100 dark:border-gray-700 mt-auto">
             <component
-              :is="getTodoActions(todo.task?.kind || '')"
+              :is="getTodoActions(todo.task?.kind || todo.task_kind || '')"
               :todo="todo"
               @done="completeTodoDirect($event, 'done')"
               @remark="completeTodo($event, 'done')"

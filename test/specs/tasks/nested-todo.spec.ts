@@ -70,15 +70,21 @@ test.describe('嵌套待办生成', () => {
     const root = db.findTask('E2E-NestedTodo-Root');
     expect(root).toBeTruthy();
 
-    await api.triggerTask(familyId, root.id);
+    const trigRes = await api.triggerTask(familyId, root.id);
+    expect([200, 201]).toContain(trigRes.status);
     await new Promise(r => setTimeout(r, 500));
 
     // Complete root
     const rootTodos = db.getTodos(root.id);
     const rootPending = rootTodos.find((t: any) => t.status === 'pending');
     expect(rootPending).toBeTruthy();
-    await api.completeTodo(familyId, rootPending.id, 'done');
+    const compRes = await api.completeTodo(familyId, rootPending.id, 'done');
+    expect([200, 201]).toContain(compRes.status);
     await new Promise(r => setTimeout(r, 800));
+
+    // Root todo should now be done
+    const rootTodosAfter = db.getTodos(root.id);
+    expect(rootTodosAfter.filter((t: any) => t.status === 'done').length).toBe(1);
 
     // S1 should have a pending todo now
     const s1 = db.findTask('E2E-NestedTodo-S1');
@@ -102,11 +108,16 @@ test.describe('嵌套待办生成', () => {
     const s1Pending = s1Todos.find((t: any) => t.status === 'pending');
     expect(s1Pending).toBeTruthy();
 
-    await api.completeTodoRaw(familyId, s1Pending.id, {
+    const compS1Res = await api.completeTodoRaw(familyId, s1Pending.id, {
       todo: { status: 'done' },
       extra: { selections: [{ item_id: ci.id, item_name: 'C1', branch_id: failBranch.id, branch_name: 'FAIL' }] },
     });
+    expect([200, 201]).toContain(compS1Res.status);
     await new Promise(r => setTimeout(r, 800));
+
+    // S1 todo should now be done
+    const s1TodosAfter = db.getTodos(s1.id);
+    expect(s1TodosAfter.filter((t: any) => t.status === 'done').length).toBe(1);
 
     // S1-FAIL should have a pending todo
     const s1fail = db.findTask('E2E-NestedTodo-S1-FAIL');
@@ -135,11 +146,16 @@ test.describe('嵌套待办生成', () => {
     const pending = todos.find((t: any) => t.status === 'pending');
     expect(pending).toBeTruthy();
 
-    await api.completeTodoRaw(familyId, pending.id, {
+    const compFailRes = await api.completeTodoRaw(familyId, pending.id, {
       todo: { status: 'done' },
       extra: { selections: [{ item_id: ci.id, item_name: 'SUB', branch_id: failBranch.id, branch_name: 'FAIL' }] },
     });
+    expect([200, 201]).toContain(compFailRes.status);
     await new Promise(r => setTimeout(r, 800));
+
+    // S1-FAIL todo should now be done
+    const s1fTodosAfter = db.getTodos(s1fail.id);
+    expect(s1fTodosAfter.filter((t: any) => t.status === 'done').length).toBe(1);
 
     // DEEP should have a pending todo
     const deep = db.findTask('E2E-NestedTodo-DEEP');
@@ -149,13 +165,79 @@ test.describe('嵌套待办生成', () => {
     console.log('  ✅ S1-FAIL(FAIL) done → DEEP todo created');
   });
 
-  test('STEP-5: 验证所有 CreatedByKind', async () => {
-    const tasks = db.getTasks();
-    const our = tasks.filter((t: any) => t.name && (t.name as string).startsWith('E2E-NestedTodo'));
-    for (const t of our) {
-      console.log(`  ${t.name}: kind=${t.kind} created_by=${t.created_by_kind}`);
-    }
-    // Verified by STEP-3 assertions already
+  test('STEP-5: 验证所有 CreatedByKind + inspection_results + chain_steps + GetExtra 叶子', async () => {
+    // Assert CreatedByKind for every task in the tree
+    db.assertCreatedByKind('E2E-NestedTodo-Root', 'chain');
+    db.assertCreatedByKind('E2E-NestedTodo-S1', 'chain');
+    db.assertCreatedByKind('E2E-NestedTodo-S1-FAIL', 'inspection');
+    db.assertCreatedByKind('E2E-NestedTodo-DEEP', 'inspection');
+    db.assertCreatedByKind('E2E-NestedTodo-S2', 'chain');
+
+    // Verify leaf tasks' is_root and schedule_type
+    const root = db.findTask('E2E-NestedTodo-Root');
+    expect(root.is_root).toBe(1);
+    const s2 = db.findTask('E2E-NestedTodo-S2');
+    expect(s2.is_root).toBe(0);
+    expect(s2.schedule_type).toBeTruthy();
+    const deep = db.findTask('E2E-NestedTodo-DEEP');
+    expect(deep.is_root).toBe(0);
+    expect(deep.kind).toBe('simple');
+
+    // Verify inspection_results recorded for S1 and S1-FAIL
+    const s1 = db.findTask('E2E-NestedTodo-S1');
+    const s1Results = db.getInspectionResults(s1.id);
+    expect(s1Results.length).toBeGreaterThanOrEqual(1);
+    expect(s1Results[0].item_name).toBe('C1');
+
+    const s1fail = db.findTask('E2E-NestedTodo-S1-FAIL');
+    const s1fResults = db.getInspectionResults(s1fail.id);
+    expect(s1fResults.length).toBeGreaterThanOrEqual(1);
+    expect(s1fResults[0].item_name).toBe('SUB');
+
+    // Verify chain_steps table for root: all fields
+    const steps = db.getChainSteps(root.id);
+    expect(steps.length).toBe(2);
+    expect(steps[0].name).toBe('E2E-NestedTodo-S1');
+    expect(steps[0].kind).toBe('inspection');
+    expect(steps[0].child_task_id).toBeTruthy();
+    expect(steps[1].name).toBe('E2E-NestedTodo-S2');
+    expect(steps[1].kind).toBe('simple');
+    expect(steps[1].child_task_id).toBeTruthy();
+
+    // Verify GetExtra recursively reaches all leaf nodes
+    const token = api.getToken();
+    const res = await fetch(`http://localhost:8080/api/tasks/${root.id}?with_extra=true`, {
+      headers: { Authorization: `Bearer ${token}`, 'X-Family-Id': familyId },
+    });
+    const body = await res.json();
+    const extra = body?.data?.extra ?? body?.extra ?? null;
+
+    // S1: inspection → check_items → FAIL → branch_task(inspection) → check_items → FAIL → branch_task(simple)
+    const s1Step = extra.steps[0];
+    expect(s1Step.name).toBe('E2E-NestedTodo-S1');
+    expect(s1Step.kind).toBe('inspection');
+    const s1Extra = s1Step.extra;
+    expect(s1Extra.check_items[0].name).toBe('C1');
+    const s1Fail = s1Extra.check_items[0].branches.find((b: any) => b.name === 'FAIL');
+    expect(s1Fail.create_todo).toBe(true);
+    expect(s1Fail.branch_task.task.name).toBe('E2E-NestedTodo-S1-FAIL');
+    expect(s1Fail.branch_task.task.kind).toBe('inspection');
+
+    // Recursively into S1-FAIL
+    const s1fExtra = s1Fail.branch_task.extra;
+    expect(s1fExtra.check_items[0].name).toBe('SUB');
+    const s1fFail = s1fExtra.check_items[0].branches.find((b: any) => b.name === 'FAIL');
+    expect(s1fFail.branch_task.task.name).toBe('E2E-NestedTodo-DEEP');
+    expect(s1fFail.branch_task.task.kind).toBe('simple');
+    expect(s1fFail.branch_task.extra ?? null).toBeNull(); // simple 叶子
+
+    // S2: simple leaf
+    const s2Step = extra.steps[1];
+    expect(s2Step.name).toBe('E2E-NestedTodo-S2');
+    expect(s2Step.kind).toBe('simple');
+    expect(s2Step.extra ?? null).toBeNull();
+
+    console.log('  ✅ All 5 tasks CreatedByKind + inspection_results + chain_steps + GetExtra 递归到叶子');
   });
 
   test.afterAll(async () => {

@@ -129,35 +129,69 @@ test.describe('Chain (复杂: 引inspection+自嵌套chain)', () => {
     expect(ours.length).toBeGreaterThanOrEqual(8);
   });
 
-  test('STEP-3: 验证 GetExtra 递归（含 S2 inspection 嵌套 + S3 chain steps）', async () => {
+  test('STEP-3: 验证 GetExtra 递归到叶子节点', async () => {
     const token = api.getToken();
     const root = db.findTask(ROOT);
     const res = await fetch(`http://localhost:8080/api/tasks/${root.id}?with_extra=true`, {
       headers: { Authorization: `Bearer ${token}`, 'X-Family-Id': familyId },
     });
     const body = await res.json();
-    const extra = body?.data?.extra || body?.extra;
+    const extra = body?.data?.extra ?? body?.extra ?? null;
     expect(extra.steps.length).toBe(3);
 
-    // S1: simple → extra undefined
-    expect(extra.steps[0].extra).toBeFalsy();
-    console.log('  ✅ S1 extra=undefined (simple)');
+    // S1: simple → 验证全部字段
+    const s1 = extra.steps[0];
+    expect(s1.name).toBe(ROOT + '-S1');
+    expect(s1.kind).toBe('simple');
+    expect(s1.child_task_id).toBeTruthy();
+    expect(s1.extra ?? null).toBeNull();
+    console.log('  ✅ S1: name/kind/child_task_id verified, extra=null');
 
-    // S2: inspection → nested extra
+    // S2: inspection → 递归验证 check_items → branches → branch_task 叶子
     const s2Extra = extra.steps[1].extra;
-    expect(s2Extra.check_items).toBeTruthy();
-    const failB = s2Extra.check_items[0].branches.find((b: any) => b.name === '不合格');
-    expect(failB.branch_task.extra).toBeTruthy();
-    expect(failB.branch_task.extra.check_items.length).toBe(1);
-    console.log('  ✅ S2 extra → S2-sub check_items present');
+    expect(s2Extra.check_items.length).toBe(1);
+    const s2ci = s2Extra.check_items[0];
+    expect(s2ci.name).toBe('巡检S2');
+    expect(s2ci.branches.length).toBe(2);
 
-    // S3: chain → nested steps
+    // 合格分支
+    const s2Ok = s2ci.branches.find((b: any) => b.name === '合格');
+    expect(s2Ok).toBeTruthy();
+    expect(s2Ok.create_todo).toBe(false);
+
+    // 不合格分支 → branch_task(自嵌套inspection) → check_items → branches → branch_task(simple叶子)
+    const s2Fail = s2ci.branches.find((b: any) => b.name === '不合格');
+    expect(s2Fail).toBeTruthy();
+    expect(s2Fail.create_todo).toBe(true);
+    expect(s2Fail.branch_task.task.name).toBe(ROOT + '-S2-sub');
+    expect(s2Fail.branch_task.task.kind).toBe('inspection');
+
+    // 自嵌套 inspection 的 extra
+    const s2subExtra = s2Fail.branch_task.extra;
+    expect(s2subExtra.check_items.length).toBe(1);
+    expect(s2subExtra.check_items[0].name).toBe('子巡检');
+    expect(s2subExtra.check_items[0].branches.length).toBe(2);
+
+    const s2subFail = s2subExtra.check_items[0].branches.find((b: any) => b.name === '不合格');
+    expect(s2subFail).toBeTruthy();
+    expect(s2subFail.create_todo).toBe(true);
+    expect(s2subFail.branch_task.task.name).toBe(ROOT + '-S2-leaf');
+    expect(s2subFail.branch_task.task.kind).toBe('simple');
+    expect(s2subFail.branch_task.extra ?? null).toBeNull(); // simple 叶子
+    console.log('  ✅ S2: 递归到 simple 叶子 — name/kind/create_todo 全链路验证');
+
+    // S3: chain → 验证每个嵌套 step 的叶子数据
     const s3Extra = extra.steps[2].extra;
-    expect(s3Extra.steps).toBeTruthy();
     expect(s3Extra.steps.length).toBe(2);
-    expect(s3Extra.steps[0].name).toBe(ROOT + '-S3-A');
-    expect(s3Extra.steps[0].kind).toBe('simple');
-    console.log('  ✅ S3 extra → nested chain steps[2] present');
+    const s3Expected = [ROOT + '-S3-A', ROOT + '-S3-B'];
+    for (let i = 0; i < 2; i++) {
+      const ss = s3Extra.steps[i];
+      expect(ss.name).toBe(s3Expected[i]);
+      expect(ss.kind).toBe('simple');
+      expect(ss.child_task_id).toBeTruthy();
+      expect(ss.extra ?? null).toBeNull();
+    }
+    console.log('  ✅ S3: nested chain 2 steps — name/kind/child_task_id/extra verified');
   });
 
   test.afterAll(async () => {

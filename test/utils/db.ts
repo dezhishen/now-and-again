@@ -42,7 +42,7 @@ function sql(query: string): any[] {
 export const db = {
   /** Get all tasks */
   getTasks() {
-    return sql('SELECT id, name, kind, created_by_kind, parent_task_id, is_root FROM tasks');
+    return sql('SELECT id, name, kind, created_by_kind, parent_task_id, is_root, schedule_type, enabled FROM tasks');
   },
 
   /** Find task by exact name */

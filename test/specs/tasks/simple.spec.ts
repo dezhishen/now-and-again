@@ -41,8 +41,8 @@ test.describe('Simple (简单)', () => {
       headers: { Authorization: `Bearer ${token}`, 'X-Family-Id': familyId },
     });
     const body = await res.json();
-    const extra = body?.data?.extra || body?.extra;
-    expect(extra).toBeFalsy();
+    const extra = body?.data?.extra ?? body?.extra ?? null;
+    expect(extra).toBeNull();
     console.log('  ✅ simple extra = null');
   });
 

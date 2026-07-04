@@ -99,6 +99,32 @@ export async function deleteTask(familyId: string, taskId: string) {
   return request('DELETE', `/tasks/${taskId}`);
 }
 
+export async function updateTask(familyId: string, taskId: string, task: {
+  name?: string;
+  kind?: string;
+  scheduleType?: string;
+  scheduleData?: any;
+  groupId?: string;
+  locationId?: string;
+  displaySummary?: string;
+  extra?: any;
+}) {
+  setFamilyId(familyId);
+  const body: any = {
+    task: {
+      name: task.name || '',
+      kind: task.kind || '',
+      schedule_type: task.scheduleType || 'daily',
+      schedule_data: task.scheduleData || { time: '09:00' },
+    },
+  };
+  if (task.groupId !== undefined) body.task.group_id = task.groupId;
+  if (task.locationId !== undefined) body.task.location_id = task.locationId;
+  if (task.displaySummary !== undefined) body.task.display_summary = task.displaySummary;
+  if (task.extra !== undefined) body.extra = task.extra;
+  return request('PUT', `/tasks/${taskId}`, body);
+}
+
 // ─── Todos (family-scoped) ────────────────────────────────────────
 export async function listTodos(familyId: string) {
   setFamilyId(familyId);

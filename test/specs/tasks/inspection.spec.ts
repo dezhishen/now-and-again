@@ -55,19 +55,54 @@ test.describe('Inspection (简单: 仅引 simple)', () => {
     console.log('  ✅ Sub: kind=simple, created_by=inspection');
   });
 
-  test('STEP-3: 验证 GetExtra 不递归（子任务 simple 无 extra）', async () => {
+  test('STEP-3: 验证 GetExtra 叶子节点（check_item → branches → branch_task 全链路）', async () => {
     const token = api.getToken();
     const root = db.findTask(ROOT);
     const res = await fetch(`http://localhost:8080/api/tasks/${root.id}?with_extra=true`, {
       headers: { Authorization: `Bearer ${token}`, 'X-Family-Id': familyId },
     });
     const body = await res.json();
-    const extra = body?.data?.extra || body?.extra;
-    expect(extra.check_items).toBeTruthy();
-    const failBranch = extra.check_items[0].branches.find((b: any) => b.name === '不合格');
+    const extra = body?.data?.extra ?? body?.extra ?? null;
+
+    // 验证 check_items
+    expect(extra.check_items.length).toBe(1);
+    const ci = extra.check_items[0];
+    expect(ci.name).toBe('检查项');
+
+    // 验证每个 branch 的完整数据
+    expect(ci.branches.length).toBe(2);
+
+    // 合格分支: 不应创建子任务
+    const okBranch = ci.branches.find((b: any) => b.name === '合格');
+    expect(okBranch).toBeTruthy();
+    expect(okBranch.create_todo).toBe(false);
+    expect(okBranch.branch_task).toBeFalsy(); // 无子任务
+
+    // 不合格分支: 应创建 simple 子任务
+    const failBranch = ci.branches.find((b: any) => b.name === '不合格');
+    expect(failBranch).toBeTruthy();
+    expect(failBranch.create_todo).toBe(true);
     expect(failBranch.branch_task).toBeTruthy();
-    expect(failBranch.branch_task.extra).toBeFalsy(); // simple has no extra
-    console.log('  ✅ branch_task.extra = null (simple leaf)');
+    expect(failBranch.branch_task.task.name).toBe(ROOT + '-不合格处理');
+    expect(failBranch.branch_task.task.kind).toBe('simple');
+    expect(failBranch.branch_task.extra ?? null).toBeNull(); // simple leaf: no nested extra
+
+    // 验证 DB: check_items + branches 表
+    const dbCheckItems = db.getCheckItems(root.id);
+    expect(dbCheckItems.length).toBe(1);
+    expect(dbCheckItems[0].name).toBe('检查项');
+
+    const dbBranches = db.getBranches(dbCheckItems[0].id);
+    expect(dbBranches.length).toBe(2);
+    const dbFail = dbBranches.find((b: any) => b.name === '不合格');
+    expect(dbFail).toBeTruthy();
+    expect(dbFail.create_todo).toBe(1); // SQLite stores bool as 0/1
+    expect(dbFail.branch_task_id).toBeTruthy();
+    const dbOk = dbBranches.find((b: any) => b.name === '合格');
+    expect(dbOk).toBeTruthy();
+    expect(dbOk.create_todo).toBe(0);
+
+    console.log('  ✅ All leaves verified: check_item → 2 branches → branch_task name/kind + DB tables');
   });
 
   test.afterAll(async () => {

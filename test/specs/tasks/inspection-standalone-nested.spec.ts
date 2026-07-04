@@ -55,19 +55,36 @@ test.describe('独立巡检嵌套待办', () => {
     await new Promise(r => setTimeout(r, 1000));
   });
 
-  test('STEP-2: 验证根巡检 CreatedByKind = "simple"', async () => {
+  test('STEP-2: 验证根巡检 CreatedByKind = "simple" + L2/DEEP 叶子元数据', async () => {
     const root = db.findTask('E2E-Standalone');
     expect(root).toBeTruthy();
     expect(root.kind).toBe('inspection');
-    // User-created task: CreatedByKind is "simple" (DB default)
     expect(root.created_by_kind).toBe('simple');
-    console.log('  ✅ Root: kind=inspection, created_by=simple (user-created)');
+    expect(root.is_root).toBe(1);
+
+    // Verify L2 and DEEP exist with correct metadata
+    const l2 = db.findTask('E2E-Standalone-L2');
+    expect(l2).toBeTruthy();
+    expect(l2.kind).toBe('inspection');
+    expect(l2.created_by_kind).toBe('inspection');
+    expect(l2.is_root).toBe(0);
+
+    const deep = db.findTask('E2E-Standalone-DEEP');
+    expect(deep).toBeTruthy();
+    expect(deep.kind).toBe('simple');
+    expect(deep.created_by_kind).toBe('inspection');
+    expect(deep.is_root).toBe(0);
+    expect(deep.schedule_type).toBeTruthy(); // once or daily
+    console.log('  ✅ Root: kind=inspection, created_by=simple, is_root=1');
+    console.log('  ✅ L2: kind=inspection, created_by=inspection, is_root=0');
+    console.log('  ✅ DEEP: kind=simple, created_by=inspection, is_root=0, schedule_type set');
   });
 
   test('STEP-3: 触发并完成根巡检(FAIL) → 验证 L2 获得待办', async () => {
     const root = db.findTask('E2E-Standalone');
     // Trigger todo
-    await api.triggerTask(familyId, root.id);
+    const trigRes = await api.triggerTask(familyId, root.id);
+    expect([200, 201]).toContain(trigRes.status);
     await new Promise(r => setTimeout(r, 500));
 
     // Complete as FAIL
@@ -80,11 +97,22 @@ test.describe('独立巡检嵌套待办', () => {
     const branches = db.getBranches(ci.id);
     const failBranch = branches.find((b: any) => b.name === 'FAIL');
 
-    await api.completeTodoRaw(familyId, pending.id, {
+    const compRes = await api.completeTodoRaw(familyId, pending.id, {
       todo: { status: 'done' },
       extra: { selections: [{ item_id: ci.id, item_name: '检查', branch_id: failBranch.id, branch_name: 'FAIL' }] },
     });
+    expect([200, 201]).toContain(compRes.status);
     await new Promise(r => setTimeout(r, 800));
+
+    // Root todo should be done
+    const rootTodosAfter = db.getTodos(root.id);
+    expect(rootTodosAfter.filter((t: any) => t.status === 'done').length).toBe(1);
+
+    // Verify inspection_results recorded
+    const results = db.getInspectionResults(root.id);
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    expect(results[0].item_name).toBe('检查');
+    expect(results[0].branch_name).toBe('FAIL');
 
     // L2 should have a pending todo
     const l2 = db.findTask('E2E-Standalone-L2');
@@ -105,11 +133,22 @@ test.describe('独立巡检嵌套待办', () => {
     const pending = l2Todos.find((t: any) => t.status === 'pending');
     expect(pending).toBeTruthy();
 
-    await api.completeTodoRaw(familyId, pending.id, {
+    const compL2Res = await api.completeTodoRaw(familyId, pending.id, {
       todo: { status: 'done' },
       extra: { selections: [{ item_id: ci.id, item_name: '子检查', branch_id: failBranch.id, branch_name: 'FAIL' }] },
     });
+    expect([200, 201]).toContain(compL2Res.status);
     await new Promise(r => setTimeout(r, 800));
+
+    // L2 todo should be done
+    const l2TodosAfter = db.getTodos(l2.id);
+    expect(l2TodosAfter.filter((t: any) => t.status === 'done').length).toBe(1);
+
+    // Verify L2 inspection_results recorded
+    const l2Results = db.getInspectionResults(l2.id);
+    expect(l2Results.length).toBeGreaterThanOrEqual(1);
+    expect(l2Results[0].item_name).toBe('子检查');
+    expect(l2Results[0].branch_name).toBe('FAIL');
 
     // DEEP should have a pending todo
     const deep = db.findTask('E2E-Standalone-DEEP');
