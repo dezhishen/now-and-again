@@ -78,13 +78,12 @@ export function initTaskKinds() {
           kind: s.task?.task?.kind || 'simple',
           group_id: s.task?.task?.group_id || '',
           location_id: s.task?.task?.location_id || '',
-          extra: s.extra || null,
+          extra: s.task?.extra || null,
         }))
       }
     },
     parseExtra(extra) {
       return (extra?.steps || []).map((s: any) => ({
-        name: s.name,
         task: {
           task: {
             name: s.name,
@@ -94,8 +93,8 @@ export function initTaskKinds() {
             group_id: s.group_id || '',
             location_id: s.location_id || '',
           },
+          extra: s.extra || null,
         },
-        extra: s.extra || null,
       }))
     },
     defaultCheckItems: [],
