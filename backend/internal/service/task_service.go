@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm"
 
 	// Blank imports trigger init() registration of task kind handlers.
+	_ "github.com/dezhishen/now-and-again/backend/pkg/taskkind/chain"
 	_ "github.com/dezhishen/now-and-again/backend/pkg/taskkind/inspection"
 	_ "github.com/dezhishen/now-and-again/backend/pkg/taskkind/simple"
 )
@@ -132,6 +133,10 @@ func (s *_taskStorage) CreateTodo(taskID string, displaySummary string) (*reposi
 		return nil, err
 	}
 	return todo, nil
+}
+
+func (s *_taskStorage) LookupHandler(kind string) taskkind.Handler {
+	return s.taskManager.Get(kind)
 }
 
 func NewTaskService(repo *repository.TaskRepo, familyRepo *repository.FamilyRepo) *TaskService {

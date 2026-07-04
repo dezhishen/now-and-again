@@ -323,8 +323,8 @@ function scheduleSummary(task: Task): string {
     <!-- Content -->
     <div>
       <div class="flex items-center gap-2 mb-3">
-        <button class="btn-primary text-sm" @click="openCreate()">+ {{ t('taskKind.create') }}</button>
-        <button class="btn-secondary text-sm" @click="showTemplatePicker = true">📋 从模板创建</button>
+        <button class="btn-primary text-sm" data-testid="task-create-btn" @click="openCreate()">+ {{ t('taskKind.create') }}</button>
+        <button class="btn-secondary text-sm" data-testid="task-template-btn" @click="showTemplatePicker = true">📋 从模板创建</button>
         <span class="flex-1" />
         <button
           class="text-xs px-2 py-1 rounded border transition-colors"
@@ -428,13 +428,13 @@ function scheduleSummary(task: Task): string {
             <!-- Kind selector (disabled when editing) -->
             <div>
               <label class="text-xs text-gray-400 block mb-1">任务类型</label>
-              <select v-model="taskKind" class="input" :disabled="!!editingTask">
+              <select v-model="taskKind" data-testid="task-kind" class="input" :disabled="!!editingTask">
                 <option v-for="k in allKinds" :key="k.kind" :value="k.kind">{{ t(k.labelKey) }}</option>
               </select>
             </div>
             <div>
               <label class="text-xs text-gray-400 block mb-1">任务名称</label>
-              <input v-model="taskName" class="input" placeholder="输入任务名称" />
+              <input v-model="taskName" data-testid="task-name" class="input" placeholder="输入任务名称" />
             </div>
             <div>
               <label class="text-xs text-gray-400 block mb-1">调度方式</label>
@@ -519,8 +519,8 @@ function scheduleSummary(task: Task): string {
             />
           </div>
           <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">
-            <button class="btn-primary flex-1" :disabled="saving" @click="saveTask">{{ saving ? t('app.saving') : editingTask ? '保存' : '创建' }}</button>
-            <button class="btn-secondary" @click="showTaskForm = false">取消</button>
+            <button class="btn-primary flex-1" data-testid="task-submit" :disabled="saving" @click="saveTask">{{ saving ? t('app.saving') : editingTask ? '保存' : '创建' }}</button>
+            <button class="btn-secondary" data-testid="task-cancel" @click="showTaskForm = false">取消</button>
           </div>
         </div>
       </div>

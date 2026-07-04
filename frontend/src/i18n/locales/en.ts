@@ -274,6 +274,7 @@ export default {
     quickDone: 'Quick Done',
     remark: 'Note',
     skip: 'Skip',
+    interrupt: 'Interrupt',
     inspect: 'Inspect',
     submitInspect: 'Submit',
     submitting: 'Submitting...',

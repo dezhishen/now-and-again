@@ -64,13 +64,13 @@ function toggleDay(task: TaskBaseFields, d: number) {
     <!-- Name -->
     <div>
       <label class="text-xs text-gray-400 block mb-1">任务名称</label>
-      <input v-model="model.name" class="input" placeholder="输入任务名称" />
+      <input v-model="model.name" data-testid="task-name" class="input" placeholder="输入任务名称" />
     </div>
 
     <!-- Schedule type -->
     <div>
       <label class="text-xs text-gray-400 block mb-1">调度方式</label>
-      <select v-model="model.schedule_type" class="input">
+      <select v-model="model.schedule_type" data-testid="task-schedule-type" class="input">
         <option v-for="s in SCHEDULE_TYPES" :key="s.value" :value="s.value">{{ t(s.labelKey) }}</option>
       </select>
     </div>
@@ -78,7 +78,7 @@ function toggleDay(task: TaskBaseFields, d: number) {
     <!-- Time -->
     <div>
       <label class="text-xs text-gray-400 block mb-1">触发时间</label>
-      <input v-model="model.schedule_data.time" type="time" class="input" />
+      <input v-model="model.schedule_data.time" data-testid="task-time" type="time" class="input" />
     </div>
 
     <!-- Once: date -->

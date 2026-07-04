@@ -204,6 +204,7 @@ onMounted(() => { loadAll() })
               @done="completeTodoDirect($event, 'done')"
               @remark="completeTodo($event, 'done')"
               @skip="completeTodo($event, 'skipped')"
+              @interrupt="completeTodoDirect($event, 'interrupted')"
               @completed="loadTodos"
             />
           </div>

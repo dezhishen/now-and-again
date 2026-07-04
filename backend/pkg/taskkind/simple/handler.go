@@ -14,17 +14,9 @@ func init() {
 
 func (Handler) Kind() string { return "simple" }
 
-func (Handler) SaveExtra(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
-	return nil
-}
-
-func (Handler) UpdateExtra(taskStorage taskkind.TaskStorage, task *model.TaskModel, extra any) error {
-	return nil
-}
-
-func (Handler) DeleteExtra(taskStorage taskkind.TaskStorage, task *model.TaskModel) error {
-	return nil
-}
+func (Handler) SaveExtra(_ taskkind.TaskStorage, _ *model.TaskModel, _ any) error   { return nil }
+func (Handler) UpdateExtra(_ taskkind.TaskStorage, _ *model.TaskModel, _ any) error { return nil }
+func (Handler) DeleteExtra(_ taskkind.TaskStorage, _ *model.TaskModel) error        { return nil }
 
 func (Handler) OnTodo(_ taskkind.TaskStorage, _ *model.TodoModel, _ any) error {
 	return nil
