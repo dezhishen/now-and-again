@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -33,6 +34,10 @@ func (h *FamilyHandlers) Join(c *gin.Context) {
 	}
 	m, err := h.C.Join(userCtx(c), req)
 	if err != nil {
+		if errors.Is(err, types.ErrInvalidInviteCode) {
+			badRequest(c, "邀请码无效")
+			return
+		}
 		serverError(c, err)
 		return
 	}

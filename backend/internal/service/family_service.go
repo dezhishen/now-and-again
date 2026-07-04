@@ -52,7 +52,7 @@ func (s *FamilyService) Join(ctx context.Context, req *types.JoinFamilyRequest) 
 
 	f, err := s.repo.FindFamilyByInviteCode(req.InviteCode)
 	if err != nil {
-		return nil, fmt.Errorf("invalid invite code")
+		return nil, types.ErrInvalidInviteCode
 	}
 
 	if existing, err := s.repo.FindMember(f.ID, userID); err == nil {

@@ -11,6 +11,10 @@ import (
 // has been revoked, or has expired. Callers should respond with 401.
 var ErrRefreshTokenInvalid = errors.New("refresh token is invalid or expired")
 
+// ErrInvalidInviteCode is returned when a family invite code does not match
+// any family. Callers should respond with 400.
+var ErrInvalidInviteCode = errors.New("invalid invite code")
+
 // ─── Enums ────────────────────────────────────────────────────────
 
 type FamilyRole string
