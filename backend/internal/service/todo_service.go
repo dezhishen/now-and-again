@@ -110,9 +110,10 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 		}
 		s.repo.CreateUserLog(todo.TaskID, todoID.String(), userID, status, msg)
 
-		// Dispatch: prefer CreatedByKind (composite/creator), fall back to Kind (real type).
+		// Dispatch: prefer CreatedByKind (composite handler like chain gets first chance).
+		// "simple" is the DB default, not an actual creator — fall back to real Kind.
 		kind := todo.Task.CreatedByKind
-		if kind == "" {
+		if kind == "" || kind == "simple" {
 			kind = todo.Task.Kind
 		}
 		if h := s.taskManager.Get(kind); h != nil {
