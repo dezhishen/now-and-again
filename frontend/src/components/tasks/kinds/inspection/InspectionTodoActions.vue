@@ -58,7 +58,7 @@ async function submit() {
     <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" v-esc="() => showModal = false">
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[90vw] max-w-lg max-h-[80vh] flex flex-col">
         <div class="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
-          <h3 class="font-bold dark:text-gray-200">🔍 {{ todo.task?.name }}</h3>
+          <h3 class="font-bold dark:text-gray-200">🔍 {{ todo.task_name || todo.task?.name }}</h3>
           <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg" @click="showModal = false">✕</button>
         </div>
         <div v-if="loading" class="flex-1 flex items-center justify-center py-8">

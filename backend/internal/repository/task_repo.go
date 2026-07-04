@@ -116,7 +116,7 @@ func (r *TaskRepo) FindTodoFull(id string) (*TodoModel, error) {
 
 func (r *TaskRepo) ListTodosByFamily(familyID string, status string, userGroupIDs []string) ([]TodoModel, error) {
 	var todos []TodoModel
-	q := r.db.Preload("Task").Preload("Task.Group").Preload("User").Where("family_id = ?", familyID)
+	q := r.db.Preload("Task.Group").Preload("User").Where("family_id = ?", familyID)
 	if status != "" {
 		q = q.Where("status = ?", status)
 	}
@@ -133,7 +133,7 @@ func (r *TaskRepo) ListTodosByFamily(familyID string, status string, userGroupID
 // ListTodosByGroup returns todos for a specific group in the family.
 func (r *TaskRepo) ListTodosByGroup(familyID, groupID, status string) ([]TodoModel, error) {
 	var todos []TodoModel
-	q := r.db.Preload("Task").Preload("Task.Group").Preload("User").
+	q := r.db.Preload("Task.Group").Preload("User").
 		Where("family_id = ? AND todos.group_id = ?", familyID, groupID)
 	if status != "" {
 		q = q.Where("status = ?", status)
