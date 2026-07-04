@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import { useI18n } from '@/i18n'
 import type { FamilyGroup } from '@/types'
 import SubTaskEditor from '@/components/tasks/SubTaskEditor.vue'
-
-const { t } = useI18n()
 
 const steps = defineModel<any[]>({ required: true })
 const props = defineProps<{

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, watch, computed, markRaw, type Component } from 'vue'
+import { ref, watch, computed, markRaw, type Component } from 'vue'
 import { useI18n } from '@/i18n'
 import { useToast } from '@/composables/useToast'
 import { useErrorHandler } from '@/composables/useErrorHandler'
@@ -194,13 +194,14 @@ async function handleSave() {
 const currentStepDef = computed(() => steps.value[currentStep.value])
 
 /** Returns the correct v-model binding based on step id */
-const stepModel = computed(() => {
+const stepModel = computed<Record<string, any>>(() => {
   const id = currentStepDef.value?.id
   switch (id) {
     case 'basic':
       return {
-        templateCode, name, description, kind, icon, sortOrder, enabled,
-        codeManuallyEdited,
+        templateCode: templateCode.value, name: name.value, description: description.value,
+        kind: kind.value, icon: icon.value, sortOrder: sortOrder.value, enabled: enabled.value,
+        codeManuallyEdited: codeManuallyEdited.value,
         editing: props.editing,
       }
     case 'extra':
@@ -298,7 +299,7 @@ const stepModel = computed(() => {
         <!-- Step 4: Preview -->
         <PreviewStep
           v-else-if="currentStepDef?.id === 'preview'"
-          v-bind="stepModel"
+          v-bind="(stepModel as any)"
         />
       </div>
 

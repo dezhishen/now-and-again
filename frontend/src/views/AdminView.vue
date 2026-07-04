@@ -17,7 +17,7 @@ interface ListUsersResponse {
   total_pages: number
 }
 
-const { t } = useI18n()
+const { t, td } = useI18n()
 const toast = useToast()
 const users = ref<User[]>([])
 const total = ref(0)
@@ -304,7 +304,7 @@ const showingText = computed(() => {
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6">
           <h3 class="text-lg font-semibold mb-2 dark:text-gray-100">{{ t('admin.resetPasswordTitle') }}</h3>
           <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            {{ t('admin.resetPasswordConfirm', { user: resetTarget.display_name }) }}
+            {{ td('admin.resetPasswordConfirm', { user: resetTarget.display_name }) }}
           </p>
           <ErrorDisplay :error="resetError" @close="clearResetError" />
           <div class="flex justify-end gap-2 mt-3">

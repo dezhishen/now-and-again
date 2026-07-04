@@ -156,7 +156,7 @@ function getPlanLabel(planId: string) {
 
     <!-- Edit Modal -->
     <Teleport to="body">
-      <div v-if="editing" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" v-esc="() => editing = null">
+      <div v-if="editing" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" v-esc="() => editing = false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
           <h3 class="text-lg font-semibold mb-4 dark:text-gray-200">
             {{ editLoc ? t('locations.editLocation') : t('locations.addLocation') }}

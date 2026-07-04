@@ -62,12 +62,12 @@ export function useI18n() {
   return {
     ...composer,
     /** Type-safe translate: only accepts known i18n keys. */
-    t: rawT as (key: I18nKey) => string,
+    t: rawT as (key: I18nKey, options?: Record<string, any>) => string,
     /** Dynamic translate: accepts any string. Use for runtime-computed keys. */
-    td: rawT as (key: string) => string,
+    td: rawT as (key: string, options?: Record<string, any>) => string,
   } as Omit<typeof composer, 't'> & {
-    t: (key: I18nKey) => string
-    td: (key: string) => string
+    t: (key: I18nKey, options?: Record<string, any>) => string
+    td: (key: string, options?: Record<string, any>) => string
   }
 }
 

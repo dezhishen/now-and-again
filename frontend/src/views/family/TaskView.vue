@@ -64,7 +64,7 @@ const saving = ref(false)
 // ── Template picker ───────────────────────────────────────────────
 const showTemplatePicker = ref(false)
 
-const { t } = useI18n()
+const { t, td } = useI18n()
 
 const SCHEDULE_TYPES = getScheduleTypes()
 
@@ -309,7 +309,7 @@ function toggleDay(d: number) {
 }
 
 function scheduleSummary(task: Task): string {
-  return scheduleLabel(task.schedule_type, task.schedule_data || {}, t)
+  return scheduleLabel(task.schedule_type, task.schedule_data || {}, td)
 }
 </script>
 
