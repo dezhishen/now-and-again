@@ -150,6 +150,7 @@ async function leaveFamily() {
         <button
           v-for="nav in NAV_ITEMS.filter(n => !n.adminOnly || isFamilyAdmin)"
           :key="nav.id"
+          :data-testid="'family-nav-' + nav.id"
           class="nav-item"
           :class="{ active: activeTabId === nav.id }"
           @click="openTab(nav.id)"

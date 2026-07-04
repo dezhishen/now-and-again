@@ -153,6 +153,8 @@ onMounted(() => { loadAll() })
       <div v-if="todos.length === 0" class="text-center text-gray-400 py-8">{{ t('dashboard.noTodos') }}</div>
       <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3 items-stretch">
         <div v-for="todo in displayTodos" :key="todo.id"
+          data-testid="todo-card"
+          :data-task-name="todo.task?.name || todo.task_name || ''"
           class="card flex flex-col gap-1.5 hover:shadow-md transition-shadow h-full"
         >
           <!-- Header: name + kind badge -->

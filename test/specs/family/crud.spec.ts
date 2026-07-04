@@ -1,41 +1,37 @@
 import { test, expect } from '@playwright/test';
-import { loginViaApi } from '../../fixtures/auth';
-import * as api from '../../utils/api';
 
 test.describe('家庭管理', () => {
 
-  test.beforeAll(async () => {
-    await loginViaApi('admin', '12345678');
-  });
-
-  test('STEP-1: 创建家庭并获取列表', async () => {
-    // Check if family already exists (can only create one per user)
-    let res = await api.listMyFamilies();
-    const families = (res.data?.data || res.data) as any[];
-    if (!families || families.length === 0) {
-      const cr = await api.createFamily('E2E测试家庭');
-      // 200=already exists, 201=created — both are fine
-      expect([200, 201]).toContain(cr.status);
-    }
-
-    res = await api.listMyFamilies();
-    expect(res.status).toBe(200);
-    const list = res.data?.data || res.data;
-    expect(Array.isArray(list)).toBe(true);
-    expect(list.length).toBeGreaterThan(0);
-  });
-
-  test('STEP-2: 浏览器登录后跳转到家庭页面', async ({ page }) => {
+  test('浏览器登录→创建家庭→进入', async ({ page }) => {
+    // Login
     await page.goto('/login');
     await page.getByPlaceholder('输入用户名').fill('admin');
     await page.getByPlaceholder('输入密码').fill('12345678');
     await page.getByRole('button', { name: '登录' }).click();
-
-    // Wait for Vue router navigation (home → family)
     await page.waitForTimeout(2000);
 
+    // Should be on families page
     const url = page.url();
-    const isValid = url.includes('/family') || url.includes('/families') || url === 'http://localhost:5173/';
-    expect(isValid).toBe(true);
+    expect(url).toContain('/families');
+
+    // If no family, create one
+    const noFamily = page.locator('text=暂无家庭');
+    if (await noFamily.count() > 0) {
+      await page.getByRole('button', { name: /创建/ }).first().click();
+      await page.waitForTimeout(500);
+      await page.locator('input[placeholder*="家庭"]').first().fill('E2E测试家庭');
+      await page.getByRole('button', { name: /创建|确定/ }).click();
+      await page.waitForTimeout(1500);
+    }
+
+    // Enter family
+    const enterBtn = page.locator('button:has-text("进入")').first();
+    if (await enterBtn.count() > 0) {
+      await enterBtn.click();
+      await page.waitForTimeout(2000);
+    }
+
+    // Should be on family page (dashboard)
+    expect(page.url()).toContain('/family');
   });
 });

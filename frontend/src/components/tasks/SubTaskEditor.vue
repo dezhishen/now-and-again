@@ -160,6 +160,7 @@ defineExpose({ scheduleSummary, subTaskOneLiner })
     <div class="flex items-center gap-2">
       <input
         v-model="task.name"
+        data-testid="subtask-name-input"
         class="input text-xs flex-1 min-w-[100px]"
         :placeholder="t('taskForm.taskName')"
       />
@@ -272,8 +273,8 @@ defineExpose({ scheduleSummary, subTaskOneLiner })
             />
           </div>
           <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">
-            <button class="btn-primary flex-1 text-sm" @click="confirm">确定</button>
-            <button class="btn-secondary text-sm" @click="cancel">取消</button>
+            <button class="btn-primary flex-1 text-sm" data-testid="subtask-confirm" @click="confirm">确定</button>
+            <button class="btn-secondary text-sm" data-testid="subtask-cancel" @click="cancel">取消</button>
           </div>
         </div>
       </div>

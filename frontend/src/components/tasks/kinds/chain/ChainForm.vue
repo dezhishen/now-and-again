@@ -48,7 +48,7 @@ function moveDown(index: number) {
   <div class="space-y-3 border-l-2 border-orange-400 pl-3">
     <div class="flex items-center justify-between">
       <p class="text-xs text-orange-600 dark:text-orange-400 font-medium">🔗 任务步骤</p>
-      <button class="text-xs text-primary hover:underline" @click="addStep">+ 添加步骤</button>
+      <button class="text-xs text-primary hover:underline" data-testid="chain-add-step" @click="addStep">+ 添加步骤</button>
     </div>
     <div class="max-h-80 overflow-y-auto space-y-2">
       <div v-for="(step, i) in steps" :key="i" class="space-y-1 pb-2 border-b border-gray-100 dark:border-gray-700 last:border-0">

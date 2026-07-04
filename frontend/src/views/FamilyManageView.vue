@@ -107,7 +107,7 @@ async function restoreFamily(family: Family) {
     <div class="mb-8">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg md:text-xl font-bold dark:text-gray-200">{{ t('familyManage.heading') }}</h2>
-        <button v-if="!hasCreatedFamily" class="btn-primary" @click="showCreate = !showCreate">
+        <button v-if="!hasCreatedFamily" class="btn-primary" data-testid="family-create-toggle" @click="showCreate = !showCreate">
           {{ showCreate ? t('home.cancel') : '+ ' + t('home.createFamily') }}
         </button>
       </div>
@@ -115,8 +115,8 @@ async function restoreFamily(family: Family) {
       <LoadingSpinner :text="t('app.loading')" v-if="loading" />
       <div v-if="!loading">
         <div v-if="showCreate" class="card mb-4 flex flex-col sm:flex-row gap-2">
-          <input v-model="familyName" class="input flex-1" :placeholder="t('home.familyName')" @keyup.enter="createFamily" />
-          <button class="btn-primary" @click="createFamily">{{ t('home.create') }}</button>
+          <input v-model="familyName" data-testid="family-name-input" class="input flex-1" :placeholder="t('home.familyName')" @keyup.enter="createFamily" />
+          <button class="btn-primary" data-testid="family-create-submit" @click="createFamily">{{ t('home.create') }}</button>
         </div>
 
         <div class="card mb-4 flex flex-col sm:flex-row gap-2">
@@ -133,6 +133,7 @@ async function restoreFamily(family: Family) {
         <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
           <div
             v-for="f in sortedFamilies" :key="f.id"
+            data-testid="family-card"
             class="card relative overflow-hidden group"
           >
             <span v-if="f.created_by === auth.user?.id" class="absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-xs bg-primary/90 text-white font-medium">Owner</span>
@@ -170,6 +171,7 @@ async function restoreFamily(family: Family) {
               <button
                 class="flex-1 btn-primary text-xs py-1"
                 :class="f.archived ? 'opacity-50' : ''"
+                data-testid="family-enter-btn"
                 @click="auth.switchFamily(f.id); router.push('/family')"
               >
                 🚀 {{ t('familyManage.enter') }}

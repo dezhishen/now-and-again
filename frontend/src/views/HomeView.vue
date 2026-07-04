@@ -75,14 +75,14 @@ async function joinFamily() {
     <div class="mb-8">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg md:text-xl font-bold dark:text-gray-200">{{ t('home.heading') }}</h2>
-        <button v-if="!hasCreatedFamily" class="btn-primary" @click="showCreate = !showCreate">{{ showCreate ? t('home.cancel') : '+ ' + t('home.createFamily') }}</button>
+        <button v-if="!hasCreatedFamily" class="btn-primary" data-testid="family-create-toggle" @click="showCreate = !showCreate">{{ showCreate ? t('home.cancel') : '+ ' + t('home.createFamily') }}</button>
       </div>
 
       <LoadingSpinner :text="t('app.loading')" v-if="loading" />
       <div v-if="!loading">
       <div v-if="showCreate" class="card mb-4 flex flex-col sm:flex-row gap-2">
-        <input v-model="familyName" class="input flex-1" :placeholder="t('home.familyName')" @keyup.enter="createFamily" />
-        <button class="btn-primary" @click="createFamily">{{ t('home.create') }}</button>
+        <input v-model="familyName" data-testid="family-name-input" class="input flex-1" :placeholder="t('home.familyName')" @keyup.enter="createFamily" />
+        <button class="btn-primary" data-testid="family-create-submit" @click="createFamily">{{ t('home.create') }}</button>
       </div>
 
       <div class="card mb-4 flex flex-col sm:flex-row gap-2">
@@ -99,6 +99,7 @@ async function joinFamily() {
         <div
           v-for="f in sortedFamilies"
           :key="f.id"
+          data-testid="family-card"
           class="card cursor-pointer hover:shadow-lg transition-shadow dark:hover:bg-gray-700 relative overflow-hidden group"
           @click="auth.switchFamily(f.id); router.push('/family')"
         >

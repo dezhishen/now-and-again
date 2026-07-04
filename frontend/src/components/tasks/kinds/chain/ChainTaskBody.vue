@@ -22,7 +22,7 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="card hover:shadow-md transition-shadow relative overflow-hidden">
+  <div class="card hover:shadow-md transition-shadow relative overflow-hidden" data-testid="task-card" :data-task-name="task.name">
     <div class="absolute -top-0.5 -right-0.5 w-14 h-14 overflow-hidden z-10">
       <div class="absolute top-2.5 -right-[18px] w-16 bg-orange-400 text-white text-[10px] font-medium text-center leading-4 rotate-45 shadow-sm">{{ t('taskCard.chainKind') }}</div>
     </div>
@@ -48,11 +48,11 @@ defineEmits<{
       </div>
     </div>
     <div class="flex gap-1 border-t dark:border-gray-700 pt-2 mt-2">
-      <button class="btn-ghost text-xs flex-1" :disabled="!task.enabled" @click="$emit('edit', task)">{{ t('taskCard.edit') }}</button>
+      <button class="btn-ghost text-xs flex-1" data-testid="task-edit-btn" :disabled="!task.enabled" @click="$emit('edit', task)">{{ t('taskCard.edit') }}</button>
       <button class="btn-ghost text-xs flex-1" @click="$emit('logs', task.id)">{{ t('taskCard.logs') }}</button>
-      <button class="btn-ghost text-xs flex-1" :disabled="!task.enabled" @click="$emit('trigger', task.id)">{{ t('taskCard.trigger') }}</button>
+      <button class="btn-ghost text-xs flex-1" data-testid="task-trigger-btn" :disabled="!task.enabled" @click="$emit('trigger', task.id)">{{ t('taskCard.trigger') }}</button>
       <button class="btn-ghost text-xs flex-1" @click="$emit('toggle', task)">{{ task.enabled ? t('taskCard.disable') : t('taskCard.enable') }}</button>
-      <button class="text-xs px-2 py-0.5 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/30 flex-1" @click="$emit('delete', task.id)">{{ t('taskCard.delete') }}</button>
+      <button class="text-xs px-2 py-0.5 rounded text-danger hover:bg-red-50 dark:hover:bg-red-900/30 flex-1" data-testid="task-delete-btn" @click="$emit('delete', task.id)">{{ t('taskCard.delete') }}</button>
     </div>
   </div>
 </template>

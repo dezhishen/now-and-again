@@ -52,7 +52,7 @@ async function submit() {
 </script>
 
 <template>
-  <button class="flex-1 text-xs py-1.5 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors font-medium" @click="openInspect">🔍 {{ t('todo.inspect') }}</button>
+  <button class="flex-1 text-xs py-1.5 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors font-medium" data-testid="inspect-open-btn" @click="openInspect">🔍 {{ t('todo.inspect') }}</button>
 
   <Teleport to="body">
     <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" v-esc="() => showModal = false">
@@ -74,7 +74,7 @@ async function submit() {
           <input v-model="remark" class="input" placeholder="完成备注..." />
         </div>
         <div class="flex gap-2 px-4 py-3 border-t dark:border-gray-700">
-          <button class="btn-primary text-sm flex-1" :disabled="submiting" @click="submit">
+          <button class="btn-primary text-sm flex-1" data-testid="inspect-submit-btn" :disabled="submiting" @click="submit">
             {{ submiting ? t('todo.submitting') : t('todo.submitInspect') }}
           </button>
           <button class="btn-secondary" @click="showModal = false">{{ t('todo.cancel') }}</button>
