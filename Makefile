@@ -23,9 +23,10 @@ dev: ## 并行启动 backend + frontend（Ctrl+C 同时停止，自动清理子�
 	@-fuser -k 5173/tcp 2>/dev/null || true
 	@sleep 0.5
 	@mkdir -p .dev
-	@echo "→ Backend  http://localhost:8080"
-	@echo "→ Frontend http://localhost:5173"
-	@trap 'echo "→ 停止子进程..."; kill -TERM -$$BPID -$$FPID 2>/dev/null; wait 2>/dev/null; rm -f .dev/backend.pid .dev/frontend.pid; echo "→ 已停止"' INT TERM EXIT; \
+	@LAN_IP=$$(hostname -I 2>/dev/null | awk '{print $$1}'); \
+	echo "→ Backend  http://$${LAN_IP:-localhost}:8080"; \
+	echo "→ Frontend http://$${LAN_IP:-localhost}:5173"; \
+	trap 'echo "→ 停止子进程..."; kill -TERM -$$BPID -$$FPID 2>/dev/null; wait 2>/dev/null; rm -f .dev/backend.pid .dev/frontend.pid; echo "→ 已停止"' INT TERM EXIT; \
 		set -m; \
 		(cd backend && NA_ADMIN_DEFAULT_PASSWORD=12345678 NA_DATA_DIR=../data go run ./cmd/server) & BPID=$$!; \
 		echo $$BPID > .dev/backend.pid; \
