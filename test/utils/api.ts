@@ -112,3 +112,9 @@ export async function completeTodo(familyId: string, todoId: string, status: str
     extra: null,
   });
 }
+
+/** Complete a todo with raw body (for inspection selections, etc.). */
+export async function completeTodoRaw(familyId: string, todoId: string, body: any) {
+  setFamilyId(familyId);
+  return request('PUT', `/todos/${todoId}`, body);
+}

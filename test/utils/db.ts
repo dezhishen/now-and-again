@@ -57,6 +57,16 @@ export const db = {
     return sql("SELECT id, status, task_id FROM todos WHERE task_id = '" + taskId + "'");
   },
 
+  /** Get check items for a task */
+  getCheckItems(taskId: string) {
+    return sql("SELECT id, name, task_id FROM check_items WHERE task_id = '" + taskId + "'");
+  },
+
+  /** Get branches for a check item */
+  getBranches(checkItemId: string) {
+    return sql("SELECT id, name, create_todo, check_item_id FROM check_item_branches WHERE check_item_id = '" + checkItemId + "'");
+  },
+
   /**
    * Verify a task's created_by_kind field.
    * Logs result and returns true if matches, false otherwise.
