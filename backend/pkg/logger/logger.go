@@ -177,9 +177,8 @@ func compressFile(path string) {
 
 // ─── Convenience wrappers ────────────────────────────────────────
 
-// fallback formats and writes a message to stderr when the logger is nil.
-func fallback(level, template string, args ...interface{}) {
-	msg := fmt.Sprintf(template, args...)
+// fallback writes a message to stderr when the logger is nil.
+func fallback(level, msg string) {
 	fmt.Fprintf(os.Stderr, "[%s] %s\n", level, msg)
 }
 
@@ -223,35 +222,35 @@ func Fatal(msg string, fields ...zap.Field) {
 // Infof uses sugared logger for printf-style.
 func Infof(template string, args ...interface{}) {
 	if S == nil {
-		fallback("INFO", template, args...)
+		fallback("INFO", fmt.Sprintf(template, args...))
 		return
 	}
 	S.Infof(template, args...)
 }
 func Warnf(template string, args ...interface{}) {
 	if S == nil {
-		fallback("WARN", template, args...)
+		fallback("WARN", fmt.Sprintf(template, args...))
 		return
 	}
 	S.Warnf(template, args...)
 }
 func Errorf(template string, args ...interface{}) {
 	if S == nil {
-		fallback("ERROR", template, args...)
+		fallback("ERROR", fmt.Sprintf(template, args...))
 		return
 	}
 	S.Errorf(template, args...)
 }
 func Debugf(template string, args ...interface{}) {
 	if S == nil {
-		fallback("DEBUG", template, args...)
+		fallback("DEBUG", fmt.Sprintf(template, args...))
 		return
 	}
 	S.Debugf(template, args...)
 }
 func Fatalf(template string, args ...interface{}) {
 	if S == nil {
-		fallback("FATAL", template, args...)
+		fallback("FATAL", fmt.Sprintf(template, args...))
 		os.Exit(1)
 		return
 	}
