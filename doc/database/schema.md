@@ -20,9 +20,10 @@
 | `floor_plans` | 户型图 | family_id, label, image_id, is_cover, width, height |
 | `locations` | 地点（一级实体） | family_id, floor_plan_id(可选), kind, name, color |
 | `system_settings` | 系统配置 | key (PK), value |
-| `tasks` | 任务模板 | family_id, name, schedule_type, schedule_data, enabled, kind, display_summary, group_id, location_id, parent_task_id, is_root |
-| `todos` | 待办事项 | task_id, family_id, location_id, status, branch_name, remark, due_start, due_date |
+| `tasks` | 任务 | family_id, name, schedule_type, schedule_data, enabled, kind, created_by_kind, display_summary, group_id, location_id, parent_task_id, is_root |
+| `todos` | 待办事项 | task_id, family_id, location_id, status, remark, due_start, due_date |
 | `task_logs` | 操作日志 | task_id, todo_id, status, message, log_type, operator_id |
+| `chain_steps` | 任务链步骤 | task_id(root), sort_order, name, kind, group_id, location_id, child_task_id |
 | `check_items` | 巡检检查项 | task_id, name, sort_order |
 | `check_item_branches` | 检查项分支 | check_item_id, name, create_todo, branch_task_id, sort_order |
 | `inspection_results` | 巡检结果 | task_id, todo_id, family_id, item_name, branch_name, created_by |
@@ -46,7 +47,31 @@
 | `task_templates` | UNIQUE(family_id, provider_code, template_code) |
 | `task_template_subscriptions` | (family_id, provider_code) |
 
-## 角色与权限
+## tasks 表关键字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `kind` | varchar(16) | 任务类型：simple / inspection / chain |
+| `created_by_kind` | varchar(16) | 创建者 handler 类型，DB 默认 `simple`。inspection 子任务=`inspection`，chain 子任务=`chain`。`CompleteTodo` 调度优先使用此字段 |
+| `parent_task_id` | char(36) nullable | 父任务，链式为 root→S1→S2 链表结构 |
+| `is_root` | bool | 是否为任务树根节点 |
+| `display_summary` | varchar(256) | 插件填充的列表展示文本（如 chain 的 `A→B→C`） |
+
+## 插件表
+
+### chain_steps（任务链）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `task_id` | char(36) | 链根任务 ID |
+| `sort_order` | int | 步骤序号（0 起始） |
+| `name` | varchar(128) | 步骤名称 |
+| `kind` | varchar(16) | 步骤真实任务类型（simple/inspection/...） |
+| `group_id` | char(36) nullable | 步骤小组 |
+| `location_id` | char(36) nullable | 步骤地点 |
+| `child_task_id` | char(36) | 步骤对应的实际子任务 ID |
+
+### check_items / check_item_branches / inspection_results（巡检）
 
 | 角色 | 说明 |
 |------|------|

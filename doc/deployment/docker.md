@@ -144,3 +144,58 @@ docker compose exec server sh
 docker compose exec server ls -la /data
 docker compose exec server cat /data/.jwt_secret
 ```
+
+## 自动化 E2E 测试
+
+项目包含 Playwright 浏览器自动化测试套件，位于 `test/` 目录。
+
+### 测试架构
+
+```
+test/
+├── playwright.config.ts     # Playwright 配置（Web 服务器自动启停）
+├── fixtures/                # 可复用前置步骤（登录/家庭/任务）
+├── pages/                   # 页面对象标准化描述
+├── specs/                   # 按模块组织的测试用例
+│   ├── auth/                # 登录 (4 tests)
+│   ├── family/              # 家庭管理 (2 tests)
+│   └── tasks/               # 任务 (14 tests)
+└── utils/                   # API 封装 + SQLite DB 验证
+```
+
+### 本地运行
+
+```bash
+# 安装依赖和浏览器（仅一次）
+make test-e2e-install
+
+# 先启动服务
+make dev
+
+# 另一终端运行测试
+make test-e2e              # 无头模式
+make test-e2e-headed       # 有头模式（调试）
+```
+
+### CI 集成
+
+测试依赖系统 Chromium（`/usr/bin/chromium`），已在 `playwright.config.ts` 中配置：
+
+```ts
+launchOptions: { executablePath: '/usr/bin/chromium' }
+```
+
+Makefile 已集成：
+
+```makefile
+test-e2e:       # 完整 E2E 测试
+test-e2e-headed: # 有头调试
+test-e2e-install: # 安装依赖+浏览器
+```
+
+### 测试数据隔离
+
+- 每个 spec 通过 API 创建测试数据，`afterAll` 清理
+- DB 断言通过 Python sqlite3 直读 `data/now-and-again.db`
+- 支持重复运行，幂等安全
+
