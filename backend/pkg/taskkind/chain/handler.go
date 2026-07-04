@@ -138,10 +138,53 @@ func (h *handler) DeleteExtra(storage taskkind.TaskStorage, task *model.TaskMode
 	return nil
 }
 
+// ─── Extra I/O ────────────────────────────────────────────────────
+
+// stepExtra is the clean JSON output for each chain step (no sql.NullString, snake_case).
+type stepExtra struct {
+	ID          string `json:"id"`
+	TaskID      string `json:"task_id"`
+	SortOrder   int    `json:"sort_order"`
+	Name        string `json:"name"`
+	Kind        string `json:"kind"`
+	GroupID     string `json:"group_id,omitempty"`
+	LocationID  string `json:"location_id,omitempty"`
+	ChildTaskID string `json:"child_task_id"`
+	Extra       any    `json:"extra,omitempty"`
+}
+
 func (h *handler) GetExtra(storage taskkind.TaskStorage, task *model.TaskModel) (any, error) {
 	db := storage.DB()
-	var steps []ChainStepModel
-	db.Where("task_id = ?", task.ID).Order("sort_order ASC").Find(&steps)
+	var rows []ChainStepModel
+	db.Where("task_id = ?", task.ID).Order("sort_order ASC").Find(&rows)
+
+	steps := make([]stepExtra, len(rows))
+	for i, s := range rows {
+		steps[i] = stepExtra{
+			ID:          s.ID,
+			TaskID:      s.TaskID,
+			SortOrder:   s.SortOrder,
+			Name:        s.Name,
+			Kind:        s.Kind,
+			ChildTaskID: s.ChildTaskID,
+		}
+		if s.GroupID.Valid {
+			steps[i].GroupID = s.GroupID.String
+		}
+		if s.LocationID.Valid {
+			steps[i].LocationID = s.LocationID.String
+		}
+
+		// Recursively query child task's extra via its own handler.
+		if s.ChildTaskID != "" {
+			child, err := storage.FindTaskByID(s.ChildTaskID)
+			if err == nil && child != nil {
+				if childH := storage.LookupHandler(child.Kind); childH != nil {
+					steps[i].Extra, _ = childH.GetExtra(storage, child)
+				}
+			}
+		}
+	}
 	return map[string]any{"steps": steps}, nil
 }
 

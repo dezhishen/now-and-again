@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const IS_CI = !!process.env.CI;
+
 export default defineConfig({
   testDir: './specs',
   timeout: 30_000,
@@ -10,7 +12,7 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
 
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: IS_CI ? 'http://localhost:8080' : 'http://localhost:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -18,29 +20,31 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        // Use system Chromium (no network to download Playwright's bundled browser)
-        channel: 'chromium',
-        launchOptions: {
-          executablePath: '/usr/bin/chromium',
-        },
-      },
+      use: IS_CI
+        ? { ...devices['Desktop Chrome'] }
+        : {
+            ...devices['Desktop Chrome'],
+            channel: 'chromium',
+            launchOptions: { executablePath: '/usr/bin/chromium' },
+          },
     },
   ],
 
-  webServer: [
-    {
-      command: 'cd .. && make dev-backend',
-      port: 8080,
-      timeout: 15_000,
-      reuseExistingServer: true,
-    },
-    {
-      command: 'cd ../frontend && pnpm run dev',
-      port: 5173,
-      timeout: 15_000,
-      reuseExistingServer: true,
-    },
-  ],
+  // In CI servers are started manually; locally use webServer for convenience.
+  webServer: IS_CI
+    ? undefined
+    : [
+        {
+          command: 'cd .. && make dev-backend',
+          port: 8080,
+          timeout: 15_000,
+          reuseExistingServer: true,
+        },
+        {
+          command: 'cd ../frontend && pnpm run dev',
+          port: 5173,
+          timeout: 15_000,
+          reuseExistingServer: true,
+        },
+      ],
 });

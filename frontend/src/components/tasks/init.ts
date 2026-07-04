@@ -78,6 +78,7 @@ export function initTaskKinds() {
           kind: s.task?.task?.kind || 'simple',
           group_id: s.task?.task?.group_id || '',
           location_id: s.task?.task?.location_id || '',
+          extra: s.extra || null,
         }))
       }
     },
@@ -94,6 +95,7 @@ export function initTaskKinds() {
             location_id: s.location_id || '',
           },
         },
+        extra: s.extra || null,
       }))
     },
     defaultCheckItems: [],

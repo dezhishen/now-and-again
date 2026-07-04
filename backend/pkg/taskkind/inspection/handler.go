@@ -415,6 +415,10 @@ func (h *handler) getExtraData(taskStorage taskkind.TaskStorage, task *model.Tas
 					dto.BranchTask = &types.TaskWithExtra{
 						Task: types.TaskFromModel(branchTask),
 					}
+					// Recursively query child task's extra via its own handler.
+					if childH := taskStorage.LookupHandler(branchTask.Kind); childH != nil {
+						dto.BranchTask.Extra, _ = childH.GetExtra(taskStorage, branchTask)
+					}
 				}
 			}
 

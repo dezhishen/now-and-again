@@ -1,10 +1,7 @@
 /**
- * 任务链 (chain) 模块测试
+ * Chain 任务 — 简单测试（仅嵌套 simple）
  *
- * 验证：
- * - chain 子任务 Kind = 步骤真实类型
- * - chain 子任务 CreatedByKind = "chain"
- * - 链式推进：完成步骤 N → 自动创建步骤 N+1 的待办
+ * 场景：chain → simple → simple → simple
  */
 import { test, expect } from '@playwright/test';
 import { loginViaApi } from '../../fixtures/auth';
@@ -12,121 +9,92 @@ import * as api from '../../utils/api';
 import { db } from '../../utils/db';
 
 let familyId: string;
-const CHAIN_TASK = 'E2E-任务链';
+const ROOT = 'E2E-链-简单';
 
-test.describe('任务链 (kind=chain)', () => {
+test.describe('Chain (简单: 全 simple 步骤)', () => {
 
   test.beforeAll(async () => {
     await loginViaApi('admin', '12345678');
-
     const res = await api.listMyFamilies();
     const families = res.data?.data || res.data;
     if (families.length === 0) {
       const cr = await api.createFamily('E2E测试家庭');
-      familyId = cr.familyId || (res.data?.data?.[0]?.id);
-    } else {
-      familyId = families[0].id;
-      api.setFamilyId(familyId);
-    }
+      familyId = cr.familyId;
+    } else { familyId = families[0].id; api.setFamilyId(familyId); }
   });
 
-  test('STEP-1: 创建 chain 任务（simple→inspection 两步）', async () => {
+  test('STEP-1: 创建 chain（3步全 simple）', async () => {
     const res = await api.createTask(familyId, {
-      name: CHAIN_TASK,
-      kind: 'chain',
+      name: ROOT, kind: 'chain',
       extra: {
         steps: [
-          { name: '第一步-简单确认', kind: 'simple' },
-          {
-            name: '第二步-巡检',
-            kind: 'inspection',
-            extra: {
-              check_items: [{
-                name: '区域A',
-                branches: [
-                  { name: '合格', result: 'pass', create_todo: false },
-                  { name: '不合格', result: 'fail', create_todo: true, branch_task: { task: { name: CHAIN_TASK + '-不合格处理', kind: 'simple' } } },
-                ],
-              }],
-            },
-          },
+          { name: ROOT + '-S1', kind: 'simple' },
+          { name: ROOT + '-S2', kind: 'simple' },
+          { name: ROOT + '-S3', kind: 'simple' },
         ],
       },
     });
     expect([200, 201]).toContain(res.status);
-
-    await new Promise(r => setTimeout(r, 800));
-    const task = db.findTask(CHAIN_TASK);
-    expect(task).toBeTruthy();
-    expect(task.kind).toBe('chain');
+    await new Promise(r => setTimeout(r, 1000));
   });
 
-  test('STEP-2: 验证子任务 Kind 和 CreatedByKind', async () => {
-    await new Promise(r => setTimeout(r, 500));
-
+  test('STEP-2: 验证 root + 3 步骤 Kind/CreatedByKind', async () => {
     const tasks = db.getTasks();
-    const root = tasks.find((t: any) => t.name === CHAIN_TASK);
+    const root = tasks.find((t: any) => t.name === ROOT);
     expect(root).toBeTruthy();
+    expect(root.kind).toBe('chain');
+    expect(root.created_by_kind).toBe('chain');
+    console.log('  ✅ Root: kind=chain, created_by=chain');
 
-    // Chain structure: root → step1 → step2 (linked list, not flat children)
-    const allChildren = tasks.filter((t: any) => t.is_root === 0 && t.name && (t.name as string).startsWith('第'));
-    expect(allChildren.length).toBeGreaterThanOrEqual(2);
-
-    // Find step1 (direct child of root)
-    const step1 = allChildren.find((c: any) => c.name === '第一步-简单确认');
-    expect(step1).toBeTruthy();
-    expect(step1.kind).toBe('simple');
-    expect(step1.created_by_kind).toBe('chain');
-
-    // Find step2 (child of step1)
-    const step2 = allChildren.find((c: any) => c.name === '第二步-巡检');
-    expect(step2).toBeTruthy();
-    expect(step2.kind).toBe('inspection');
-    expect(step2.created_by_kind).toBe('chain');
-
-    console.log('  ✅ Step1 "' + step1.name + '" kind=' + step1.kind + ' created_by=' + step1.created_by_kind);
-    console.log('  ✅ Step2 "' + step2.name + '" kind=' + step2.kind + ' created_by=' + step2.created_by_kind);
+    for (const name of [ROOT + '-S1', ROOT + '-S2', ROOT + '-S3']) {
+      const t = tasks.find((x: any) => x.name === name);
+      expect(t).toBeTruthy();
+      expect(t.kind).toBe('simple');
+      expect(t.created_by_kind).toBe('chain');
+      console.log(`  ✅ ${name}: kind=simple, created_by=chain`);
+    }
   });
 
-  test('STEP-3: 链式推进 — 完成步骤1后步骤2自动生成待办', async () => {
+  test('STEP-3: 链推进 — 完成 S1 → S2 生成待办', async () => {
     const tasks = db.getTasks();
-    const root = tasks.find((t: any) => t.name === CHAIN_TASK);
-    if (!root) { test.skip(true, 'Chain task not found'); return; }
+    const s1 = tasks.find((t: any) => t.name === ROOT + '-S1');
+    expect(s1).toBeTruthy();
 
-    // Chain is root → step1 → step2; find step1 (direct child of root)
-    const allChildren = tasks.filter((t: any) => t.is_root === 0);
-    const step1 = allChildren.find((c: any) => c.name === '第一步-简单确认');
-    const step2 = allChildren.find((c: any) => c.name === '第二步-巡检');
-    if (!step1 || !step2) { test.skip(true, 'Steps not found'); return; }
-
-    // Create a todo for step1
-    await new Promise(r => setTimeout(r, 300));
-    const triggerRes = await api.triggerTask(familyId, step1.id);
-    expect([200, 201]).toContain(triggerRes.status);
-
-    // Get the todo
+    // Trigger todo for S1
+    await api.triggerTask(familyId, s1.id);
     await new Promise(r => setTimeout(r, 500));
-    const todos = db.getTodos(step1.id);
-    const step1Todo = todos.find((t: any) => t.status === 'pending');
-    if (!step1Todo) { test.skip(true, 'No pending todo for step1'); return; }
+    const todos = db.getTodos(s1.id);
+    const s1Todo = todos.find((t: any) => t.status === 'pending');
+    expect(s1Todo).toBeTruthy();
 
-    // Complete step1's todo — this should trigger chain progression
-    await api.completeTodo(familyId, step1Todo.id, 'done');
+    // Complete S1 → chain progression creates S2 todo
+    await api.completeTodo(familyId, s1Todo.id, 'done');
     await new Promise(r => setTimeout(r, 800));
 
-    // Check that step2 now has a todo (chain progression created it)
-    const step2Todos = db.getTodos(step2.id);
-    const step2Pending = step2Todos.filter((t: any) => t.status === 'pending');
-    expect(step2Pending.length).toBeGreaterThan(0);
-    console.log('  ✅ Chain progression: step1 done → step2 todo created');
+    const s2 = tasks.find((t: any) => t.name === ROOT + '-S2');
+    const s2Todos = db.getTodos(s2.id);
+    expect(s2Todos.some((t: any) => t.status === 'pending')).toBe(true);
+    console.log('  ✅ Chain: S1 done → S2 todo created');
+  });
+
+  test('STEP-4: 验证 GetExtra 返回 steps（无嵌套 extra）', async () => {
+    const token = api.getToken();
+    const root = db.findTask(ROOT);
+    const res = await fetch(`http://localhost:8080/api/tasks/${root.id}?with_extra=true`, {
+      headers: { Authorization: `Bearer ${token}`, 'X-Family-Id': familyId },
+    });
+    const body = await res.json();
+    const extra = body?.data?.extra || body?.extra;
+    expect(extra.steps.length).toBe(3);
+    for (const s of extra.steps) {
+      expect(s.kind).toBe('simple');
+      expect(s.extra).toBeFalsy(); // simple has no extra
+    }
+    console.log('  ✅ All 3 steps: kind=simple, extra=undefined');
   });
 
   test.afterAll(async () => {
-    // Clean up chain root (cascades to children)
-    const tasks = db.getTasks();
-    const root = tasks.find((t: any) => t.name === CHAIN_TASK);
-    if (root) {
-      try { await api.deleteTask(familyId, root.id as string); } catch { /* ok */ }
-    }
+    const root = db.findTask(ROOT);
+    if (root) try { await api.deleteTask(familyId, root.id as string); } catch { /* ok */ }
   });
 });
