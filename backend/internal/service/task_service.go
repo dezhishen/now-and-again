@@ -185,6 +185,19 @@ func (s *TaskService) DeleteTask(ctx context.Context, taskID uuid.UUID) error {
 func (s *TaskService) ListTasks(ctx context.Context, familyID uuid.UUID) ([]types.Task, error) {
 	return s.List(ctx, familyID)
 }
+
+// ListTasksFiltered returns tasks for a family with optional archived/enabled filters.
+func (s *TaskService) ListTasksFiltered(ctx context.Context, familyID uuid.UUID, includeArchived, includeDisabled bool) ([]types.Task, error) {
+	tasks, err := s.repo.ListTasksByFamilyFiltered(familyID.String(), includeArchived, includeDisabled)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]types.Task, len(tasks))
+	for i, t := range tasks {
+		result[i] = *taskModelToType(&t)
+	}
+	return result, nil
+}
 func (s *TaskService) TriggerTask(ctx context.Context, taskID uuid.UUID) error {
 	return s.Trigger(ctx, taskID)
 }

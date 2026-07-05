@@ -51,26 +51,16 @@ var taskListCmd = &cobra.Command{
 			return err
 		}
 		all, _ := cmd.Flags().GetBool("all")
-		tasks, err := na.ListTasks(context.Background())
+
+		var tasks []types.Task
+		var err error
+		if all {
+			tasks, err = na.ListTasksFiltered(context.Background(), true, true)
+		} else {
+			tasks, err = na.ListTasks(context.Background())
+		}
 		if err != nil {
 			return err
-		}
-
-		// 默认过滤已归档和已禁用的任务
-		if !all {
-			filtered := make([]types.Task, 0, len(tasks))
-			skipped := 0
-			for _, t := range tasks {
-				if t.Archived || !t.Enabled {
-					skipped++
-					continue
-				}
-				filtered = append(filtered, t)
-			}
-			tasks = filtered
-			if skipped > 0 {
-				fmt.Printf("💡 已隐藏 %d 项已归档/已禁用的任务，使用 --all 查看全部\n\n", skipped)
-			}
 		}
 
 		if len(tasks) == 0 {

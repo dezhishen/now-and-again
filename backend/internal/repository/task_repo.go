@@ -61,6 +61,22 @@ func (r *TaskRepo) ListTasksByFamily(familyID string) ([]TaskModel, error) {
 	return tasks, err
 }
 
+// ListTasksByFamilyFiltered returns tasks for a family with optional archived/enabled filters.
+// includeArchived: when true, also returns archived tasks.
+// includeDisabled: when true, also returns disabled tasks.
+func (r *TaskRepo) ListTasksByFamilyFiltered(familyID string, includeArchived, includeDisabled bool) ([]TaskModel, error) {
+	var tasks []TaskModel
+	q := r.db.Preload("Group").Where("family_id = ? AND is_root = ?", familyID, true)
+	if !includeArchived {
+		q = q.Where("archived = ?", false)
+	}
+	if !includeDisabled {
+		q = q.Where("enabled = ?", true)
+	}
+	err := q.Order("created_at ASC").Find(&tasks).Error
+	return tasks, err
+}
+
 func (r *TaskRepo) ListEnabledTasks() ([]TaskModel, error) {
 	var tasks []TaskModel
 	err := r.db.Where("enabled = ? AND archived = ?", true, false).Find(&tasks).Error

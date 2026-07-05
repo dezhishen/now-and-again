@@ -38,7 +38,10 @@ func (h *TaskHandlers) List(c *gin.Context) {
 		badRequest(c, "invalid family_id")
 		return
 	}
-	tasks, err := h.Svc.ListTasks(userCtx(c), familyID)
+	includeArchived := c.Query("archived") == "true"
+	includeDisabled := c.Query("disabled") == "true"
+
+	tasks, err := h.Svc.ListTasksFiltered(userCtx(c), familyID, includeArchived, includeDisabled)
 	if err != nil {
 		serverError(c, err)
 		return

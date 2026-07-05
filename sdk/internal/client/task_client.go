@@ -35,6 +35,30 @@ func (c *TaskClient) List(familyID string) ([]types.Task, error) {
 	return tasks, nil
 }
 
+// ListFiltered returns tasks with optional archived/disabled filters via query params.
+func (c *TaskClient) ListFiltered(familyID string, includeArchived, includeDisabled bool) ([]types.Task, error) {
+	path := "/api/tasks"
+	parts := make([]string, 0, 2)
+	if includeArchived {
+		parts = append(parts, "archived=true")
+	}
+	if includeDisabled {
+		parts = append(parts, "disabled=true")
+	}
+	for i, p := range parts {
+		if i == 0 {
+			path += "?" + p
+		} else {
+			path += "&" + p
+		}
+	}
+	var tasks []types.Task
+	if err := c.http.do("GET", path, nil, &tasks); err != nil {
+		return nil, err
+	}
+	return tasks, nil
+}
+
 func (c *TaskClient) Update(taskID string, req *types.UpdateTaskRequest) (*types.Task, error) {
 	var t types.Task
 	if err := c.http.do("PUT", "/api/tasks/"+taskID, req, &t); err != nil {
@@ -83,6 +107,9 @@ func (c *TaskClient) DeleteTask(_ context.Context, taskID uuid.UUID) error {
 }
 func (c *TaskClient) ListTasks(_ context.Context, familyID uuid.UUID) ([]types.Task, error) {
 	return c.List(familyID.String())
+}
+func (c *TaskClient) ListTasksFiltered(_ context.Context, familyID uuid.UUID, includeArchived, includeDisabled bool) ([]types.Task, error) {
+	return c.ListFiltered(familyID.String(), includeArchived, includeDisabled)
 }
 func (c *TaskClient) TriggerTask(_ context.Context, taskID uuid.UUID) error {
 	return c.http.do("POST", "/api/tasks/"+taskID.String()+"/trigger", nil, nil)

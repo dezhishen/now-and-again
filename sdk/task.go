@@ -32,6 +32,17 @@ func (na *NA) ListTasks(ctx context.Context) ([]types.Task, error) {
 	return na.Task.ListTasks(ctx, fid)
 }
 
+// ListTasksFiltered returns tasks in the active family with optional archived/disabled filters.
+// Set includeArchived=true to include archived tasks.
+// Set includeDisabled=true to include disabled tasks.
+func (na *NA) ListTasksFiltered(ctx context.Context, includeArchived, includeDisabled bool) ([]types.Task, error) {
+	fid, err := na.requireFamilyID()
+	if err != nil {
+		return nil, err
+	}
+	return na.Task.ListTasksFiltered(ctx, fid, includeArchived, includeDisabled)
+}
+
 // GetTask returns a single task by ID.
 func (na *NA) GetTask(ctx context.Context, taskID string) (*types.Task, error) {
 	id, err := uuid.Parse(taskID)

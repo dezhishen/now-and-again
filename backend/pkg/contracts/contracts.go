@@ -95,6 +95,7 @@ type TaskContract interface {
 	SetTaskEnabled(ctx context.Context, taskID uuid.UUID, enabled bool) (*types.Task, error)
 	DeleteTask(ctx context.Context, taskID uuid.UUID) error
 	ListTasks(ctx context.Context, familyID uuid.UUID) ([]types.Task, error)
+	ListTasksFiltered(ctx context.Context, familyID uuid.UUID, includeArchived, includeDisabled bool) ([]types.Task, error)
 	TriggerTask(ctx context.Context, taskID uuid.UUID) error
 }
 

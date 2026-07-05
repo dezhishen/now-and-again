@@ -79,18 +79,19 @@ onMounted(() => {
   })
 })
 
-// Active tasks: non-archived tasks returned by the API.
+// Active tasks: tasks returned by the API (server-side filtering applied).
 const activeTasks = computed(() => tasks.value)
 
 // Filters — default: enabled + not archived.
 const filterArchived = ref(false)
 const filterDisabled = ref(false)
-const filteredTasks = computed(() =>
-  activeTasks.value.filter(t =>
-    (filterArchived.value || !t.archived) &&
-    (filterDisabled.value || t.enabled)
-  )
-)
+const filteredTasks = computed(() => tasks.value)
+
+// Reload when filters change
+watch([filterArchived, filterDisabled], () => {
+  withLoading(loadTasks)
+})
+
 const allKinds = computed(() => getTaskKinds())
 
 async function loadLocations() {
@@ -104,7 +105,13 @@ async function loadGroups() {
 }
 
 async function loadTasks() {
-  try { tasks.value = await api.get<Task[]>('/tasks') } catch { tasks.value = [] }
+  try {
+    const params = new URLSearchParams()
+    if (filterArchived.value) params.set('archived', 'true')
+    if (filterDisabled.value) params.set('disabled', 'true')
+    const qs = params.toString()
+    tasks.value = await api.get<Task[]>('/tasks' + (qs ? '?' + qs : ''))
+  } catch { tasks.value = [] }
 }
 
 function buildScheduleData(): any {
