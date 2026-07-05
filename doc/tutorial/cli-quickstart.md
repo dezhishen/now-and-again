@@ -45,28 +45,40 @@ Now & Again CLI (na) — 家庭事务管理，一行命令搞定。
 
 ## 2. 初始化（仅需一次）
 
+无需记忆任何参数，直接运行：
+
 ```bash
-na init -u admin -p 12345678
+na init
 ```
 
-输出：
+CLI 会逐项询问：
 
 ```
-✓ Initialized successfully
+🔗 服务器地址 [http://localhost:8080]:
+👤 用户名: admin
+🔑 密码: ******
+
+⏳ 正在登录...
+
+✓ 初始化成功！
   Server: http://localhost:8080
   Family: 我的家
 ```
 
-这一步完成了：
-- 🔐 登录验证 → 自动创建 API Key
+也可以传参跳过交互：
+
+```bash
+na init -u admin -p 12345678
+```
+
+完成后：
+- 🔐 自动创建 API Key
 - 🏠 自动选择第一个家庭
 - 💾 配置保存到 `~/.na.yaml`
 
-之后所有命令**无需再传凭据**。
-
-> 如果服务器不在本地：
-> ```bash
-> na init -u admin -p 12345678 --server https://your-server.com
+> 远程服务器：输入服务器地址时填写完整 URL
+> ```
+> 🔗 服务器地址 [http://localhost:8080]: https://my-server.com
 > ```
 
 ## 3. 添加到 OpenClaw / AI Agent
@@ -251,11 +263,13 @@ na task delete --id abc123
 
 | 命令 | 说明 |
 |------|------|
-| `na init -u <用户> -p <密码>` | 一次性初始化 |
+| `na init` | 交互式初始化（推荐） |
+| `na init -u <用户> -p <密码>` | 传参初始化 |
 | `na daily` | 交互式处理今日待办（⭐ 最常用） |
 | `na daily --done 3` | 直接完成第 3 项待办 |
 | `na family create --name <名称>` | 创建家庭 |
 | `na family list` | 查看我的家庭 |
+| `na family select` | 交互式切换活跃家庭 |
 | `na family join --code <邀请码>` | 加入家庭 |
 | `na template list` | 查看可用模板 |
 | `na template use --code <码> --params <JSON>` | 从模板创建任务 |
