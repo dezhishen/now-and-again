@@ -104,17 +104,19 @@ func (c *HTTPClient) do(method, path string, body, result interface{}) error {
 	}
 
 	// API response envelope: {"success":true,"data":{...}} or {"success":false,"error":"..."}
+	// Note: "error" can be a plain string or a structured object.
 	var envelope struct {
 		Success bool            `json:"success"`
 		Data    json.RawMessage `json:"data"`
-		Error   string          `json:"error,omitempty"`
+		Error   json.RawMessage `json:"error,omitempty"`
 	}
 	if err := json.Unmarshal(respBody, &envelope); err != nil {
 		return fmt.Errorf("parse response: %w (body: %s)", err, string(respBody))
 	}
 
 	if !envelope.Success {
-		return fmt.Errorf("api error: %s", envelope.Error)
+		errMsg := unmarshalError(envelope.Error)
+		return fmt.Errorf("api error: %s", errMsg)
 	}
 
 	if result != nil && envelope.Data != nil {
@@ -144,4 +146,29 @@ func NewAllClients(httpClient *HTTPClient) *AllClients {
 		ApiKey: NewApiKeyClient(httpClient),
 		Task:   NewTaskClient(httpClient),
 	}
+}
+
+// unmarshalError extracts a human-readable message from the error field.
+// The backend may return a plain string or a structured object.
+func unmarshalError(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return "unknown error"
+	}
+	// Try plain string first.
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	// Try structured error with "summary" field.
+	var obj struct {
+		Code    string `json:"code"`
+		Summary string `json:"summary"`
+	}
+	if err := json.Unmarshal(raw, &obj); err == nil && obj.Summary != "" {
+		if obj.Code != "" {
+			return obj.Code + ": " + obj.Summary
+		}
+		return obj.Summary
+	}
+	return string(raw)
 }
