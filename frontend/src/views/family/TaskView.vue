@@ -79,9 +79,6 @@ onMounted(() => {
   })
 })
 
-// Active tasks: tasks returned by the API (server-side filtering applied).
-const activeTasks = computed(() => tasks.value)
-
 // Filters — default: enabled + not archived.
 const filterArchived = ref(false)
 const filterDisabled = ref(false)
