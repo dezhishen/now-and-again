@@ -79,10 +79,13 @@ jobs:
           cd test
           npx playwright install chromium --with-deps
 
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
       - name: Run E2E tests
         run: |
           cd test
-          npx playwright test --project=chromium --reporter=list
+          xvfb-run -a npx playwright test --project=chromium --headed --reporter=list
         env:
           CI: true
 
