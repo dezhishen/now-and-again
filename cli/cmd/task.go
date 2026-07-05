@@ -11,56 +11,60 @@ import (
 
 var taskCmd = &cobra.Command{
 	Use:   "task",
-	Short: "Manage tasks",
-	Long:  `Create, list, and delete tasks in the active family.`,
+	Short: "管理任务",
+	Long:  `创建、列出和删除活跃家庭中的任务。`,
 }
 
 var taskCreateCmd = &cobra.Command{
 	Use:   "create",
-	Short: "Create a new task",
+	Short: "创建新任务",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := autoEnsureFamily(); err != nil {
+			return err
+		}
 		name, _ := cmd.Flags().GetString("name")
 		schedule, _ := cmd.Flags().GetString("schedule")
 		dataStr, _ := cmd.Flags().GetString("data")
-
 		if name == "" || schedule == "" || dataStr == "" {
-			return fmt.Errorf("--name, --schedule, --data are required")
+			return fmt.Errorf("--name, --schedule, --data 不能为空")
 		}
-
 		var data interface{}
 		if err := json.Unmarshal([]byte(dataStr), &data); err != nil {
-			return fmt.Errorf("invalid --data JSON: %w", err)
+			return fmt.Errorf("--data JSON格式错误: %w", err)
 		}
-
 		t, err := na.CreateTask(context.Background(), &types.CreateTaskRequest{
 			Task: types.Task{Name: name, ScheduleType: schedule, ScheduleData: data},
 		})
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Task created: %s (%s)\n", t.Name, t.ID[:8])
+		fmt.Printf("✅ 任务已创建: %s (%s)\n", t.Name, t.ID[:6])
 		return nil
 	},
 }
 
 var taskListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List tasks in the active family",
+	Short: "列出活跃家庭的任务",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := autoEnsureFamily(); err != nil {
+			return err
+		}
 		tasks, err := na.ListTasks(context.Background())
 		if err != nil {
 			return err
 		}
 		if len(tasks) == 0 {
-			fmt.Println("No tasks")
+			fmt.Println("📭 暂无任务")
 			return nil
 		}
+		fmt.Printf("📋 任务列表 (%d项):\n\n", len(tasks))
 		for _, t := range tasks {
-			s := "enabled"
+			s := "✅"
 			if !t.Enabled {
-				s = "disabled"
+				s = "⏸️"
 			}
-			fmt.Printf("  %s  %-20s  %-8s  %s\n", t.ID[:8], t.Name, t.ScheduleType, s)
+			fmt.Printf("  %s [%s] %-25s %-8s\n", s, t.ID[:6], t.Name, t.ScheduleType)
 		}
 		return nil
 	},
@@ -68,21 +72,24 @@ var taskListCmd = &cobra.Command{
 
 var taskDeleteCmd = &cobra.Command{
 	Use:   "delete",
-	Short: "Delete a task",
+	Short: "删除任务",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := autoEnsureFamily(); err != nil {
+			return err
+		}
 		taskID, _ := cmd.Flags().GetString("id")
 		if taskID == "" {
-			return fmt.Errorf("--id is required")
+			return fmt.Errorf("--id 不能为空")
 		}
 		return na.DeleteTask(context.Background(), taskID)
 	},
 }
 
 func init() {
-	taskCreateCmd.Flags().String("name", "", "Task name (required)")
-	taskCreateCmd.Flags().String("schedule", "", "Schedule type: daily|weekly|monthly|interval|once")
-	taskCreateCmd.Flags().String("data", "", "Schedule data JSON")
-	taskDeleteCmd.Flags().String("id", "", "Task ID (required)")
+	taskCreateCmd.Flags().String("name", "", "任务名称")
+	taskCreateCmd.Flags().String("schedule", "", "调度类型: daily|weekly|monthly|interval|once")
+	taskCreateCmd.Flags().String("data", "", "调度数据 JSON，如 '{\"time\":\"09:00\"}'")
+	taskDeleteCmd.Flags().String("id", "", "任务ID")
 
 	taskCmd.AddCommand(taskCreateCmd)
 	taskCmd.AddCommand(taskListCmd)

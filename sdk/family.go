@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 )
@@ -11,6 +12,24 @@ import (
 // ListMyFamilies returns all families the current user belongs to.
 func (na *NA) ListMyFamilies(ctx context.Context) ([]types.Family, error) {
 	return na.Family.ListMyFamilies(ctx)
+}
+
+// EnsureFamily auto-selects the first available family if none is set.
+// Returns the active family ID, or an error if no families exist.
+func (na *NA) EnsureFamily(ctx context.Context) (string, error) {
+	if na.ActiveFamilyID() != "" {
+		return na.ActiveFamilyID(), nil
+	}
+	families, err := na.Family.ListMyFamilies(ctx)
+	if err != nil {
+		return "", fmt.Errorf("list families: %w", err)
+	}
+	if len(families) == 0 {
+		return "", fmt.Errorf("no families found — create one with 'na family create --name \"我的家\"'")
+	}
+	na.SetActiveFamily(families[0].ID, families[0].Name)
+	_ = na.Config().Save()
+	return families[0].ID, nil
 }
 
 // CreateFamily creates a new family and sets it as active.

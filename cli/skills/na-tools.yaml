@@ -1,12 +1,11 @@
 # Now & Again — CLI Skill Definitions
-# For use with OpenClaw / Hermes / other AI agent frameworks
 
 name: now-and-again
-description: "Manage family chores via the Now & Again CLI. Config stored in ~/.na.yaml."
+description: "家庭事务管理 CLI。配置存储在 ~/.na.yaml。"
 
 tools:
   - name: na_init
-    description: "One-time setup. Authenticates, creates API key, auto-selects family."
+    description: "一次性初始化：登录、创建API Key、自动选择家庭。"
     command: "na init -u '{username}' -p '{password}'"
     parameters:
       - name: username
@@ -16,13 +15,18 @@ tools:
         type: string
         required: true
 
+  - name: na_daily
+    description: "一键日常：查看待办 → 输入编号完成。最常用的命令。"
+    command: "na daily"
+    parameters: []
+
   - name: family_list
-    description: "List all families."
+    description: "列出所有家庭。"
     command: "na family list"
     parameters: []
 
   - name: family_create
-    description: "Create a new family."
+    description: "创建新家庭。"
     command: "na family create --name '{name}'"
     parameters:
       - name: name
@@ -30,7 +34,7 @@ tools:
         required: true
 
   - name: family_join
-    description: "Join a family by invite code."
+    description: "通过邀请码加入家庭。"
     command: "na family join --code '{code}'"
     parameters:
       - name: code
@@ -38,12 +42,12 @@ tools:
         required: true
 
   - name: task_list
-    description: "List all tasks in the active family."
+    description: "列出活跃家庭的所有任务。"
     command: "na task list"
     parameters: []
 
   - name: task_create
-    description: "Create a task in the active family."
+    description: "在活跃家庭创建任务。"
     command: "na task create --name '{name}' --schedule {schedule} --data '{data}'"
     parameters:
       - name: name
@@ -56,27 +60,27 @@ tools:
       - name: data
         type: string
         required: true
-        description: "Schedule data as JSON, e.g. '{\"time\":\"09:00\"}'"
+        description: "JSON, e.g. '{\"time\":\"09:00\"}'"
 
   - name: todo_list
-    description: "List pending todos in the active family."
+    description: "列出待办。显示短ID方便复制。"
     command: "na todo list"
     parameters: []
 
   - name: todo_done
-    description: "Mark a todo as done with optional remark."
+    description: "完成待办（支持短ID，3位即可）。"
     command: "na todo done --id '{todo_id}' --remark '{remark}'"
     parameters:
       - name: todo_id
         type: string
         required: true
+        description: "完整UUID或至少3位前缀"
       - name: remark
         type: string
         required: false
-        description: "Completion note"
 
   - name: todo_skip
-    description: "Skip a todo."
+    description: "跳过待办。"
     command: "na todo skip --id '{todo_id}'"
     parameters:
       - name: todo_id
@@ -84,19 +88,18 @@ tools:
         required: true
 
   - name: template_list
-    description: "List available task templates."
+    description: "查看可用任务模板。"
     command: "na template list"
     parameters: []
 
   - name: template_use
-    description: "Create a task from a template."
+    description: "从模板创建任务。"
     command: "na template use --code '{code}' --params '{params}'"
     parameters:
       - name: code
         type: string
         required: true
-        description: "Template code"
       - name: params
         type: string
         required: false
-        description: "JSON params, e.g. '{\"area_name\":\"客厅\"}'"
+        description: "JSON, e.g. '{\"area_name\":\"客厅\"}'"

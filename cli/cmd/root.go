@@ -19,17 +19,14 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "na",
 	Short: "Now & Again — family chore management CLI",
-	Long: `Now & Again CLI (na) provides streamlined access to your family, tasks, and todos.
+	Long: `Now & Again CLI (na) — 家庭事务管理，一行命令搞定。
 
-Quick start:
-  na init -u <username> -p <password>       One-time setup (login → API key → save config)
-  na template list                            List available templates
+快速上手:
+  na init -u <用户名> -p <密码>   一次性初始化
+  na daily                         查看并处理今天的待办
+  na template list                  查看可用模板
   na template use --code weekly_cleaning --params '{"area_name":"客厅"}'
-  na task list                                List tasks in active family
-  na todo list                                List pending todos
-  na todo done --id <todo-id> --remark "已完成"
-
-Output formats: table (default), json, yaml (--output / -o flag)`,
+  na task list                      查看任务`,
 }
 
 func Execute() error {
@@ -44,6 +41,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "table", "output format: table, json, yaml")
 
 	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(dailyCmd)
 	rootCmd.AddCommand(familyCmd)
 	rootCmd.AddCommand(taskCmd)
 	rootCmd.AddCommand(todoCmd)
