@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/backend/internal/service"
 	"github.com/gin-gonic/gin"
@@ -110,8 +112,23 @@ func (h *IcsHandlers) ServeICS(c *gin.Context) {
 	apiKey := c.Query("key")
 	username, password, _ := c.Request.BasicAuth()
 
+	// Look up the feed to determine its auth type before validating.
+	// This is needed so we can send a proper WWW-Authenticate challenge
+	// for Basic Auth feeds — required by Thunderbird and other calendar clients.
+	feed, feedErr := h.Svc.FindFeedByToken(token)
+	if feedErr == nil && feed.AuthType == "basic" && username == "" {
+		c.Header("WWW-Authenticate", `Basic realm="Now And Again Calendar", charset="UTF-8"`)
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
 	ics, err := h.Svc.GenerateICS(token, apiKey, username, password)
 	if err != nil {
+		// For basic auth feeds, include WWW-Authenticate so clients can re-prompt
+		// for credentials (e.g. when the password was wrong).
+		if feedErr == nil && feed.AuthType == "basic" {
+			c.Header("WWW-Authenticate", `Basic realm="Now And Again Calendar", charset="UTF-8"`)
+		}
 		unauthorized(c, err.Error())
 		return
 	}

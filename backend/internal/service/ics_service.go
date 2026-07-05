@@ -28,6 +28,11 @@ func NewIcsService(repo *repository.IcsRepo, taskRepo *repository.TaskRepo, apiK
 
 // ─── Feed CRUD ───────────────────────────────────────────────────
 
+// FindFeedByToken looks up a feed by its access token without auth validation.
+func (s *IcsService) FindFeedByToken(token string) (*repository.IcsFeedModel, error) {
+	return s.repo.FindFeedByToken(token)
+}
+
 type CreateIcsFeedInput struct {
 	Name          string
 	Description   string

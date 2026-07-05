@@ -147,8 +147,7 @@ async function deleteFeed(id: string) {
 }
 
 function copyLink(url: string) {
-  const full = baseUrl + url
-  navigator.clipboard.writeText(full).then(() => {
+  navigator.clipboard.writeText(url).then(() => {
     toast.success(t('ics.copyLinkDone'))
   })
 }
