@@ -238,8 +238,8 @@ cd frontend; pnpm install; pnpm run dev
 | [API 文档](doc/api/endpoints.md) | 完整 RESTful API 路由表（69 个端点） |
 | [数据库 Schema](doc/database/schema.md) | 23 张表结构、索引策略 |
 | [CLI 使用](doc/cli/README.md) | 命令行工具安装、配置、命令参考 |
-| [📋 教程索引](doc/tutorial/README.md) | 图文入门：模板建任务 | 任务链 | CLI | 巡检 | 家庭管理 | 日历大屏 |
-| [CLI 命令行工具使用指南](doc/tutorial/cli-quickstart.md) | 安装、初始化、一键日常、OpenClaw 集成、命令速查 |
+| [📋 教程索引](doc/tutorial/README.md) | 图文入门：模板建任务 | 任务链 | OpenClaw/AI | 巡检 | 家庭管理 | 日历大屏 |
+| [教程：OpenClaw / AI 助手接入指南](doc/tutorial/openclaw-quickstart.md) | 安装、初始化、接入 AI、全场景对话、日常待办管理 |
 | [教程：从模板创建任务并完成待办](doc/tutorial/template-quickstart.md) | 基于模板快速建任务，含任务链多步骤推进 |
 | [教程：家庭管理入门](doc/tutorial/family-quickstart.md) | 创建家庭、邀请成员、角色权限管理 |
 | [教程：巡检任务使用指南](doc/tutorial/inspection-quickstart.md) | 检查项与分支判定、异常跟进、完成巡检 |
