@@ -7,6 +7,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useToast } from '@/composables/useToast'
 import { useLoading } from '@/composables/useLoading'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import { copyWithToast } from '@/composables/useClipboard'
 import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import { getTodoActions, getTodoInfo, getTodoBadgeKey } from '@/composables/useTaskKinds'
 import { initTaskKinds } from '@/components/tasks/init'
@@ -40,11 +41,9 @@ const hasMore = computed(() => todos.value.length > PAGE_SIZE)
 
 async function copyInviteCode() {
   if (!family.value?.invite_code) return
-  try {
-    await navigator.clipboard.writeText(family.value.invite_code)
-    copied.value = true
-    setTimeout(() => { copied.value = false }, 2000)
-  } catch { /* */ }
+  await copyWithToast(family.value.invite_code, t('dashboard.copied'), t('dashboard.copyFailed'))
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
 }
 
 async function completeTodo(todo: Todo, _status: string) {

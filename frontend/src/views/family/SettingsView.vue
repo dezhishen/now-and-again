@@ -8,6 +8,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useLoading } from '@/composables/useLoading'
 import { useConfirm } from '@/composables/useConfirm'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import { copyWithToast } from '@/composables/useClipboard'
 import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import type { Family } from '@/types'
 
@@ -66,11 +67,9 @@ async function deleteFamily() {
 const copied = ref(false)
 async function copyInviteCode() {
   if (!family.value?.invite_code) return
-  try {
-    await navigator.clipboard.writeText(family.value.invite_code)
-    copied.value = true
-    setTimeout(() => { copied.value = false }, 2000)
-  } catch { /* */ }
+  await copyWithToast(family.value.invite_code, t('dashboard.copied'), t('dashboard.copyFailed'))
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
 }
 </script>
 

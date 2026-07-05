@@ -9,8 +9,10 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 const { t } = useI18n()
 const route = useRoute()
 const auth = useAuthStore()
-const familyId = () => auth.activeFamilyId || ''
-const isFullscreen = computed(() => route.name === 'calendar-full')
+// In embed mode (calendar-embed), family ID comes from URL param.
+// In fullscreen/auth mode (calendar-full), it comes from the active family.
+const familyId = () => (route.params.familyId as string) || auth.activeFamilyId || ''
+const isFullscreen = computed(() => route.name === 'calendar-full' || route.name === 'calendar-embed')
 const apiKey = computed(() => (route.query.key as string) || '')
 const refreshParam = computed(() => {
   const v = parseInt(route.query.refresh as string)
@@ -74,6 +76,9 @@ async function fetchApi<T>(path: string): Promise<T> {
     const token = api.getAccessToken()
     if (token) headers['Authorization'] = `Bearer ${token}`
   }
+  // Send family ID via header so FamilyGuard middleware can resolve it
+  const fid = familyId()
+  if (fid) headers['X-Family-Id'] = fid
 
   const res = await fetch(BASE_URL + path, { headers, credentials: 'include' })
   const json = await res.json()
@@ -91,7 +96,7 @@ async function loadCalendar() {
     if (groupID.value) params.set('group_id', groupID.value)
 
     days.value = await fetchApi<CalendarDay[]>(
-      `/families/${familyId()}/calendar?${params}`
+      `/calendar?${params}`
     )
   } catch {
     days.value = []
@@ -103,7 +108,7 @@ async function loadCalendar() {
 async function loadGroups() {
   try {
     groups.value = await fetchApi<{ id: string; name: string }[]>(
-      `/families/${familyId()}/groups`
+      `/groups`
     )
   } catch { /* ignore */ }
 }

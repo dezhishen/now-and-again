@@ -6,7 +6,7 @@ import { api } from '@/api/client'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import { useToast } from '@/composables/useToast'
+import { copyWithToast } from '@/composables/useClipboard'
 import type { ApiKey } from '@/types'
 
 const { t } = useI18n()
@@ -20,7 +20,6 @@ const newExpires = ref('')
 const { error, setError, clearError } = useErrorHandler()
 const creating = ref(false)
 const createdKey = ref<string | null>(null)
-const toast = useToast()
 
 const SCOPE_OPTIONS: { groupKey: I18nKey; items: { value: string; labelKey: I18nKey }[] }[] = [
   { groupKey: 'apiKey.scope.family', items: [
@@ -126,23 +125,7 @@ async function revoke(id: string) {
 
 async function copyKey() {
   if (!createdKey.value) return
-  try {
-    await navigator.clipboard.writeText(createdKey.value)
-    toast.success(t('apiKey.copied'))
-  } catch {
-    // Fallback for non-HTTPS or older browsers
-    try {
-      const ta = document.createElement('textarea')
-      ta.value = createdKey.value
-      ta.style.position = 'fixed'; ta.style.opacity = '0'
-      document.body.appendChild(ta); ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-      toast.success(t('apiKey.copied'))
-    } catch {
-      toast.error(t('apiKey.copyFailed'))
-    }
-  }
+  await copyWithToast(createdKey.value, t('apiKey.copied'), t('apiKey.copyFailed'))
   createdKey.value = null
 }
 </script>

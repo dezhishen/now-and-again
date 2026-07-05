@@ -93,6 +93,7 @@ export default {
     inviteCode: '邀请码',
     inviteCodeHint: '将此邀请码分享给家庭成员，即可加入家庭',
     copied: '已复制',
+    copyFailed: '复制失败，请手动复制',
     copy: '复制',
     remarkTitle: '完成备注',
     remarkPlaceholder: '添加备注（可选）...',

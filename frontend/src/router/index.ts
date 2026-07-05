@@ -31,6 +31,7 @@ const router = createRouter({
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
     { path: '/calendar', name: 'calendar-full', component: () => import('@/views/family/CalendarView.vue'), meta: { requiresAuth: true, requiresFamily: true, fullscreen: true } },
+    { path: '/calendar/:familyId', name: 'calendar-embed', component: () => import('@/views/family/CalendarView.vue'), meta: { fullscreen: true } },
   ],
 })
 
@@ -61,6 +62,7 @@ router.beforeEach(async (to, _from, next) => {
   // ── Auth guard ────────────────────────────────────────────
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     if (to.name === 'calendar-full' && to.query.key) return next()
+    if (to.name === 'calendar-embed' && to.query.key) return next()
     return next({ path: '/login', query: { redirect: to.fullPath } })
   }
   if (to.meta.requiresAdmin && !auth.isAdmin) return next('/')

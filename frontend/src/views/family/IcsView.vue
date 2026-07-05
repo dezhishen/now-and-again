@@ -8,6 +8,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { useToast } from '@/composables/useToast'
 import { useLoading } from '@/composables/useLoading'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import { copyWithToast } from '@/composables/useClipboard'
 import ErrorDisplay from '@/components/ErrorDisplay.vue'
 import type { FamilyGroup, ApiKey } from '@/types'
 
@@ -57,7 +58,7 @@ const embedRefresh = ref(30)  // default 30 seconds
 const embedCopied = ref(false)
 
 const embedUrl = computed(() => {
-  let url = `${baseUrl}/calendar/${familyId}?key=${embedApiKey.value || 'YOUR_API_KEY'}`
+  let url = `${baseUrl}/calendar/${familyId()}?key=${embedApiKey.value || 'YOUR_API_KEY'}`
   if (embedGroupID.value) url += `&group_id=${embedGroupID.value}`
   if (embedRefresh.value > 0) url += `&refresh=${embedRefresh.value}`
   return url
@@ -68,7 +69,7 @@ const embedCode = computed(() => {
 })
 
 function copyEmbed() {
-  navigator.clipboard.writeText(embedCode.value).then(() => {
+  copyWithToast(embedCode.value, t('ics.copied'), t('ics.copyFailed')).then(() => {
     embedCopied.value = true
     setTimeout(() => { embedCopied.value = false }, 2000)
   })
@@ -146,24 +147,8 @@ async function deleteFeed(id: string) {
   try { await api.delete('/ics-feeds/' + id); await loadFeeds(); toast.success(t('ics.deleted')) } catch (e: any) { setError(e) }
 }
 
-async function copyLink(url: string) {
-  try {
-    await navigator.clipboard.writeText(url)
-    toast.success(t('ics.copyLinkDone'))
-  } catch {
-    // Fallback for non-HTTPS or older browsers
-    try {
-      const ta = document.createElement('textarea')
-      ta.value = url
-      ta.style.position = 'fixed'; ta.style.opacity = '0'
-      document.body.appendChild(ta); ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-      toast.success(t('ics.copyLinkDone'))
-    } catch {
-      toast.error(t('ics.copyFailed'))
-    }
-  }
+function copyLink(url: string) {
+  copyWithToast(url, t('ics.copyLinkDone'), t('ics.copyFailed'))
 }
 
 function getAuthLabel(feed: IcsFeed): string {

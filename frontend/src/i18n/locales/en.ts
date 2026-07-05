@@ -89,6 +89,7 @@ export default {
     inviteCode: 'Invite Code',
     inviteCodeHint: 'Share this code with family members to let them join',
     copied: 'Copied',
+    copyFailed: 'Copy failed, please copy manually',
     copy: 'Copy',
     remarkTitle: 'Completion Note',
     remarkPlaceholder: 'Add a note (optional)...',

@@ -185,20 +185,34 @@ func (s *IcsService) GenerateICS(token, apiKey, username, password string) (stri
 			continue
 		}
 
-		// Parse time from schedule data
+		// Parse time from schedule data (once, used for both filter and event)
 		schedTime := parseScheduleTime(task.ScheduleType, task.ScheduleData)
+
+		// Filter one-time tasks by date window
+		if task.ScheduleType == "once" && feed.FilterDays > 0 {
+			cutoff := timeutil.Now().Add(time.Duration(feed.FilterDays) * 24 * time.Hour)
+			if schedTime.After(cutoff) {
+				continue
+			}
+		}
+
 		rrule := buildRRule(task.ScheduleType, task.ScheduleData)
-		// ICS event duration is a fixed 1-hour window (recurrence is handled by RRULE,
-		// not by DTEND-DTSTART span). Using scheduleWindow here would cause multi-day
-		// events (daily=24h, weekly=7d, etc.), which confuses calendar clients.
-		eventDuration := 1 * time.Hour
+		// ICS event duration: default 1 hour, but clamped so DTEND never
+		// crosses midnight UTC (which would cause multi-day display issues).
+		eventEnd := schedTime.Add(1 * time.Hour)
+		schedDay := schedTime.Truncate(24 * time.Hour)
+		nextDay := schedDay.Add(24 * time.Hour)
+		if !eventEnd.Before(nextDay) {
+			// Clamp to 23:59:59 of the same UTC day
+			eventEnd = nextDay.Add(-1 * time.Second)
+		}
 
 		sb.WriteString("BEGIN:VEVENT\r\n")
 		sb.WriteString("UID:")
 		sb.WriteString(task.ID)
 		sb.WriteString("\r\n")
 		dtStart := schedTime.Format("20060102T150405Z")
-		dtEnd := schedTime.Add(eventDuration).Format("20060102T150405Z")
+		dtEnd := eventEnd.Format("20060102T150405Z")
 		sb.WriteString("DTSTART:")
 		sb.WriteString(dtStart)
 		sb.WriteString("\r\n")
