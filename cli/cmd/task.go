@@ -45,23 +45,44 @@ var taskCreateCmd = &cobra.Command{
 
 var taskListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "列出活跃家庭的任务",
+	Short: "列出活跃家庭的任务（默认排除已归档和已禁用的任务）",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := autoEnsureFamily(); err != nil {
 			return err
 		}
+		all, _ := cmd.Flags().GetBool("all")
 		tasks, err := na.ListTasks(context.Background())
 		if err != nil {
 			return err
 		}
+
+		// 默认过滤已归档和已禁用的任务
+		if !all {
+			filtered := make([]types.Task, 0, len(tasks))
+			skipped := 0
+			for _, t := range tasks {
+				if t.Archived || !t.Enabled {
+					skipped++
+					continue
+				}
+				filtered = append(filtered, t)
+			}
+			tasks = filtered
+			if skipped > 0 {
+				fmt.Printf("💡 已隐藏 %d 项已归档/已禁用的任务，使用 --all 查看全部\n\n", skipped)
+			}
+		}
+
 		if len(tasks) == 0 {
-			fmt.Println("📭 暂无任务")
+			fmt.Println("📭 暂无活跃任务")
 			return nil
 		}
 		fmt.Printf("📋 任务列表 (%d项):\n\n", len(tasks))
 		for _, t := range tasks {
 			s := "✅"
-			if !t.Enabled {
+			if t.Archived {
+				s = "📦"
+			} else if !t.Enabled {
 				s = "⏸️"
 			}
 			fmt.Printf("  %s [%s] %-25s %-8s\n", s, t.ID[:6], t.Name, t.ScheduleType)
@@ -90,6 +111,8 @@ func init() {
 	taskCreateCmd.Flags().String("schedule", "", "调度类型: daily|weekly|monthly|interval|once")
 	taskCreateCmd.Flags().String("data", "", "调度数据 JSON，如 '{\"time\":\"09:00\"}'")
 	taskDeleteCmd.Flags().String("id", "", "任务ID")
+
+	taskListCmd.Flags().Bool("all", false, "显示全部任务（包括已归档和已禁用的）")
 
 	taskCmd.AddCommand(taskCreateCmd)
 	taskCmd.AddCommand(taskListCmd)
