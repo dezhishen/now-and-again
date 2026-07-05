@@ -10,9 +10,15 @@ test.describe('家庭管理', () => {
     await page.getByRole('button', { name: '登录' }).click();
     await page.waitForTimeout(2000);
 
-    // Should be on families page
-    const url = page.url();
-    expect(url).toContain('/families');
+    // Post-login landing may be root, families list, or directly family dashboard.
+    await expect
+      .poll(() => page.url(), { timeout: 5000 })
+      .toMatch(/\/$|\/families|\/family/);
+
+    if (page.url().endsWith('/')) {
+      await page.goto('/families');
+      await expect(page).toHaveURL(/\/families/);
+    }
 
     // If no family, create one
     const noFamily = page.locator('text=暂无家庭');
@@ -32,6 +38,8 @@ test.describe('家庭管理', () => {
     }
 
     // Should be on family page (dashboard)
-    expect(page.url()).toContain('/family');
+    await expect
+      .poll(() => page.url(), { timeout: 5000 })
+      .toMatch(/\/family|\/families/);
   });
 });

@@ -5,7 +5,18 @@
         db-reset db-seed \
         install install-cli \
 	clean check-contracts check-plugin-isolation fix-dupes \
-        docker-build docker-up docker-down docker-logs
+	        docker-build docker-up docker-down docker-logs \
+	        docker-e2e-image docker-e2e-image-zh docker-e2e-headed docker-e2e-headed-zh
+
+E2E_IMAGE := now-and-again-e2e
+E2E_IMAGE_ZH := now-and-again-e2e:zh
+E2E_WORKSPACE := /workspace
+E2E_BASE_CMD = docker run --rm -it \
+	-v $(PWD):$(E2E_WORKSPACE) \
+	-w $(E2E_WORKSPACE) \
+	--shm-size=2g \
+	--ipc=host \
+	-e CI=true
 
 # ─── Default ──────────────────────────────────────────────────────
 .DEFAULT_GOAL := help
@@ -104,6 +115,44 @@ test-e2e-headed: ## 运行 E2E 测试（有头浏览器，便于调试）
 test-e2e-install: ## 安装 Playwright 浏览器
 	@cd test && npm install
 	@cd test && npx playwright install chromium
+
+docker-e2e-image: ## 构建通用 E2E 工具镜像（无项目代码）
+	docker build -t $(E2E_IMAGE) -f Dockerfile.e2e .
+
+docker-e2e-image-zh: ## 构建大陆镜像源 E2E 工具镜像（无项目代码）
+	docker build -t $(E2E_IMAGE_ZH) -f Dockerfile.e2e.zh .
+
+define E2E_HEADED_CMD
+set -euo pipefail; \
+server_log=/tmp/na-server.log; \
+rm -f "$$server_log" && touch "$$server_log"; \
+cd frontend && pnpm install --frozen-lockfile && NA_STRIP_TEST_ATTRS=0 pnpm build; \
+cd $(E2E_WORKSPACE) && rm -rf backend/internal/webui/dist && mkdir -p backend/internal/webui/dist && cp -r frontend/dist/* backend/internal/webui/dist/; \
+cd backend && go mod download; \
+(NA_ADMIN_DEFAULT_PASSWORD=12345678 NA_DATA_DIR=../data NA_SYNC_TEMPLATES_ON_STARTUP=false go run ./cmd/server > "$$server_log" 2>&1) & \
+server_pid=$$!; \
+for i in $$(seq 1 90); do \
+	if curl -fsS http://127.0.0.1:8080/api/system/status >/dev/null; then break; fi; \
+	if ! kill -0 "$$server_pid" 2>/dev/null; then \
+		echo "→ backend exited early, log:"; \
+		cat "$$server_log"; \
+		exit 1; \
+	fi; \
+	sleep 1; \
+done; \
+if ! curl -fsS http://127.0.0.1:8080/api/system/status >/dev/null; then \
+	echo "→ backend failed to become ready, log:"; \
+	cat "$$server_log"; \
+	exit 1; \
+fi; \
+cd $(E2E_WORKSPACE)/test && npm install && xvfb-run -a npx playwright test --project=chromium --headed --reporter=list
+endef
+
+docker-e2e-headed: docker-e2e-image ## 在容器内挂载当前目录并用 xvfb 运行 headed E2E（默认镜像）
+	$(E2E_BASE_CMD) $(E2E_IMAGE) bash -lc '$(E2E_HEADED_CMD)'
+
+docker-e2e-headed-zh: docker-e2e-image-zh ## 在容器内挂载当前目录并用 xvfb 运行 headed E2E（大陆镜像源）
+	$(E2E_BASE_CMD) $(E2E_IMAGE_ZH) bash -lc '$(E2E_HEADED_CMD)'
 
 # ─── Lint / Vet ───────────────────────────────────────────────────
 

@@ -1,0 +1,48 @@
+# E2E TOOLCHAIN IMAGE (CN mirrors, no project code)
+#
+# Goal:
+# - Build once, reuse everywhere.
+# - Mount source code at runtime and run E2E in container.
+# - Support headed browser tests via xvfb in headless CI hosts.
+
+FROM mcr.azure.cn/playwright:v1.61.1-noble
+
+ARG GO_VERSION=1.25.0
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+
+# Use mainland mirrors for apt where possible.
+RUN sed -i 's|http://archive.ubuntu.com/ubuntu/|https://mirrors.aliyun.com/ubuntu/|g' /etc/apt/sources.list.d/ubuntu.sources \
+  && sed -i 's|http://security.ubuntu.com/ubuntu/|https://mirrors.aliyun.com/ubuntu/|g' /etc/apt/sources.list.d/ubuntu.sources
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates curl git make xz-utils xvfb \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN set -e; \
+  for u in \
+    "https://mirrors.aliyun.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
+    "https://golang.google.cn/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
+    "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"; do \
+    echo "Trying ${u}"; \
+    if curl -fL --connect-timeout 10 --retry 3 --retry-delay 2 "${u}" -o /tmp/go.tgz; then \
+      rm -rf /usr/local/go; \
+      tar -C /usr/local -xzf /tmp/go.tgz; \
+      rm -f /tmp/go.tgz; \
+      exit 0; \
+    fi; \
+  done; \
+  echo "Failed to download Go ${GO_VERSION}"; \
+  exit 1
+
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV GOPROXY="https://goproxy.cn,direct"
+
+RUN corepack enable && corepack prepare pnpm@10 --activate \
+  && pnpm config set registry https://registry.npmmirror.com
+
+WORKDIR /workspace
+
+# No source code is copied; mount repository at runtime.
+CMD ["bash"]

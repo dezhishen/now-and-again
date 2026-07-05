@@ -18,28 +18,34 @@ function stripTestAttrsPlugin(): Plugin {
   }
 }
 
-export default defineConfig(({ command }) => ({
-  plugins: [
-    ...(command === 'build' ? [stripTestAttrsPlugin()] : []),
-    vue(),
-  ],
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
-    },
-  },
-  server: {
-    host: '0.0.0.0',
-    port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/uploads': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
+export default defineConfig(({ command }) => {
+  // Keep test attributes when explicitly requested (for CI E2E against built assets).
+  // Default behavior remains stripping in production build.
+  const stripTestAttrs = command === 'build' && process.env.NA_STRIP_TEST_ATTRS !== '0'
+
+  return {
+    plugins: [
+      ...(stripTestAttrs ? [stripTestAttrsPlugin()] : []),
+      vue(),
+    ],
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, 'src'),
       },
     },
-  },
-}))
+    server: {
+      host: '0.0.0.0',
+      port: 5173,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
+        '/uploads': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
+      },
+    },
+  }
+})

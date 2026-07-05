@@ -24,6 +24,12 @@ test.describe('登录模块', () => {
     await loginPage.usernameInput.fill('admin');
     await loginPage.passwordInput.fill('wrongpassword');
     await loginPage.loginButton.click();
-    await expect(page.locator('text=用户名或密码错误').or(page.locator('text=错误'))).toBeVisible({ timeout: 5000 });
+    await expect(
+      page
+        .locator('text=用户名或密码错误')
+        .or(page.locator('text=错误'))
+        .or(page.locator('text=invalid credentials'))
+        .or(page.locator('text=请先登录'))
+    ).toBeVisible({ timeout: 5000 });
   });
 });

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/dezhishen/now-and-again/backend/internal/config"
@@ -89,9 +90,18 @@ func main() {
 	builtin.SetDataDir(cfg.DataDir)
 
 	// Sync all providers at startup so the DB is populated.
-	// Each provider logs its own errors; failures do not block startup.
-	if err := taskTemplateSvc.SyncAll(context.Background()); err != nil {
-		logger.Warnf("warning: initial task template sync failed: %v", err)
+	// Can be skipped via NA_SYNC_TEMPLATES_ON_STARTUP=false for fast E2E startup.
+	syncOnStartup := true
+	if v := strings.ToLower(os.Getenv("NA_SYNC_TEMPLATES_ON_STARTUP")); v == "0" || v == "false" {
+		syncOnStartup = false
+	}
+	if syncOnStartup {
+		// Each provider logs its own errors; failures do not block startup.
+		if err := taskTemplateSvc.SyncAll(context.Background()); err != nil {
+			logger.Warnf("warning: initial task template sync failed: %v", err)
+		}
+	} else {
+		logger.Infof("skip initial task template sync (NA_SYNC_TEMPLATES_ON_STARTUP=%s)", os.Getenv("NA_SYNC_TEMPLATES_ON_STARTUP"))
 	}
 
 	// ── Bundle contracts ────────────────────────────────────────

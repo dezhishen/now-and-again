@@ -1,0 +1,33 @@
+# E2E TOOLCHAIN IMAGE (no project code inside image)
+#
+# Goal:
+# - Build once, reuse everywhere.
+# - Mount source code at runtime and run E2E in container.
+# - Support headed browser tests via xvfb in headless CI hosts.
+
+FROM mcr.microsoft.com/playwright:v1.61.1-noble
+
+ARG GO_VERSION=1.25.0
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+
+# Install Go toolchain and common utilities for repo scripts.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates curl git make xz-utils xvfb \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o /tmp/go.tgz \
+  && rm -rf /usr/local/go \
+  && tar -C /usr/local -xzf /tmp/go.tgz \
+  && rm -f /tmp/go.tgz
+
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+# Keep deterministic frontend toolchain.
+RUN corepack enable && corepack prepare pnpm@10 --activate
+
+WORKDIR /workspace
+
+# No source code is copied; mount repository at runtime.
+CMD ["bash"]

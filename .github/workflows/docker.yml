@@ -39,6 +39,8 @@ jobs:
           cd frontend
           pnpm install --frozen-lockfile
           pnpm build
+        env:
+          NA_STRIP_TEST_ATTRS: '0'
 
       - name: Go vet
         run: |
@@ -60,14 +62,21 @@ jobs:
       - name: Start backend
         run: |
           cd backend
-          NA_DATA_DIR=../data NA_ADMIN_DEFAULT_PASSWORD=12345678 ./na-server &
-          for i in $(seq 1 30); do
+          NA_DATA_DIR=../data NA_ADMIN_DEFAULT_PASSWORD=12345678 NA_SYNC_TEMPLATES_ON_STARTUP=false ./na-server > /tmp/na-server.log 2>&1 &
+          ready=0
+          for i in $(seq 1 90); do
             if curl -s http://localhost:8080/api/system/status | grep -q ok; then
               echo "Backend ready"
+              ready=1
               break
             fi
             sleep 1
           done
+          if [ "$ready" -ne 1 ]; then
+            echo "Backend failed to become ready"
+            cat /tmp/na-server.log || true
+            exit 1
+          fi
 
       - name: Install E2E dependencies
         run: |
