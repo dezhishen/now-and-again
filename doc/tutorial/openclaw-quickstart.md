@@ -1,43 +1,46 @@
 # OpenClaw / AI 助手接入指南
 
-> 将 Now & Again 接入 AI 助手，用自然语言管理家庭事务。
+> 全程通过 AI 对话完成。无需打开终端，无需记忆命令。
 
 ---
 
 ## 1. 安装
 
-一条命令完成：
-
-```bash
-curl -fsSL https://github.com/dezhishen/now-and-again/releases/latest/download/na_linux_amd64.tar.gz | tar xz
-sudo mv na /usr/local/bin/
-```
-
-> 其他平台：[GitHub Releases](https://github.com/dezhishen/now-and-again/releases)
+> 👤 帮我安装 Now & Again 的命令行工具
+>
+> 🤖 好的，正在安装...
+>
+> ```
+> curl -fsSL https://github.com/dezhishen/now-and-again/releases/latest/download/na_linux_amd64.tar.gz | tar xz
+> sudo mv na /usr/local/bin/
+> ```
+>
+> ✓ 安装完成
 
 ---
 
 ## 2. 初始化
 
-```bash
-na init
-```
-
-按提示输入服务器地址、用户名和密码即可。完成后所有配置自动保存，无需再操作。
-
-```
-🔗 服务器地址 [http://localhost:8080]:
-👤 用户名: admin
-🔑 密码: ******
-
-✓ 初始化成功！
-```
+> 👤 帮我初始化，连接到我的服务器
+>
+> 🤖 请告诉我以下信息：
+> - 服务器地址？（默认 http://localhost:8080）
+> - 用户名？
+> - 密码？
+>
+> 👤 地址用默认的，用户名 admin，密码 12345678
+>
+> 🤖 正在初始化...
+>
+> ```
+> na init -u admin -p 12345678
+> ```
+>
+> ✓ 初始化成功！已连接服务器，家庭已就绪。
 
 ---
 
-## 3. 使用
-
-之后只需要用自然语言和 AI 助手对话。
+## 3. 日常使用
 
 ### 查看待办
 
@@ -53,7 +56,7 @@ na init
 
 ### 创建任务
 
-> 👤 帮我创建一个每天晚上8点倒垃圾的任务
+> 👤 每天晚上8点倒垃圾
 >
 > 🤖 ✅ 已创建"倒垃圾"，每天 20:00
 
@@ -65,15 +68,11 @@ na init
 >
 > 🤖 ✅ 已创建"大扫除"，每月 1、15 日 09:00
 
-> 👤 帮我创建三个任务——每天喂猫、每周六洗澡、每月驱虫
->
-> 🤖 全部创建完成 ✅
-
 ### 从模板创建
 
 > 👤 有哪些模板可以用？
 >
-> 🤖 8 个模板：每日巡检、每日打卡、日常大扫除、绿植养护……
+> 🤖 每日巡检、每日打卡、日常大扫除、绿植养护、定期缴费检查、换洗床品、冰箱清理、垃圾分类
 
 > 👤 用大扫除模板，每周打扫客厅
 >
@@ -85,4 +84,10 @@ na init
 >
 > 🤖 ✅ 已创建，邀请码: ABCD1234
 
-拿到邀请码后，家人的 AI 助手运行一次 `na family join --code ABCD1234` 即可加入。
+> 👤 我有哪些家庭？
+>
+> 🤖 2 个家庭：温馨小家 ★、公司项目
+
+> 👤 切换到公司项目
+>
+> 🤖 ✓ 已切换到"公司项目"
