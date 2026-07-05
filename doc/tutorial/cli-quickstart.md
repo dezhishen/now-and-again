@@ -6,8 +6,28 @@
 
 ## 1. 安装
 
+### 从 GitHub Releases 安装（推荐）
+
 ```bash
-cd cli && go build -o na . && sudo mv na /usr/local/bin/
+# Linux / macOS (amd64)
+curl -fsSL https://github.com/dezhishen/now-and-again/releases/latest/download/na_linux_amd64.tar.gz | tar xz
+sudo mv na /usr/local/bin/
+
+# macOS (Apple Silicon)
+curl -fsSL https://github.com/dezhishen/now-and-again/releases/latest/download/na_darwin_arm64.tar.gz | tar xz
+sudo mv na /usr/local/bin/
+
+# 指定版本
+curl -fsSL https://github.com/dezhishen/now-and-again/releases/download/v0.0.2-beta-001/na_linux_amd64.tar.gz | tar xz
+```
+
+> 📦 所有版本：[GitHub Releases](https://github.com/dezhishen/now-and-again/releases)
+>
+> 支持平台：`linux_amd64` · `linux_arm64` · `darwin_amd64` · `darwin_arm64` · `windows_amd64`
+
+验证安装：
+
+```bash
 na --help
 ```
 
