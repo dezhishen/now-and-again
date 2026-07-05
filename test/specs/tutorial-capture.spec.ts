@@ -156,21 +156,21 @@ test('教程截图：巡检任务——创建触发与完成', async ({ page }) 
   await page.locator('[data-testid="task-create-btn"]').click()
 
   await page.locator('[data-testid="task-kind"]').selectOption('inspection')
-  await page.locator('[data-testid="task-name"]').fill('设备巡检')
+  await page.locator('[data-testid="task-name"]').fill('房间巡检')
 
   // Add check item
   await page.locator('[data-testid="check-item-add"]').click()
-  await page.locator('[data-testid="check-item-name-input"]').first().fill('服务器状态')
+  await page.locator('[data-testid="check-item-name-input"]').first().fill('门窗状态')
 
   // Add second check item
   await page.locator('[data-testid="check-item-add"]').click()
-  await page.locator('[data-testid="check-item-name-input"]').nth(1).fill('网络连通性')
+  await page.locator('[data-testid="check-item-name-input"]').nth(1).fill('地面卫生')
 
   // Screenshot: inspection task creation form
   await page.screenshot({ path: shotPath('inspection', '01-inspection-create-form.png'), fullPage: true })
 
   await page.locator('[data-testid="task-submit"]').click()
-  const card = page.locator('[data-testid="task-card"][data-task-name="设备巡检"]').first()
+  const card = page.locator('[data-testid="task-card"][data-task-name="房间巡检"]').first()
   await expect(card).toBeVisible()
 
   // Screenshot: inspection task card
@@ -180,7 +180,7 @@ test('教程截图：巡检任务——创建触发与完成', async ({ page }) 
   await card.locator('[data-testid="task-trigger-btn"]').click()
   await page.locator('[data-testid="family-nav-dashboard"]').first().click()
 
-  const todoCard = page.locator('[data-testid="todo-card"][data-task-name="设备巡检"]').first()
+  const todoCard = page.locator('[data-testid="todo-card"][data-task-name="房间巡检"]').first()
   await expect(todoCard).toBeVisible()
 
   // Screenshot: dashboard with inspection todo

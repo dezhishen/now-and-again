@@ -38,7 +38,7 @@
 日历支持通过 URL 参数嵌入到任意网页：
 
 ```
-http://localhost:8080/calendar?key=YOUR_API_KEY&refresh=60
+https://你的服务器地址/calendar?key=YOUR_API_KEY&refresh=60
 ```
 
 参数说明：
@@ -51,6 +51,6 @@ http://localhost:8080/calendar?key=YOUR_API_KEY&refresh=60
 使用 `iframe` 嵌入：
 
 ```html
-<iframe src="http://localhost:8080/calendar?refresh=60"
+<iframe src="https://你的服务器地址/calendar?refresh=60"
   width="100%" height="800" frameborder="0"></iframe>
 ```
