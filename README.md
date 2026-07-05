@@ -151,12 +151,19 @@ now-and-again/
 │       ├── views/              #   页面组件
 │       └── components/         #   可复用组件 (tasks/, locations/)
 │
-├── cli/                        # Go CLI — Cobra + Viper
+├── sdk/                        # Go SDK — 独立模块，CLI 与外部工具共用
+│   ├── na.go                   #   NA 入口结构体（配置 + HTTP 客户端）
+│   ├── init.go                 #   初始化：登录 → API Key → 保存 ~/.na.yaml
+│   ├── task.go                 #   任务高层操作
+│   ├── todo.go                 #   待办操作（完成/备注/跳过）
+│   ├── template.go             #   模板渲染与创建
+│   ├── family.go               #   家庭/小组/地点管理
+│   └── internal/client/        #   HTTP 客户端层
+│
+├── cli/                        # Go CLI — Cobra，基于 SDK
 │   ├── cmd/                    #   命令定义
-│   └── internal/
-│       ├── client/             #   HTTP API 客户端
-│       ├── config/             #   配置管理
-│       └── output/             #   格式化输出 (table / json)
+│   ├── skills/                 #   CLI 技能文件 (na-tools.yaml)
+│   └── internal/output/        #   格式化输出 (table / json)
 │
 ├── doc/                        # 文档
 │   ├── deployment/docker.md
@@ -167,11 +174,6 @@ now-and-again/
 │   └── frontend-conventions.md  #   前端开发约定
 │
 ├── .github/agents/             # Copilot 自定义 Agent
-│   └── create-task-kind.agent.md
-│
-├── skills/                     # 技能文件
-│   └── na-tools.yaml
-│
 ├── data/                       # 运行时数据 (SQLite + 上传文件)
 ├── docker-compose.yml
 ├── Dockerfile
