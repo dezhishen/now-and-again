@@ -14,23 +14,40 @@ import (
 type HTTPClient struct {
 	BaseURL    string
 	Token      string
+	FamilyID   string // set for family-scoped requests
+	AuthMethod string // "jwt" or "apikey", auto-detected
 	HTTPClient *http.Client
 }
 
 // NewHTTPClient creates a new HTTP client with sensible defaults.
 func NewHTTPClient(baseURL, token string) *HTTPClient {
 	return &HTTPClient{
-		BaseURL: baseURL,
-		Token:   token,
+		BaseURL:    baseURL,
+		Token:      token,
+		AuthMethod: detectAuthMethod(token),
 		HTTPClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 	}
 }
 
-// SetToken updates the auth token.
+// SetToken updates the auth token and re-detects the auth method.
 func (c *HTTPClient) SetToken(token string) {
 	c.Token = token
+	c.AuthMethod = detectAuthMethod(token)
+}
+
+// SetFamilyID sets the X-Family-Id header value for family-scoped requests.
+func (c *HTTPClient) SetFamilyID(familyID string) {
+	c.FamilyID = familyID
+}
+
+// detectAuthMethod returns "apikey" if token starts with "na_", otherwise "jwt".
+func detectAuthMethod(token string) string {
+	if len(token) > 3 && token[:3] == "na_" {
+		return "apikey"
+	}
+	return "jwt"
 }
 
 // SetBaseURL updates the base URL.
@@ -65,7 +82,14 @@ func (c *HTTPClient) do(method, path string, body, result interface{}) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
+		if c.AuthMethod == "apikey" {
+			req.Header.Set("X-API-Key", c.Token)
+		} else {
+			req.Header.Set("Authorization", "Bearer "+c.Token)
+		}
+	}
+	if c.FamilyID != "" {
+		req.Header.Set("X-Family-Id", c.FamilyID)
 	}
 
 	resp, err := c.HTTPClient.Do(req)

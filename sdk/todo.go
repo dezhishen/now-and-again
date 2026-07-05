@@ -146,4 +146,3 @@ func (na *NA) TriggerTaskByName(ctx context.Context, nameOrID string) error {
 	}
 	return na.Task.TriggerTask(ctx, uuid.MustParse(t.ID))
 }
-

@@ -104,6 +104,9 @@ func New() (*NA, error) {
 // NewWithConfig creates an NA instance from an explicit Config.
 func NewWithConfig(cfg *Config) *NA {
 	httpClient := client.NewHTTPClient(cfg.ServerURL, cfg.Token)
+	if cfg.ActiveFamilyID != "" {
+		httpClient.SetFamilyID(cfg.ActiveFamilyID)
+	}
 	return &NA{
 		cfg:            cfg,
 		http:           httpClient,
@@ -153,6 +156,7 @@ func (na *NA) SetActiveFamily(familyID, familyName string) {
 	na.activeFamilyID = familyID
 	na.cfg.ActiveFamilyID = familyID
 	na.cfg.ActiveFamilyName = familyName
+	na.http.SetFamilyID(familyID)
 }
 
 // ActiveFamilyID returns the cached family ID (set via Init or SetActiveFamily).

@@ -47,8 +47,8 @@ var todoListCmd = &cobra.Command{
 }
 
 var todoDoneCmd = &cobra.Command{
-	Use:   "done",
-	Short: "完成待办（支持短ID）",
+	Use:     "done",
+	Short:   "完成待办（支持短ID）",
 	Example: "  na todo done --id abc      # 使用6位前缀即□",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := autoEnsureFamily(); err != nil {
@@ -104,4 +104,3 @@ func init() {
 	todoCmd.AddCommand(todoDoneCmd)
 	todoCmd.AddCommand(todoSkipCmd)
 }
-
