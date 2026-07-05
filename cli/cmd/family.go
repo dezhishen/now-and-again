@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +24,7 @@ var familyCreateCmd = &cobra.Command{
 		if name == "" {
 			return fmt.Errorf("--name is required")
 		}
-		f, err := allClients.Family.Create(context.Background(), &types.CreateFamilyRequest{Name: name})
+		f, err := na.CreateFamily(context.Background(), name)
 		if err != nil {
 			return err
 		}
@@ -42,11 +41,10 @@ var familyJoinCmd = &cobra.Command{
 		if code == "" {
 			return fmt.Errorf("--code is required")
 		}
-		m, err := allClients.Family.Join(context.Background(), &types.JoinFamilyRequest{InviteCode: code})
-		if err != nil {
+		if err := na.JoinFamily(context.Background(), code); err != nil {
 			return err
 		}
-		fmt.Printf("Join request sent (status: %s)\n", m.Status)
+		fmt.Println("Join request sent")
 		return nil
 	},
 }
@@ -55,7 +53,7 @@ var familyListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List my families",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		families, err := allClients.Family.ListMyFamilies(context.Background())
+		families, err := na.ListMyFamilies(context.Background())
 		if err != nil {
 			return err
 		}

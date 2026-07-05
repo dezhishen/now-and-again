@@ -51,7 +51,7 @@ func (na *NA) CreateTaskFromTemplate(ctx context.Context, code string, params ma
 
 	// Step 3: Build CreateTaskRequest
 	req := &types.CreateTaskRequest{
-		Task: types.Task{},
+		Task:  types.Task{},
 		Extra: rendered.ExtraSchema,
 	}
 

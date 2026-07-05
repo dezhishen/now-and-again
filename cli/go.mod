@@ -33,6 +33,11 @@ require (
 	gorm.io/gorm v1.31.2 // indirect
 )
 
-require github.com/dezhishen/now-and-again/backend v0.0.0
+require (
+	github.com/dezhishen/now-and-again/backend v0.0.0
+	github.com/dezhishen/now-and-again/sdk v0.0.0-00010101000000-000000000000
+)
 
 replace github.com/dezhishen/now-and-again/backend => ../backend
+
+replace github.com/dezhishen/now-and-again/sdk => ../sdk

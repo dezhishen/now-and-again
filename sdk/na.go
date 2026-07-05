@@ -76,16 +76,16 @@ func LoadConfig() (*Config, error) {
 //	// Use domain clients:
 //	families, _ := na.Family.ListMyFamilies(ctx)
 type NA struct {
-	mu    sync.RWMutex
-	cfg   *Config
+	mu  sync.RWMutex
+	cfg *Config
 
 	http *client.HTTPClient
 
 	// Domain clients — direct access for advanced usage.
-	User         *client.UserClient
-	Family       *client.FamilyClient
-	ApiKey       *client.ApiKeyClient
-	Task         *client.TaskClient
+	User   *client.UserClient
+	Family *client.FamilyClient
+	ApiKey *client.ApiKeyClient
+	Task   *client.TaskClient
 
 	// Cached value: the active family ID (set via Init or SetActiveFamily).
 	activeFamilyID string
