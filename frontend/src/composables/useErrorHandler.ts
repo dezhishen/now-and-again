@@ -28,8 +28,11 @@ export function registerDisplayMode(code: ErrorCode, mode: DisplayMode): void {
 }
 
 /** Resolve the display mode for an error, falling back to 'inline'. */
-export function getDisplayMode(code: ErrorCode): DisplayMode {
-  return displayModes[code] ?? 'inline'
+export function getDisplayMode(error: ApiRequestError): DisplayMode {
+  if (displayModes[error.code]) return displayModes[error.code] as DisplayMode
+  if (error.status >= 500) return 'dialog'
+  if (error.status >= 400) return 'toast'
+  return 'inline'
 }
 
 // ── Severity ──────────────────────────────────────────────────────
@@ -52,8 +55,11 @@ export function registerSeverity(code: ErrorCode, sev: Severity): void {
 }
 
 /** Resolve the severity for an error, falling back to 'warning'. */
-export function getSeverity(code: ErrorCode): Severity {
-  return severities[code] ?? 'warning'
+export function getSeverity(error: ApiRequestError): Severity {
+  if (severities[error.code]) return severities[error.code] as Severity
+  if (error.status >= 500) return 'error'
+  if (error.status >= 400) return 'warning'
+  return 'warning'
 }
 
 // ── ErrorCode → handler registry ─────────────────────────────────
@@ -119,7 +125,10 @@ export function translateFieldError(f: FieldError, t: (key: I18nKey) => string):
  */
 export function formatApiError(error: ApiRequestError, t: (key: I18nKey) => string): string {
   const handler = ERROR_HANDLERS[error.code]
-  return handler ? handler(error, t) : (error.summary || error.message)
+  if (handler) return handler(error, t)
+  if (error.status >= 500) return t('error.summary.internal')
+  if (error.status >= 400) return error.summary || t('error.summary.badRequest')
+  return error.summary || error.message
 }
 
 /**

@@ -1,10 +1,17 @@
-import type { APIResponse, User } from '@/types'
+import type { APIResponse, ApiError, User } from '@/types'
 import { ApiRequestError } from '@/types'
 import { requestToUTC, responseToLocal } from '@/composables/timezone'
 
 const BASE_URL = '/api'
 const TOKEN_KEY = 'na_access_token'
 const SESSION_EXPIRED_CODE = 401
+
+function toApiRequestError(status: number, apiError?: ApiError): ApiRequestError {
+  const fallbackSummary = status >= 500 ? '服务器内部错误，请稍后重试' : '请求参数有误'
+  const err: ApiError = apiError || { code: '', summary: fallbackSummary }
+  if (!err.summary) err.summary = fallbackSummary
+  return new ApiRequestError(err, status)
+}
 
 // ─── Token persistence ────────────────────────────────────────────
 //
@@ -256,9 +263,9 @@ class ApiClient {
           this.familyNotFoundFired = true
           this.onFamilyNotFoundCb?.()
         }
-        throw new ApiRequestError(json.error)
+        throw toApiRequestError(res.status, json.error)
       }
-      throw new ApiRequestError({ code: 'INTERNAL_ERROR', summary: 'Unknown error' })
+      throw toApiRequestError(res.status)
     }
     return responseToLocal(json.data) as T
   }
@@ -317,9 +324,9 @@ class ApiClient {
           this.familyNotFoundFired = true
           this.onFamilyNotFoundCb?.()
         }
-        throw new ApiRequestError(json.error)
+        throw toApiRequestError(res.status, json.error)
       }
-      throw new ApiRequestError({ code: 'INTERNAL_ERROR', summary: 'Unknown error' })
+      throw toApiRequestError(res.status)
     }
     return json.data as T
   }

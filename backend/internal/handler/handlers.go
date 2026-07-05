@@ -66,8 +66,56 @@ func badRequest(c *gin.Context, summary string) {
 }
 
 func serverError(c *gin.Context, err error) {
+	if tryHandleKnownError(c, err) {
+		return
+	}
 	logger.Errorf("handler error: %v", err)
 	apiError(c, http.StatusInternalServerError, types.ErrInternal, "服务器内部错误")
+}
+
+func tryHandleKnownError(c *gin.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, types.ErrRefreshTokenInvalid) {
+		unauthorized(c, "登录状态已过期，请重新登录")
+		return true
+	}
+
+	if errors.Is(err, types.ErrInvalidInviteCode) {
+		badRequest(c, "邀请码无效")
+		return true
+	}
+
+	msg := strings.ToLower(err.Error())
+
+	if strings.Contains(msg, "not authenticated") || strings.Contains(msg, "authentication required") || strings.Contains(msg, "invalid credentials") {
+		unauthorized(c, err.Error())
+		return true
+	}
+
+	if strings.Contains(msg, "forbidden") || strings.Contains(msg, "permission") || strings.Contains(msg, "only ") || strings.Contains(msg, "not the owner") {
+		apiError(c, http.StatusForbidden, types.ErrForbidden, err.Error())
+		return true
+	}
+
+	if strings.Contains(msg, "not found") {
+		notFound(c, err.Error())
+		return true
+	}
+
+	if strings.Contains(msg, "already") || strings.Contains(msg, "exists") || strings.Contains(msg, "duplicate") || strings.Contains(msg, "conflict") {
+		apiError(c, http.StatusConflict, types.ErrConflict, err.Error())
+		return true
+	}
+
+	if strings.Contains(msg, "invalid") || strings.Contains(msg, "required") || strings.Contains(msg, "must") || strings.Contains(msg, "disabled") || strings.Contains(msg, "参数") || strings.Contains(msg, "无效") || strings.Contains(msg, "无法") {
+		badRequest(c, err.Error())
+		return true
+	}
+
+	return false
 }
 
 func unauthorized(c *gin.Context, summary string) {

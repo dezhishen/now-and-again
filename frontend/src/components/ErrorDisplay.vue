@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import type { ApiRequestError } from '@/types'
-import { ERROR_HANDLERS, translateFieldError, getDisplayMode, getSeverity } from '@/composables/useErrorHandler'
+import { translateFieldError, getDisplayMode, getSeverity, formatApiError } from '@/composables/useErrorHandler'
 import type { DisplayMode, Severity } from '@/composables/useErrorHandler'
 import { useI18n } from '@/i18n'
 
@@ -28,7 +28,7 @@ let toastTimer: ReturnType<typeof setTimeout> | null = null
 const resolvedMode = computed<DisplayMode>(() => {
   if (props.mode) return props.mode
   if (!props.error) return 'inline'
-  return getDisplayMode(props.error.code)
+  return getDisplayMode(props.error)
 })
 
 const isDialog = computed(() => resolvedMode.value === 'dialog')
@@ -36,7 +36,7 @@ const isInline = computed(() => resolvedMode.value === 'inline')
 
 const severity = computed<Severity>(() => {
   if (!props.error) return 'warning'
-  return getSeverity(props.error.code)
+  return getSeverity(props.error)
 })
 
 // ── Severity → Tailwind classes ───────────────────────────────────
@@ -80,8 +80,7 @@ const textStrongClasses = computed(() => {
 /** i18n summary from ERROR_HANDLERS registry. */
 const i18nSummary = computed(() => {
   if (!props.error) return ''
-  const handler = ERROR_HANDLERS[props.error.code]
-  return handler ? handler(props.error, t) : (props.error.summary || props.error.message)
+  return formatApiError(props.error, t)
 })
 
 function toggle() {

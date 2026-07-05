@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"net/http"
 	"strings"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
@@ -53,7 +52,7 @@ func (h *FamilyHandlers) Get(c *gin.Context) {
 	f, err := h.C.Get(userCtx(c), familyID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": err.Error()})
+			notFound(c, "family not found")
 			return
 		}
 		serverError(c, err)

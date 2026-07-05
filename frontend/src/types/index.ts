@@ -71,26 +71,52 @@ export interface ApiKey {
 
 export type ErrorCode = 'BAD_REQUEST' | 'VALIDATION_ERROR' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'NOT_FOUND' | 'FAMILY_NOT_FOUND' | 'CONFLICT' | 'INTERNAL_ERROR'
 
+const KNOWN_ERROR_CODES: ErrorCode[] = [
+  'BAD_REQUEST',
+  'VALIDATION_ERROR',
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'NOT_FOUND',
+  'FAMILY_NOT_FOUND',
+  'CONFLICT',
+  'INTERNAL_ERROR',
+]
+
+export function isKnownErrorCode(code: unknown): code is ErrorCode {
+  return typeof code === 'string' && KNOWN_ERROR_CODES.includes(code as ErrorCode)
+}
+
+export function normalizeErrorCode(code: unknown, status?: number): ErrorCode {
+  if (isKnownErrorCode(code)) return code
+  if ((status || 0) >= 500) return 'INTERNAL_ERROR'
+  if ((status || 0) >= 400) return 'BAD_REQUEST'
+  return 'INTERNAL_ERROR'
+}
+
 export interface FieldError {
   field: string
   message: string
 }
 
 export interface ApiError {
-  code: ErrorCode
+  code: ErrorCode | string
   summary: string
   details?: FieldError[]
 }
 
 export class ApiRequestError extends Error {
   code: ErrorCode
+  status: number
+  rawCode?: string
   details: FieldError[]
   summary: string
-  constructor(err: ApiError) {
-    super(err.summary)
+  constructor(err: ApiError, status: number = 0) {
+    super(err.summary || (status >= 500 ? '服务器内部错误，请稍后重试' : '请求参数有误'))
     this.name = 'ApiRequestError'
-    this.code = err.code
-    this.summary = err.summary
+    this.status = status
+    this.rawCode = typeof err.code === 'string' ? err.code : undefined
+    this.code = normalizeErrorCode(err.code, status)
+    this.summary = err.summary || this.message
     this.details = err.details || []
   }
 }
@@ -112,7 +138,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, MessageBuilder> = {
 
 /** Build a plain-text message from an ApiError, using ERROR_MESSAGES registry. */
 export function formatError(err: ApiError): string {
-  const h = ERROR_MESSAGES[err.code]
+  const h = ERROR_MESSAGES[normalizeErrorCode(err.code)]
   return h ? h(err) : err.summary
 }
 
