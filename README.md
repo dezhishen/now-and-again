@@ -52,11 +52,18 @@ erDiagram
     Location ||--o{ Task : "关联"
     FloorPlan ||--o{ Location : "可选标记"
     Family ||--o{ IcsFeed : "日历订阅"
-    Task ||--o{ CheckItem : "巡检项"
-    CheckItem ||--o{ CheckItemBranch : "分支"
+    Task ||--o{ TaskKindExtra : "插件扩展数据"
+    TaskKindExtra ||--o{ TaskKindExtraNode : "插件子结构"
 ```
 
-> 共 23 张表，涵盖任务调度、巡检、地点管理、ICS 日历订阅、任务模板、API Key 权限体系。详见 [数据库文档](doc/database/schema.md)。
+> 共 23 张表，涵盖任务调度、巡检、地点管理、ICS 日历订阅、任务模板、API Key 权限体系。
+>
+> 说明：任务相关的插件子表（如 inspection/chain 的扩展表）在该图中已抽象为 `TaskKindExtra*`，避免主 README 绑定具体插件实现。具体结构请查看：
+> - [simple README](backend/pkg/taskkind/simple/README.md)
+> - [inspection README](backend/pkg/taskkind/inspection/README.md)
+> - [chain README](backend/pkg/taskkind/chain/README.md)
+>
+> 详见 [数据库文档](doc/database/schema.md)。
 
 ---
 
@@ -74,7 +81,7 @@ erDiagram
 | 📍 地点管理 | ✅ 完成 | 一级实体 + locationkind 插件系统(indoor)，可选关联户型图 |
 | 🏠 户型图 | ✅ 完成 | 多楼层上传/Canvas绘制/地点关联 |
 | 🔧 任务调度 | ✅ 完成 | Gocron 引擎，once/daily/weekly/monthly/interval |
-| 📋 任务系统 | ✅ 完成 | taskkind 插件系统(simple/inspection)，巡检异常自动生成跟进任务 |
+| 📋 任务系统 | ✅ 完成 | taskkind 插件系统(simple/inspection/chain)，支持复合任务编排与巡检异常跟进 |
 | ✅ 待办管理 | ✅ 完成 | 快速完成/备注完成/跳过，巡检分支选择 |
 | 📅 ICS 订阅 | ✅ 完成 | 标准 iCalendar，API Key/Basic Auth，可导入日历 App |
 | 🖥️ 日历大屏 | ✅ 完成 | embed 标签嵌入，支持自动刷新 |
@@ -95,6 +102,7 @@ erDiagram
 | 🔍 **巡检驱动** | 检查项→分支→异常自动创建跟进子任务（可指定地点/小组） |
 | 📋 **任务模板系统** | 插件式 Provider（内置 YAML + HTTP 远程订阅），Go template 渲染参数，系统/家庭双级别隔离 |
 | 🧩 **插件化架构** | 任务类型(taskkind) + 任务模板(tasktemplate) + 调度类型(scheduler) + 地点类型(locationkind) 四插件系统，新增类型零侵入 |
+| 🧱 **插件隔离规则** | 主流程只依赖 `taskkind` 公共语义（如 OwnerKind 分发），不依赖插件内部 kind 值与子表结构 |
 | 📍 **地点独立管理** | 地点为一级实体，不强制绑定户型图，支持室内/户外等多种类型 |
 | 👥 **家庭 + 小组分工** | 任务精确指派到小组/地点，巡检分支可独立配置 |
 | 📋 **完整操作日志** | 全程记录创建/完成/跳过/巡检/跟进 |
@@ -229,6 +237,12 @@ cd frontend; pnpm install; pnpm run dev
 | [数据库 Schema](doc/database/schema.md) | 23 张表结构、索引策略 |
 | [CLI 使用](doc/cli/README.md) | 命令行工具安装、配置、命令参考 |
 | [前端约束](doc/frontend-conventions.md) | 前端开发规范（按钮/输入框/页签/弹窗） |
+
+### taskkind 插件 README
+
+- [simple](backend/pkg/taskkind/simple/README.md)
+- [inspection](backend/pkg/taskkind/inspection/README.md)
+- [chain](backend/pkg/taskkind/chain/README.md)
 
 ---
 

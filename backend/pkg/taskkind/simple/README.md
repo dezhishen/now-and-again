@@ -15,7 +15,13 @@
 
 ## 实现
 
-`simple` 是任务类型插件的**最小实现**。所有生命周期方法（`SaveExtra`、`UpdateExtra`、`DeleteExtra`、`OnComplete`、`GetExtra`）均为空操作，不存储任何额外数据，也没有数据库表。
+`simple` 是任务类型插件的**最小实现**。所有生命周期方法（`SaveExtra`、`UpdateExtra`、`DeleteExtra`、`OnTodo`、`GetExtra`）均为空操作，不存储任何额外数据，也没有数据库表。
+
+## 隔离规则（必须遵守）
+
+- 主流程（`todo_service.go`、`task_service.go`）不得依赖具体插件 kind 值和插件私有表结构。
+- simple 插件不承担分发职责，`OnTodo` 必须保持 no-op，由主流程通过 `ResolveDispatchKind` 统一分发。
+- 如果 simple 在未来创建子任务，子任务编排归属应遵循 `OwnerKind` 语义，而不是在主流程追加插件特判。
 
 前端仅提供基础的任务卡片、完成/跳过/备注按钮，无任何类型特定的交互。
 

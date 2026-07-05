@@ -57,6 +57,12 @@ Root(chain) todo 完成
 
 非复合 handler（simple/inspection）的 `OnTodo` **不需要** 做任何委托——调度已在 `CompleteTodo` 中通过 `OwnerKind` 优先完成。
 
+## 隔离规则（必须遵守）
+
+- 主流程只依赖 `taskkind` 公共语义（`OwnerKind`、`ResolveDispatchKind`、`TaskStorage`），不得感知 chain 的 `chain_steps` 结构。
+- chain 作为复合 handler，内部可通过 `LookupHandler(kind)` 委托真实步骤逻辑，但这种委托不能上移到主流程。
+- 新增/修改链步骤字段时，应仅调整 chain 插件内部模型与序列化逻辑，不应要求主流程同步改字段判断。
+
 ### SaveExtra 透传
 
 步骤的 `extra` 字段支持 JSON 透传：chain 创建子任务时调用 `CreateNoRootTask(child, s.Extra)`，这会自动触发子任务 kind 的 `SaveExtra`，因此 inspection 步骤的 `check_items` 等数据能正确传递。

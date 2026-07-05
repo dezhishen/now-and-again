@@ -80,6 +80,11 @@ frontend/
 
 新增类型只需实现接口并注册（`init()` 自动注册），无需修改任何现有代码。
 
+taskkind 各类型实现细节请参考：
+- [simple](../../backend/pkg/taskkind/simple/README.md)
+- [inspection](../../backend/pkg/taskkind/inspection/README.md)
+- [chain](../../backend/pkg/taskkind/chain/README.md)
+
 ### 任务类型委托系统
 
 任务类型间通过 `OwnerKind` 字段实现复合委托：
@@ -87,12 +92,11 @@ frontend/
 ```
 TaskModel.OwnerKind  →  记录"当前由哪个 handler 持有编排语义"
   - 用户直建：DB 默认 "simple"
-  - inspection 子任务：parent.Kind（"inspection"）
-  - chain 子任务："chain"（SaveExtra 内部设置）
+  - OwnerKind 为空或默认值时：按 Task.Kind 分发
+  - OwnerKind 为非默认值时：优先分发到 OwnerKind 对应 handler
 
 CompleteTodo 调度优先级：
-  kind = todo.Task.OwnerKind   // 优先编排持有者 handler
-  if kind == "" { kind = todo.Task.Kind }  // fallback 真实类型
+  kind = ResolveDispatchKind(todo.Task.OwnerKind, todo.Task.Kind)
   taskManager.Get(kind).OnTodo()
 
 复合 handler（如 chain）内部委托：
@@ -122,12 +126,12 @@ Provider 接口
 - 主流程通过 `Provider` 接口调用，不做类型断言，Provider 完全可插拔
 
 ```
-taskkind.Handler（接口，Kind 必须为 "simple" 或 "inspection"）
+taskkind.Handler（接口，Kind 由插件扩展）
   ├─ Kind() string                     ← 返回类型标识
   ├─ SaveExtra(storage, task, extra)   ← 新建时持久化插件特有数据
   ├─ UpdateExtra(storage, task, extra) ← 更新时持久化（nil extra = 清空）
   ├─ DeleteExtra(storage, task)        ← 删除时清理插件数据
-  ├─ OnComplete(storage, todo, extra)  ← 待办完成时触发（extra 来自请求）
+  ├─ OnTodo(storage, todo, extra)      ← 待办状态变更时触发（extra 来自请求）
   └─ GetExtra(storage, task)           ← 读取插件数据供前端展示
 
 taskkind.TaskStorage（注入给 Handler 的方法集合）

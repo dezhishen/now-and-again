@@ -20,6 +20,12 @@
 | `check_item_branches` | 检查项的分支选项 |
 | `inspection_results` | 巡检完成时的审计记录 |
 
+## 隔离规则（必须遵守）
+
+- inspection 的表结构（`check_items`、`check_item_branches`、`inspection_results`）属于插件内部实现，不可在主流程中直接耦合。
+- 主流程仅通过 `ResolveDispatchKind(ownerKind, taskKind)` 决定分发目标，不写 inspection/chain 等具体 kind 条件分支。
+- inspection 创建的子任务应保持 `OwnerKind` 与子任务 kind 的语义一致，避免跨插件分发被错误劫持。
+
 ## 适用场景
 
 | 场景 | 示例 |
