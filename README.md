@@ -69,8 +69,6 @@ erDiagram
 
 ## 🚧 开发状态
 
-> 项目处于早期开发阶段，未发布正式版本。
-
 | 模块 | 状态 | 说明 |
 |------|------|------|
 | 🗄️ 数据模型 | ✅ 完成 | 23 张表，GORM AutoMigrate |
@@ -88,8 +86,10 @@ erDiagram
 | 📋 任务模板 | ✅ 完成 | 插件式 Provider（内置 YAML + HTTP 订阅），系统/家庭双级别 |
 | ⚠️ 错误处理 | ✅ 完成 | 统一 ErrorCode + 字段级 details + 前端可折叠 ErrorDisplay |
 | 🖥️ Web 前端 | ✅ 完成 | Vue 3 + i18n 中英文 + 暗色模式 + 自适应布局 |
-| 💻 CLI 工具 | ⚠️ 开发中 | 命令框架完成，部分 API 待对接 |
-| 🐳 Docker | ✅ 完成 | 多阶段构建，GitHub Actions 推送到 GHCR |
+| 💻 CLI 工具 | ✅ 完成 | Cobra 框架，交互式初始化，一键日常，短ID匹配，GitHub Releases 分发 |
+| 🧩 Go SDK | ✅ 完成 | 独立模块，高层封装（模板建任务/待办备注/短ID解析），CLI 与外部工具共用 |
+| 🤖 AI 助手集成 | ✅ 完成 | OpenClaw 接入，自然语言管理家庭事务 |
+| 🐳 Docker | ✅ 完成 | 多阶段构建 + UPX 压缩 (2.9MB)，推送到 GHCR |
 | 📱 移动端 | ❌ 未开始 | — |
 
 ---
@@ -106,10 +106,10 @@ erDiagram
 | 📍 **地点独立管理** | 地点为一级实体，不强制绑定户型图，支持室内/户外等多种类型 |
 | 👥 **家庭 + 小组分工** | 任务精确指派到小组/地点，巡检分支可独立配置 |
 | 📋 **完整操作日志** | 全程记录创建/完成/跳过/巡检/跟进 |
-| 🖥️ **三入口统一** | Web (Vue 3) · CLI (Cobra) · RESTful API — 共享数据契约 |
-| 📅 **ICS 日历订阅** | 标准 iCalendar 协议，支持 API Key/Basic Auth |
-| 🖥️ **大屏日历嵌入** | 生成 embed 标签嵌入任意网页，支持自动刷新 |
-| 🔑 **API Key 权限体系** | 细粒度 Scope 控制 (read/write/admin) |
+| 🖥️ **三入口统一** | Web (Vue 3) · CLI (Cobra) · Go SDK · RESTful API — 共享数据契约 |
+| 🤖 **AI 助手集成** | OpenClaw 等 AI 框架接入，自然语言管理家庭事务，零命令零代码 |
+| 🔐 **API Key 权限** | 细粒度 Scope (read/write/admin)，CLI 自动创建和管理 |
+| 📦 **轻量 CLI** | 单二进制 2.9MB（UPX 压缩），GitHub Releases 分发，交互式初始化 |
 | 🌙 **暗色模式 + i18n** | 中英文切换 + 暗色/亮色主题 |
 
 ---
@@ -166,12 +166,11 @@ now-and-again/
 │   └── internal/output/        #   格式化输出 (table / json)
 │
 ├── doc/                        # 文档
+│   ├── tutorial/               #   图文教程（模板/任务链/巡检/家庭/日历/OpenClaw）
 │   ├── deployment/docker.md
 │   ├── architecture/overview.md
 │   ├── api/endpoints.md
-│   ├── database/schema.md
-│   ├── cli/README.md            #   CLI 使用文档
-│   └── frontend-conventions.md  #   前端开发约定
+│   └── database/schema.md
 │
 ├── .github/agents/             # Copilot 自定义 Agent
 ├── data/                       # 运行时数据 (SQLite + 上传文件)
@@ -233,19 +232,13 @@ cd frontend; pnpm install; pnpm run dev
 
 | 文档 | 说明 |
 |------|------|
+| [🤖 OpenClaw / AI 助手接入](doc/tutorial/openclaw-quickstart.md) | 复制粘贴即用，自然语言管理家庭事务 |
+| [📋 教程索引](doc/tutorial/README.md) | 全部图文教程：模板建任务 | 任务链 | 巡检 | 家庭 | 日历 |
 | [Docker 部署](doc/deployment/docker.md) | Docker 一键部署、数据持久化 |
 | [架构设计](doc/architecture/overview.md) | 系统架构、插件系统、分层设计 |
 | [API 文档](doc/api/endpoints.md) | 完整 RESTful API 路由表（69 个端点） |
 | [数据库 Schema](doc/database/schema.md) | 23 张表结构、索引策略 |
-| [CLI 使用](doc/cli/README.md) | 命令行工具安装、配置、命令参考 |
-| [📋 教程索引](doc/tutorial/README.md) | 图文入门：模板建任务 | 任务链 | OpenClaw/AI | 巡检 | 家庭管理 | 日历大屏 |
-| [教程：OpenClaw / AI 助手接入指南](doc/tutorial/openclaw-quickstart.md) | 安装、初始化、接入 AI、全场景对话、日常待办管理 |
-| [教程：从模板创建任务并完成待办](doc/tutorial/template-quickstart.md) | 基于模板快速建任务，含任务链多步骤推进 |
-| [教程：家庭管理入门](doc/tutorial/family-quickstart.md) | 创建家庭、邀请成员、角色权限管理 |
-| [教程：巡检任务使用指南](doc/tutorial/inspection-quickstart.md) | 检查项与分支判定、异常跟进、完成巡检 |
-| [教程：日历大屏与 ICS 订阅](doc/tutorial/calendar-quickstart.md) | 日历视图、大屏嵌入、ICS 订阅源配置 |
-| [教程：地点管理](doc/tutorial/location-quickstart.md) | 新建地点、配置颜色与类型、关联户型图 |
-| [教程：小组管理](doc/tutorial/group-quickstart.md) | 创建小组、管理成员、任务指派分工 |
+| [CLI 使用](cli/README.md) | 命令行工具安装、命令参考 |
 | [前端约束](doc/frontend-conventions.md) | 前端开发规范（按钮/输入框/页签/弹窗） |
 
 ### taskkind 插件 README
