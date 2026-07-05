@@ -124,6 +124,12 @@ test-e2e-install: ## 安装 Playwright 浏览器
 	@cd test && npm install
 	@cd test && npx playwright install chromium
 
+screenshots: ## 生成教程截图（需先 make dev）
+	@echo "→ 生成教程截图..."
+	@cd test && npm install --silent 2>/dev/null || true
+	@cd test && npm run screenshots
+	@echo "→ 截图已输出到 doc/tutorial/images/"
+
 docker-e2e-image: ## 构建通用 E2E 工具镜像（无项目代码）
 	docker build -t $(E2E_IMAGE) -f Dockerfile.e2e .
 

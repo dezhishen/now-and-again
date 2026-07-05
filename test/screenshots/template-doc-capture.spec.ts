@@ -4,7 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const SHOT_DIR = path.resolve(__dirname, '../../../doc/tutorial/images/template-quickstart')
+const SHOT_DIR = path.resolve(__dirname, '../../doc/tutorial/images/template-quickstart')
 
 function shotPath(name: string): string {
   return path.join(SHOT_DIR, name)
