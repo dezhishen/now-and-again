@@ -195,7 +195,7 @@ jobs:
             type=semver,pattern={{major}}
             type=sha,format=short
           flavor: |
-            latest=${{ startsWith(github.ref, 'refs/tags/v') }}
+            latest=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') }}
 
       - name: Extract metadata (cli)
         id: meta-cli
@@ -208,7 +208,7 @@ jobs:
             type=semver,pattern={{major}}
             type=sha,format=short
           flavor: |
-            latest=${{ startsWith(github.ref, 'refs/tags/v') }}
+            latest=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') }}
 
       - name: Build and push server
         uses: docker/build-push-action@v6
