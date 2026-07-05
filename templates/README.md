@@ -20,7 +20,7 @@ templates:
   - code: template_code            # 唯一标识，建议英文小写+下划线，如 weekly_cleaning
     name: "模板名称"                # 显示名称
     description: "模板描述"          # 可选
-    kind: simple | inspection      # 任务类型
+    kind: simple | inspection | chain # 任务类型
     icon: "🧹"                     # 可选，emoji 图标
     sort_order: 1                  # 排序，数字越小越靠前
     enabled: true                  # 是否启用
@@ -119,7 +119,42 @@ task_defaults:
 
 > 如果在 YAML 中显式定义了同名参数，则使用自定义的 label/required/default，不会重复添加。
 
-## extra_schema（inspection 专属）
+## extra_schema（类型专属）
+
+### chain 专属
+
+任务链类型使用 `steps` 定义步骤列表，每个步骤可指定不同任务类型：
+
+```yaml
+extra_schema:
+  steps:
+    - name: "准备物料"
+      kind: simple
+    - name: "过程巡检"
+      kind: inspection
+      extra:
+        check_items:
+          - name: "状态确认"
+            branches:
+              - name: "正常"
+              - name: "异常"
+                create_todo: true
+```
+
+也支持 `|` 动态渲染步骤：
+
+```yaml
+extra_schema: |
+  steps:
+  {{range $item := .care_items}}
+    - name: "{{$.pet_name}} - {{$item}}"
+      kind: simple
+  {{end}}
+```
+
+> chain 的 `steps` 会作为 `extra_schema.steps` 传入任务链创建逻辑。
+
+### inspection 专属
 
 巡检类型需配置检查项和分支。支持两种写法：
 

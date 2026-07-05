@@ -7,7 +7,7 @@ templates:
   - code: dog_care
     name: "狗狗日常护理"
     description: "狗狗喂食、遛狗、换水"
-    kind: simple
+    kind: chain
     icon: "🐕"
     sort_order: 1
     enabled: true
@@ -26,11 +26,17 @@ templates:
         required: true
         placeholder: "喂食\n遛狗\n换水"
     task_defaults:
-      name: "{{.dog_name}} - {{range $i, $c := .care_items}}{{if $i}}-{{end}}{{$c}}{{end}}"
+      name: "{{.dog_name}} - 日常护理任务链"
       schedule_type: daily
       schedule_data:
         time: "07:00"
       enabled: true
+    extra_schema: |
+      steps:
+      {{range $item := .care_items}}
+        - name: "{{$.dog_name}} - {{$item}}"
+          kind: simple
+      {{end}}
 
   - code: dog_walk
     name: "遛狗"
