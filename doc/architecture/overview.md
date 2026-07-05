@@ -202,6 +202,36 @@ taskkind.TaskStorage（注入给 Handler 的方法集合）
 - **数据流**: Provider.Sync() → 解析 YAML → Upsert 到 `task_templates` 表 → 前端通过 API 查询
 - **模板渲染**: Go `text/template` 填充参数，生成 `task_defaults` + `extra_schema` 用于预填任务表单
 
+### 时区与时间处理
+
+**核心原则：后端内部全部使用 UTC，客户端在 API 边界做转换。**
+
+#### 后端
+
+- `pkg/timeutil` — 禁止直接使用 `time.Now()`，必须使用 `timeutil.Now()`（返回 UTC）。
+- 所有 `time.Time` 字段在数据库和 API 响应中均为 UTC。
+- `DEFAULT_TIMEZONE` 环境变量为调度器提供备选时区（如模板中的 "09:00" 在此表示该时区的上午 9 点），默认 `Asia/Shanghai`。
+
+#### Web 前端
+
+- `composables/timezone.ts` 提供完整的 UTC↔local 转换：
+  - `localTimeToUTC(localTime)` / `utcTimeToLocal(utcTime)` — "HH:MM" 时间互转
+  - `localDateTimeToUTC(date, time)` / `utcDateTimeToLocal(date, time)` — 日期+时间互转
+  - `requestToUTC(obj)` / `responseToLocal(obj)` — schedule_data 深层次递归转换
+- Axios 拦截器在请求/响应时自动调用转换函数，对业务代码透明。
+
+#### CLI + SDK
+
+- `sdk/timezone.go` — Go 版本的时区转换，与前端逻辑完全对齐：
+  - `localTimeToUTC` / `utcTimeToLocal` / `localDateTimeToUTC` / `utcDateTimeToLocal`
+  - `scheduleDataToUTC` / `scheduleDataToLocal` — schedule_data map 的递归转换
+- SDK 的 `NA` 结构体持有 `timezone *time.Location` 字段，默认 `time.Local`（操作系统时区）。
+- `CreateTask` / `UpdateTask` 自动将 schedule_data 中的时间从 local→UTC 再发送。
+- `FormatTime(t, layout)` 将 UTC 时间转为本地时区后格式化显示。
+- 模板创建任务（`CreateTaskFromTemplate`）跳过转换，因为模板渲染结果已是 UTC。
+
+> **用户视角**：在 Web UI 或 CLI 中输入时间时，始终使用本地时间，转换完全透明。
+
 ### 错误处理体系
 
 - 前端统一使用 `useErrorHandler()` + `<ErrorDisplay>` 组件

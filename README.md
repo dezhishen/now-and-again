@@ -222,9 +222,23 @@ cd frontend; pnpm install; pnpm run dev
 | `NA_ADMIN_DEFAULT_PASSWORD` | (随机生成) | 首次运行时默认管理员密码 |
 | `NA_DB_DRIVER` | `sqlite` | 数据库驱动（仅 SQLite） |
 | `NA_DATA_DIR` | `./data` | 数据根目录 |
-| `NA_DEFAULT_TIMEZONE` | `Asia/Shanghai` | 默认时区 |
+| `DEFAULT_TIMEZONE` | `Asia/Shanghai` | 默认时区（IANA 格式，如 `America/New_York`） |
 | `NA_FAMILY_DEFAULTS_INIT` | `true` | 新建家庭是否自动初始化地点/小组 |
 | `GIN_MODE` | `debug` | Gin 运行模式 |
+
+### ⏱️ 时区说明
+
+**内部存储统一使用 UTC**。所有时间戳（`created_at`、`due_date`、`completed_at` 等）在数据库中以 UTC 存储和计算。
+
+各客户端在 API 边界做 **UTC ↔ 本地时区** 的自动转换：
+
+| 客户端 | 转换机制 | 位置 |
+|--------|---------|------|
+| **Web 前端** | `composables/timezone.ts` — 请求前 local→UTC，响应后 UTC→local | `frontend/src/composables/timezone.ts` |
+| **CLI** | 通过 SDK 的 `timezone.go` — 创建任务时 schedule_data 自动 local→UTC，展示时 `FormatTime()` 自动 UTC→local | `sdk/timezone.go` |
+| **SDK** | `timezone.go` 提供完整的 HH:MM 和日期+时间转换函数，默认使用操作系统时区 | `sdk/timezone.go` |
+
+> 用户在客户端输入的时间都是**本地时间**，转换对用户完全透明。服务端不感知客户端时区。
 
 ---
 

@@ -88,4 +88,10 @@ na template use --code weekly_cleaning --params '{"area_name":"客厅"}'
 | `--token <key>` | API Key（覆盖配置文件） |
 | `--output table\|json\|yaml` | 输出格式（默认 table） |
 
+## 时区说明
+
+所有时间在 CLI 中输入时使用**本地时间**，SDK 自动转换为 UTC 再发送给服务端。
+显示时（如 `todo list` 的截止时间）自动从 UTC 转回本地时区。
+无需手动处理时区转换。当前时区从操作系统自动检测。
+
 > 所有配置存储在 `~/.na.yaml`，不需要设置环境变量。
