@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { db } from '../../utils/db';
+import * as api from '../../utils/api';
 
 function uniqueName(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -133,6 +134,48 @@ async function triggerTask(page: Page, taskName: string) {
   const card = page.locator(`[data-testid="task-card"][data-task-name="${taskName}"]`).first();
   await expect(card).toBeVisible();
   await card.locator('[data-testid="task-trigger-btn"]').click();
+}
+
+async function ensureTemplateForUI(): Promise<{ templateName: string; taskName: string }> {
+  const loginRes = await api.login('admin', '12345678');
+  expect(loginRes.status).toBe(200);
+  const listRes = await api.listMyFamilies();
+  const families = Array.isArray((listRes.data as any)?.data)
+    ? (listRes.data as any).data
+    : (Array.isArray(listRes.data) ? listRes.data : []);
+  expect(families.length).toBeGreaterThan(0);
+  const familyId = families[0].id;
+
+  const code = uniqueName('ui_chain_tpl').toLowerCase().replace(/[^a-z0-9_\-]/g, '_');
+  const templateName = uniqueName('UI-模板任务链');
+  const taskName = uniqueName('UI-Template-Chain-Task');
+
+  const created = await api.createFamilyTemplate(familyId, {
+    template_code: code,
+    name: templateName,
+    description: 'browser 模板创建链路校验',
+    kind: 'chain',
+    icon: '🧩',
+    sort_order: 1,
+    enabled: true,
+    parameters: [],
+    task_defaults: {
+      name: taskName,
+      kind: 'chain',
+      schedule_type: 'daily',
+      schedule_data: { time: '09:00' },
+      enabled: true,
+    },
+    extra_schema: {
+      steps: [
+        { name: 'UI-模板步骤-1', kind: 'simple' },
+        { name: 'UI-模板步骤-2', kind: 'simple' },
+      ],
+    },
+  });
+  expect([200, 201]).toContain(created.status);
+
+  return { templateName, taskName };
 }
 
 test.describe('任务创建与渲染（纯浏览器）', () => {
@@ -332,5 +375,37 @@ test.describe('任务创建与渲染（纯浏览器）', () => {
     const itemInput = page.locator('[data-testid="check-item-name-input"]').first();
     await expect(itemInput).toBeVisible();
     await expect(itemInput).toHaveValue('检查项-A');
+  });
+
+  test('template: 从模板创建 chain 任务并落库步骤', async ({ page }) => {
+    const { templateName, taskName } = await ensureTemplateForUI();
+
+    await page.locator('[data-testid="task-template-btn"]').click();
+    await expect(page.getByText('选择模板')).toBeVisible();
+
+    await page.getByText(templateName, { exact: true }).first().click();
+    await expect(page.getByText('填写参数')).toBeVisible();
+
+    await page.getByRole('button', { name: '预览' }).click();
+    await expect(page.getByText('确认创建')).toBeVisible();
+
+    await page.getByRole('button', { name: '填充到任务表单' }).click();
+    await expect(page.locator('[data-testid="task-name"]')).toHaveValue(taskName);
+    await expect(page.locator('[data-testid="task-kind"]')).toHaveValue('chain');
+
+    await page.locator('[data-testid="task-submit"]').click();
+
+    const card = page.locator(`[data-testid="task-card"][data-task-name="${taskName}"]`).first();
+    await expect(card).toBeVisible();
+
+    const root = db.findTask(taskName);
+    expect(root).toBeTruthy();
+    expect(root?.kind).toBe('chain');
+    expect(root?.owner_kind).toBe('chain');
+
+    const steps = db.getChainSteps(root!.id);
+    expect(steps.length).toBe(2);
+    expect(steps[0].name).toBe('UI-模板步骤-1');
+    expect(steps[1].name).toBe('UI-模板步骤-2');
   });
 });

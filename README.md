@@ -236,6 +236,7 @@ cd frontend; pnpm install; pnpm run dev
 | [API 文档](doc/api/endpoints.md) | 完整 RESTful API 路由表（69 个端点） |
 | [数据库 Schema](doc/database/schema.md) | 23 张表结构、索引策略 |
 | [CLI 使用](doc/cli/README.md) | 命令行工具安装、配置、命令参考 |
+| [模板快速上手（图文）](doc/template-quickstart.md) | 家庭内从模板创建任务并完成待办的图文步骤 |
 | [前端约束](doc/frontend-conventions.md) | 前端开发规范（按钮/输入框/页签/弹窗） |
 
 ### taskkind 插件 README

@@ -426,4 +426,74 @@ test.describe('任务与待办（无头数据覆盖）', () => {
     const s2Pending = await waitFor(() => db.getTodos(s2.id).find((t: any) => t.status === 'pending'));
     expect(s2Pending).toBeTruthy();
   });
+
+  test('template(chain): 渲染模板后创建任务，应生成链步骤并可触发', async () => {
+    const tplCode = uniqueName('hl_chain_tpl').toLowerCase().replace(/[^a-z0-9_\-]/g, '_');
+    const taskName = uniqueName('HL-Template-Chain-Task');
+
+    const createTpl = await api.createFamilyTemplate(familyId, {
+      template_code: tplCode,
+      name: uniqueName('HL-模板任务链'),
+      description: 'headless 模板链路校验',
+      kind: 'chain',
+      icon: '🧪',
+      sort_order: 1,
+      enabled: true,
+      parameters: [],
+      task_defaults: {
+        name: taskName,
+        kind: 'chain',
+        schedule_type: 'daily',
+        schedule_data: { time: '09:00' },
+        enabled: true,
+      },
+      extra_schema: {
+        steps: [
+          { name: '模板步骤-1', kind: 'simple' },
+          { name: '模板步骤-2', kind: 'simple' },
+        ],
+      },
+    });
+    expect([200, 201]).toContain(createTpl.status);
+
+    const render = await api.renderTaskTemplate(familyId, tplCode, {});
+    expect([200, 201]).toContain(render.status);
+    const rendered = (render.data as any)?.data || render.data;
+    expect(rendered?.task_defaults?.name).toBe(taskName);
+    expect(Array.isArray(rendered?.extra_schema?.steps)).toBeTruthy();
+    expect(rendered.extra_schema.steps.length).toBe(2);
+
+    const createTaskRes = await api.createTask(familyId, {
+      name: rendered.task_defaults.name,
+      kind: rendered.task_defaults.kind || 'chain',
+      scheduleType: rendered.task_defaults.schedule_type || 'daily',
+      scheduleData: rendered.task_defaults.schedule_data || { time: '09:00' },
+      groupId: rendered.task_defaults.group_id || '',
+      locationId: rendered.task_defaults.location_id || '',
+      extra: rendered.extra_schema,
+    });
+    expect([200, 201]).toContain(createTaskRes.status);
+
+    const root = await waitFor(() => db.findTask(taskName));
+    expect(root.kind).toBe('chain');
+    expect(root.owner_kind).toBe('chain');
+
+    const steps = await waitFor(() => {
+      const arr = db.getChainSteps(root.id);
+      return arr.length === 2 ? arr : null;
+    });
+    expect(steps[0].name).toBe('模板步骤-1');
+    expect(steps[1].name).toBe('模板步骤-2');
+
+    const s1 = db.findTaskById(steps[0].child_task_id);
+    const s2 = db.findTaskById(steps[1].child_task_id);
+    expect(s1?.owner_kind).toBe('chain');
+    expect(s2?.owner_kind).toBe('chain');
+
+    const trigger = await api.triggerTask(familyId, root.id);
+    expect([200, 201]).toContain(trigger.status);
+
+    const rootPending = await waitFor(() => db.getTodos(root.id).find((t: any) => t.status === 'pending'));
+    expect(rootPending).toBeTruthy();
+  });
 });

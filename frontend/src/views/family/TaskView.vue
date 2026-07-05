@@ -152,9 +152,10 @@ function applyTemplate(tmpl: TaskTemplate, taskDefaults: any, extraSchema: any) 
   }
   if (sd.day !== undefined) taskYearDay.value = sd.day
 
-  // Populate check items from template extra_schema
-  if (extraSchema?.check_items) {
-    checkItems.value = JSON.parse(JSON.stringify(extraSchema.check_items))
+  // Populate kind-specific extra fields from template extra_schema.
+  const parsedExtra = parseExtra(tmpl.kind, extraSchema)
+  if (parsedExtra && parsedExtra.length > 0) {
+    checkItems.value = JSON.parse(JSON.stringify(parsedExtra))
   } else {
     checkItems.value = getDefaultCheckItems(tmpl.kind) ? [...getDefaultCheckItems(tmpl.kind)!] : []
   }

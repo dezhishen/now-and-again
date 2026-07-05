@@ -144,3 +144,31 @@ export async function completeTodoRaw(familyId: string, todoId: string, body: an
   setFamilyId(familyId);
   return request('PUT', `/todos/${todoId}`, body);
 }
+
+// ─── Task templates (family-scoped) ──────────────────────────────
+export async function listTaskTemplates(familyId: string, kind?: string) {
+  setFamilyId(familyId);
+  const suffix = kind ? `?kind=${encodeURIComponent(kind)}` : '';
+  return request('GET', `/task-templates${suffix}`);
+}
+
+export async function renderTaskTemplate(familyId: string, code: string, params: Record<string, any>) {
+  setFamilyId(familyId);
+  return request('POST', `/task-templates/${encodeURIComponent(code)}/render`, params);
+}
+
+export async function createFamilyTemplate(familyId: string, payload: {
+  template_code: string;
+  name: string;
+  description?: string;
+  kind: string;
+  icon?: string;
+  sort_order?: number;
+  enabled: boolean;
+  parameters?: any[];
+  task_defaults?: any;
+  extra_schema?: any;
+}) {
+  setFamilyId(familyId);
+  return request('POST', '/task-templates', payload);
+}
