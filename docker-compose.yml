@@ -1,12 +1,12 @@
 services:
   server:
-    image: dezhishen/now-and-again
+    image: ghcr.io/dezhishen/now-and-again:latest
     ports:
       - "8080:8080"
     environment:
       - NA_DATA_DIR=/data
       - GIN_MODE=release
-      # NA_JWT_SECRET=    # 可选，不设置则自动生成并持久化到 /data/.jwt_secret
+      - NA_ADMIN_DEFAULT_PASSWORD=12345678
     volumes:
       - data:/data
     restart: unless-stopped
