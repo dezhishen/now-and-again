@@ -132,6 +132,18 @@ func (s *_taskStorage) CreateTodo(taskID string, displaySummary string) (*reposi
 	if err := s.repo.CreateTodo(todo); err != nil {
 		return nil, err
 	}
+
+	// Framework-level: For chain tasks, automatically initialize first step progression.
+	// This ensures that chain todo created by any parent handler (e.g. inspection branch task)
+	// will have its first step generated without requiring explicit handler coupling.
+	if task.Kind == "chain" && task.IsRoot {
+		// Populate full task with preloads for chain handler to query chain_steps
+		todo.Task = *task
+		if h := s.taskManager.Get("chain"); h != nil {
+			_ = h.OnTodo(s, todo, nil)
+		}
+	}
+
 	return todo, nil
 }
 

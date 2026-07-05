@@ -180,4 +180,33 @@ test.describe('任务创建与渲染（纯浏览器）', () => {
     expect(todos.length).toBeGreaterThan(0);
     expect(todos.some((t: any) => t.status === 'pending')).toBeTruthy();
   });
+
+  test('chain: 编辑 step(inspection) 时应渲染已保存检查项', async ({ page }) => {
+    const taskName = uniqueName('E2E-Chain-Inspect-Edit');
+
+    await page.locator('[data-testid="task-create-btn"]').click();
+    await page.locator('[data-testid="task-kind"]').selectOption('chain');
+    await page.locator('[data-testid="task-name"]').fill(taskName);
+
+    await page.locator('[data-testid="chain-add-step"]').click();
+    await page.locator('[data-testid="subtask-name-input"]').first().fill('chain-step-1');
+    await page.locator('[data-testid="subtask-config-btn"]').first().click();
+
+    await page.locator('[data-testid="subtask-kind-select"]').first().selectOption('inspection');
+    await expect(page.locator('[data-testid="check-item-add"]')).toBeVisible();
+    await page.locator('[data-testid="check-item-add"]').click();
+    await page.locator('[data-testid="check-item-name-input"]').first().fill('检查项-A');
+    await page.locator('[data-testid="subtask-confirm"]').click();
+
+    await page.locator('[data-testid="task-submit"]').click();
+    const card = page.locator(`[data-testid="task-card"][data-task-name="${taskName}"]`).first();
+    await expect(card).toBeVisible();
+
+    await card.locator('[data-testid="task-edit-btn"]').click();
+    await page.locator('[data-testid="subtask-config-btn"]').first().click();
+
+    const itemInput = page.locator('[data-testid="check-item-name-input"]').first();
+    await expect(itemInput).toBeVisible();
+    await expect(itemInput).toHaveValue('检查项-A');
+  });
 });

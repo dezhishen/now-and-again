@@ -48,7 +48,7 @@ export function subTaskOneLiner(task: SubTaskModel): string {
 </script>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from '@/i18n'
 import type { I18nKey } from '@/i18n'
 import type { FamilyGroup } from '@/types'
@@ -77,6 +77,7 @@ const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
 
 const allKinds = computed(() => getTaskKinds())
 const showModal = ref(props.startExpanded ?? false)
+const openingModal = ref(false)
 
 // ── Working draft (snapshot taken on modal open, written back on confirm) ──
 
@@ -85,8 +86,9 @@ const draft = reactive<SubTaskData>({
 })
 const draftExtra = ref<any[]>([])
 
-// Take snapshot from model into draft
-function openModal() {
+async function openModal() {
+  openingModal.value = true
+
   // Deep-clone model value into draft
   const snap = cloneDeep(model.value)
   draft.task = snap.task
@@ -102,10 +104,16 @@ function openModal() {
     draftExtra.value = getDefaultCheckItems(kind) ? cloneDeep(getDefaultCheckItems(kind))! : []
   }
   showModal.value = true
+
+  // Prevent kind watcher from resetting parsed extra during open tick.
+  await nextTick()
+  openingModal.value = false
 }
 
-// Reset draft extra when kind changes inside modal
-watch(() => draft.task.kind, (kind) => {
+// Reset draft extra only when user changes kind inside modal.
+watch(() => draft.task.kind, (kind, prevKind) => {
+  if (!showModal.value || openingModal.value) return
+  if (kind === prevKind) return
   draftExtra.value = getDefaultCheckItems(kind) ? cloneDeep(getDefaultCheckItems(kind))! : []
 })
 
@@ -166,6 +174,7 @@ defineExpose({ scheduleSummary, subTaskOneLiner })
       />
       <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex-shrink-0">{{ kindLabel }}</span>
       <button
+        data-testid="subtask-config-btn"
         class="text-xs text-blue-500 hover:text-blue-600 flex-shrink-0 whitespace-nowrap"
         @click="openModal"
       >
@@ -190,7 +199,7 @@ defineExpose({ scheduleSummary, subTaskOneLiner })
             <!-- Kind selector -->
             <div class="flex items-center gap-2">
               <label class="text-xs text-gray-400 w-12 flex-shrink-0">类型</label>
-              <select v-model="draft.task.kind" class="input text-xs flex-1">
+              <select v-model="draft.task.kind" data-testid="subtask-kind-select" class="input text-xs flex-1">
                 <option v-for="k in allKinds" :key="k.kind" :value="k.kind">{{ t(k.labelKey) }}</option>
               </select>
             </div>

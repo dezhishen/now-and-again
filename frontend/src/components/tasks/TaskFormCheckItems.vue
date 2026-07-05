@@ -49,12 +49,12 @@ function addItem() {
   <div class="space-y-3 border-l-2 border-purple-400 pl-3">
     <div class="flex items-center justify-between">
       <p class="text-xs text-purple-600 dark:text-purple-400 font-medium">🔍 {{ t('taskForm.checkItems') }}</p>
-      <button class="text-xs text-primary hover:underline" @click="addItem">+ {{ t('taskForm.addItem') }}</button>
+      <button data-testid="check-item-add" class="text-xs text-primary hover:underline" @click="addItem">+ {{ t('taskForm.addItem') }}</button>
     </div>
     <div class="max-h-80 overflow-y-auto space-y-2">
     <div v-for="(item, i) in checkItems" :key="i" class="space-y-1 pb-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
       <div class="flex gap-2 items-center">
-        <input v-model="item.name" class="input flex-1 text-sm" :placeholder="t('taskForm.itemName')" />
+        <input v-model="item.name" data-testid="check-item-name-input" class="input flex-1 text-sm" :placeholder="t('taskForm.itemName')" />
         <button class="text-xs text-danger hover:underline flex-shrink-0" @click="checkItems.splice(i, 1)">{{ t('taskForm.delete') }}</button>
       </div>
       <!-- Branches within this item -->
