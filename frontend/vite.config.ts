@@ -1,9 +1,28 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
-export default defineConfig({
-  plugins: [vue()],
+function stripTestAttrsPlugin(): Plugin {
+  return {
+    name: 'strip-test-attrs',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!id.endsWith('.vue')) return null
+
+      const stripped = code
+        .replace(/\s(?:data-testid|data-test|data-cy)=(['"]).*?\1/g, '')
+        .replace(/\s(?::|v-bind:)(?:data-testid|data-test|data-cy)=(['"]).*?\1/g, '')
+
+      return stripped === code ? null : stripped
+    },
+  }
+}
+
+export default defineConfig(({ command }) => ({
+  plugins: [
+    ...(command === 'build' ? [stripTestAttrsPlugin()] : []),
+    vue(),
+  ],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
@@ -23,4 +42,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

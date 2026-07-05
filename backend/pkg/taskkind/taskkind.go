@@ -5,6 +5,30 @@ import (
 	"gorm.io/gorm"
 )
 
+const DefaultKind = "simple"
+
+// NormalizeKind converts empty kind to the framework default.
+func NormalizeKind(kind string) string {
+	if kind == "" {
+		return DefaultKind
+	}
+	return kind
+}
+
+// IsDefaultKind reports whether a kind is empty or equal to the framework default.
+func IsDefaultKind(kind string) bool {
+	return kind == "" || kind == DefaultKind
+}
+
+// ResolveDispatchKind returns the orchestration owner kind when available,
+// otherwise falls back to the concrete task kind.
+func ResolveDispatchKind(ownerKind, taskKind string) string {
+	if IsDefaultKind(ownerKind) {
+		return taskKind
+	}
+	return ownerKind
+}
+
 // ─── Operations ──────────────────────────────────────────────────
 // Read and display-summary methods may operate on any task.
 // Write methods go through the full lifecycle (triggering kind handlers).

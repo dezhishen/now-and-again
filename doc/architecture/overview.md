@@ -82,16 +82,16 @@ frontend/
 
 ### 任务类型委托系统
 
-任务类型间通过 `CreatedByKind` 字段实现复合委托：
+任务类型间通过 `OwnerKind` 字段实现复合委托：
 
 ```
-TaskModel.CreatedByKind  →  记录"哪个 handler 创建了这个任务"
+TaskModel.OwnerKind  →  记录"当前由哪个 handler 持有编排语义"
   - 用户直建：DB 默认 "simple"
   - inspection 子任务：parent.Kind（"inspection"）
   - chain 子任务："chain"（SaveExtra 内部设置）
 
 CompleteTodo 调度优先级：
-  kind = todo.Task.CreatedByKind   // 优先创建者 handler
+  kind = todo.Task.OwnerKind   // 优先编排持有者 handler
   if kind == "" { kind = todo.Task.Kind }  // fallback 真实类型
   taskManager.Get(kind).OnTodo()
 
@@ -100,7 +100,7 @@ CompleteTodo 调度优先级：
               → CreateTodo(nextStep)                        // 链推进
 ```
 
-**约束**：主流程（`todo_service.go`、`task_service.go`）永远不引用插件内部类型名和 kind 值，只通过 `TaskStorage` 接口和 `CreatedByKind` 字段名交互。
+**约束**：主流程（`todo_service.go`、`task_service.go`）永远不引用插件内部类型名和 kind 值，只通过 `TaskStorage` 接口和 `OwnerKind` 字段名交互。
 
 ### 任务模板插件生命周期
 

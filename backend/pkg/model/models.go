@@ -219,7 +219,7 @@ type TaskModel struct {
 	ScheduleData   string           `gorm:"type:text;not null"` // JSON config
 	Enabled        bool             `gorm:"not null;default:true;index:idx_enabled_archived,priority:1"`
 	Kind           string           `gorm:"size:16;not null;default:simple"` // simple | inspection (future: chain)
-	CreatedByKind  string           `gorm:"size:16;not null;default:simple"` // which handler kind created this task
+	OwnerKind      string           `gorm:"size:16;not null;default:simple"` // which handler kind currently owns task orchestration
 	DisplaySummary sql.NullString   `gorm:"size:256"`                        // plugin-populated display text for list view
 	Archived       bool             `gorm:"not null;default:false;index:idx_enabled_archived,priority:2"`
 	LastTodoAt     *time.Time

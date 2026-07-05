@@ -10,6 +10,7 @@ import (
 
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/backend/pkg/scheduler"
+	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 )
 
@@ -110,12 +111,8 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 		}
 		s.repo.CreateUserLog(todo.TaskID, todoID.String(), userID, status, msg)
 
-		// Dispatch: prefer CreatedByKind (composite handler like chain gets first chance).
-		// "simple" is the DB default, not an actual creator — fall back to real Kind.
-		kind := todo.Task.CreatedByKind
-		if kind == "" || kind == "simple" {
-			kind = todo.Task.Kind
-		}
+		// Dispatch through framework resolver to avoid leaking concrete kind values.
+		kind := taskkind.ResolveDispatchKind(todo.Task.OwnerKind, todo.Task.Kind)
 		if h := s.taskManager.Get(kind); h != nil {
 			h.OnTodo(s.taskStorage, todo, req.Extra)
 		}

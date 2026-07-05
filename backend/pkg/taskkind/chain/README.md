@@ -7,12 +7,12 @@
 ## 数据模型
 
 ```
-任务链 (Task, kind=chain, CreatedByKind=chain)
-  ├── 步骤1 (Task, kind=simple,  CreatedByKind=chain)
+任务链 (Task, kind=chain, OwnerKind=chain)
+  ├── 步骤1 (Task, kind=simple,  OwnerKind=chain)
   │     └── 子级可能由步骤 handler 自动生成（如 inspection 分支任务）
-  ├── 步骤2 (Task, kind=inspection, CreatedByKind=chain)
-  │     └── 巡检子任务 (Task, kind=simple, CreatedByKind=inspection)
-  └── 步骤3 (Task, kind=simple, CreatedByKind=chain)
+  ├── 步骤2 (Task, kind=inspection, OwnerKind=chain)
+  │     └── 巡检子任务 (Task, kind=simple, OwnerKind=inspection)
+  └── 步骤3 (Task, kind=simple, OwnerKind=chain)
 
 chain_steps 表记录步骤定义（TaskID=root, SortOrder, Name, Kind, ChildTaskID）
 ```
@@ -23,31 +23,31 @@ chain_steps 表记录步骤定义（TaskID=root, SortOrder, Name, Kind, ChildTas
 
 ## 调度机制
 
-链式推进基于 `CreatedByKind` 委托模式：
+链式推进基于 `OwnerKind` 委托模式：
 
 ```
 Root(chain) todo 完成
-  → CompleteTodo 调度 CreatedByKind="chain" → chain.OnTodo
+  → CompleteTodo 调度 OwnerKind="chain" → chain.OnTodo
     → 查找 sort_order=0 → CreateTodo(步骤1)
 
 步骤1(inspection) todo 完成
-  → CompleteTodo 调度 CreatedByKind="chain" → chain.OnTodo
+  → CompleteTodo 调度 OwnerKind="chain" → chain.OnTodo
     → 1. 委托: LookupHandler("inspection").OnTodo()  → 巡检逻辑
     → 2. 查找 sort_order+1 → CreateTodo(步骤2)
 
 步骤2(simple) todo 完成
-  → CompleteTodo 调度 CreatedByKind="chain" → chain.OnTodo
+  → CompleteTodo 调度 OwnerKind="chain" → chain.OnTodo
     → 1. 委托: LookupHandler("simple").OnTodo()  → (空操作)
     → 2. 查找 sort_order+1 → 无更多步骤 → 链结束
 ```
 
 ## 关键设计
 
-### CreatedByKind
+### OwnerKind
 
-- 链根任务：`SaveExtra` 将 `root.CreatedByKind` 更新为 `"chain"`（原 DB 默认 `"simple"`）
-- 每步子任务：`Kind = step.Kind`（真实类型），`CreatedByKind = "chain"`
-- 步骤内的嵌套子任务（如 inspection 分支）：由对应 handler 设置 `CreatedByKind = "inspection"`
+- 链根任务：`SaveExtra` 将 `root.OwnerKind` 更新为 `"chain"`（DB 默认 `"simple"`）
+- 每步子任务：`Kind = step.Kind`（真实类型），`OwnerKind = "chain"`
+- 步骤内的嵌套子任务（如 inspection 分支）：由对应 handler 设置 `OwnerKind = "inspection"`
 
 ### OnTodo 委托
 
@@ -55,7 +55,7 @@ Root(chain) todo 完成
 1. 委托真实 handler：`storage.LookupHandler(todo.Task.Kind).OnTodo(...)`
 2. 链推进：`CreateTodo(nextStep.ChildTaskID)`
 
-非复合 handler（simple/inspection）的 `OnTodo` **不需要** 做任何委托——调度已在 `CompleteTodo` 中通过 `CreatedByKind` 优先完成。
+非复合 handler（simple/inspection）的 `OnTodo` **不需要** 做任何委托——调度已在 `CompleteTodo` 中通过 `OwnerKind` 优先完成。
 
 ### SaveExtra 透传
 

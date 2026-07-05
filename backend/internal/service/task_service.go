@@ -133,17 +133,6 @@ func (s *_taskStorage) CreateTodo(taskID string, displaySummary string) (*reposi
 		return nil, err
 	}
 
-	// Framework-level: For chain tasks, automatically initialize first step progression.
-	// This ensures that chain todo created by any parent handler (e.g. inspection branch task)
-	// will have its first step generated without requiring explicit handler coupling.
-	if task.Kind == "chain" && task.IsRoot {
-		// Populate full task with preloads for chain handler to query chain_steps
-		todo.Task = *task
-		if h := s.taskManager.Get("chain"); h != nil {
-			_ = h.OnTodo(s, todo, nil)
-		}
-	}
-
 	return todo, nil
 }
 
@@ -298,10 +287,7 @@ func (s *TaskService) GetTaskWithExtra(ctx context.Context, taskID uuid.UUID) (*
 
 func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.Task, error) {
 	userID := ctx.Value("user_id").(string)
-	kind := req.Task.Kind
-	if kind == "" {
-		kind = "simple"
-	}
+	kind := taskkind.NormalizeKind(req.Task.Kind)
 	dataJSON, _ := json.Marshal(req.Task.ScheduleData)
 	t := &repository.TaskModel{
 		FamilyID:       familyID.String(),

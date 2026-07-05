@@ -62,10 +62,10 @@ export async function createInspectionTaskViaApi(
 }
 
 /**
- * Verify that a task's created_by_kind matches the expected value.
+ * Verify that a task's owner_kind matches the expected value.
  */
-export function assertCreatedByKind(taskName: string, expectedKind: string): boolean {
-  return db.assertCreatedByKind(taskName, expectedKind);
+export function assertOwnerKind(taskName: string, expectedKind: string): boolean {
+  return db.assertOwnerKind(taskName, expectedKind);
 }
 
 /**

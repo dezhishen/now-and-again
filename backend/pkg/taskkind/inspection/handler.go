@@ -205,9 +205,7 @@ func (h *handler) createBranch(taskStorage taskkind.TaskStorage, branchRepo *Che
 // createChildTask creates a non-root task and returns its ID.
 func (h *handler) createChildTask(taskStorage taskkind.TaskStorage, bt *types.TaskWithExtra, parent *model.TaskModel) string {
 	kind := bt.Task.Kind
-	if kind == "" {
-		kind = "simple"
-	}
+	kind = taskkind.NormalizeKind(kind)
 	scheduleType := bt.Task.ScheduleType
 	if scheduleType == "" {
 		scheduleType = "once"
@@ -218,18 +216,20 @@ func (h *handler) createChildTask(taskStorage taskkind.TaskStorage, bt *types.Ta
 		rootID = parent.ID // legacy: root_task_id not yet backfilled on parent
 	}
 	child := &model.TaskModel{
-		FamilyID:      parent.FamilyID,
-		GroupID:       sql.NullString{String: bt.Task.GroupID, Valid: bt.Task.GroupID != ""},
-		LocationID:    sql.NullString{String: bt.Task.LocationID, Valid: bt.Task.LocationID != ""},
-		ParentTaskID:  sql.NullString{String: parent.ID, Valid: parent.ID != ""},
-		RootTaskID:    rootID,
-		Name:          bt.Task.Name,
-		ScheduleType:  scheduleType,
-		ScheduleData:  string(dataJSON),
-		Enabled:       true,
-		Kind:          kind,
-		CreatedByKind: parent.Kind,
-		CreatedBy:     parent.CreatedBy,
+		FamilyID:     parent.FamilyID,
+		GroupID:      sql.NullString{String: bt.Task.GroupID, Valid: bt.Task.GroupID != ""},
+		LocationID:   sql.NullString{String: bt.Task.LocationID, Valid: bt.Task.LocationID != ""},
+		ParentTaskID: sql.NullString{String: parent.ID, Valid: parent.ID != ""},
+		RootTaskID:   rootID,
+		Name:         bt.Task.Name,
+		ScheduleType: scheduleType,
+		ScheduleData: string(dataJSON),
+		Enabled:      true,
+		Kind:         kind,
+		// OwnerKind defines orchestration dispatch on todo completion.
+		// For plugin-created child tasks, it should follow the child kind itself.
+		OwnerKind: kind,
+		CreatedBy: parent.CreatedBy,
 	}
 	taskStorage.CreateNoRootTask(child, bt.Extra)
 	return child.ID
@@ -244,9 +244,7 @@ func (h *handler) updateChildTask(taskStorage taskkind.TaskStorage, taskID strin
 	}
 
 	newKind := bt.Task.Kind
-	if newKind == "" {
-		newKind = "simple"
-	}
+	newKind = taskkind.NormalizeKind(newKind)
 
 	// Kind changed → delete old and create new to trigger proper lifecycle
 	if child.Kind != newKind {
@@ -277,6 +275,8 @@ func (h *handler) updateChildTask(taskStorage taskkind.TaskStorage, taskID strin
 	if bt.Task.LocationID != "" {
 		child.LocationID = sql.NullString{String: bt.Task.LocationID, Valid: bt.Task.LocationID != ""}
 	}
+	// Keep orchestration owner aligned with task kind for existing rows.
+	child.OwnerKind = child.Kind
 	child.Enabled = true
 	if err := taskStorage.UpdateNoRootTask(child, bt.Extra); err != nil {
 		return "", fmt.Errorf("update child task: %w", err)

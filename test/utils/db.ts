@@ -3,11 +3,16 @@
  * Uses python3 + sqlite3 for cross-platform DB access.
  */
 import { execSync } from 'child_process';
+import { existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.resolve(__dirname, '../../data/now-and-again.db');
+const CANDIDATE_DB_PATHS = [
+  path.resolve(__dirname, '../../data/now-and-again.db'),
+  path.resolve(__dirname, '../../backend/data/now-and-again.db'),
+];
+const DB_PATH = CANDIDATE_DB_PATHS.find((p) => existsSync(p)) || CANDIDATE_DB_PATHS[0];
 
 function shell(cmd: string): string {
   try {
@@ -42,13 +47,20 @@ function sql(query: string): any[] {
 export const db = {
   /** Get all tasks */
   getTasks() {
-    return sql('SELECT id, name, kind, created_by_kind, parent_task_id, is_root, schedule_type, enabled FROM tasks');
+    return sql('SELECT id, name, kind, owner_kind, parent_task_id, is_root, schedule_type, enabled FROM tasks');
   },
 
   /** Find task by exact name */
   findTask(name: string): Record<string, any> | null {
     const safe = name.replace(/'/g, "''");
     const rows = sql("SELECT * FROM tasks WHERE name = '" + safe + "'");
+    return rows[0] || null;
+  },
+
+  /** Find task by id */
+  findTaskById(taskId: string): Record<string, any> | null {
+    const safe = taskId.replace(/'/g, "''");
+    const rows = sql("SELECT * FROM tasks WHERE id = '" + safe + "'");
     return rows[0] || null;
   },
 
@@ -78,23 +90,23 @@ export const db = {
   },
 
   /**
-   * Verify a task's created_by_kind field.
+   * Verify a task's owner_kind field.
    * Logs result and returns true if matches, false otherwise.
    */
-  assertCreatedByKind(taskName: string, expectedKind: string): boolean {
+  assertOwnerKind(taskName: string, expectedKind: string): boolean {
     const task = this.findTask(taskName);
     if (!task) {
       console.error('  \u274c Task "' + taskName + '" not found in DB');
       return false;
     }
-    if (task.created_by_kind !== expectedKind) {
+    if (task.owner_kind !== expectedKind) {
       console.error(
-        '  \u274c Task "' + taskName + '": created_by_kind expected="' +
-        expectedKind + '", got="' + task.created_by_kind + '"'
+        '  \u274c Task "' + taskName + '": owner_kind expected="' +
+        expectedKind + '", got="' + task.owner_kind + '"'
       );
       return false;
     }
-    console.log('  \u2705 Task "' + taskName + '" created_by_kind="' + task.created_by_kind + '"');
+    console.log('  \u2705 Task "' + taskName + '" owner_kind="' + task.owner_kind + '"');
     return true;
   },
 };

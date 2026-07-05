@@ -8,6 +8,7 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/model"
 	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
+	"gorm.io/gorm"
 )
 
 type handler struct{}
@@ -72,23 +73,20 @@ func (h *handler) SaveExtra(storage taskkind.TaskStorage, root *model.TaskModel,
 	// Create child tasks immediately and link them.
 	var prevTaskID string
 	for i, s := range steps {
-		kind := s.Kind
-		if kind == "" {
-			kind = "simple"
-		}
+		kind := taskkind.NormalizeKind(s.Kind)
 		child := &model.TaskModel{
-			FamilyID:      root.FamilyID,
-			GroupID:       sql.NullString{String: s.GroupID, Valid: s.GroupID != ""},
-			LocationID:    sql.NullString{String: s.LocationID, Valid: s.LocationID != ""},
-			ParentTaskID:  sql.NullString{String: root.ID, Valid: true},
-			RootTaskID:    root.ID,
-			Name:          s.Name,
-			ScheduleType:  "once",
-			ScheduleData:  `{"time":"09:00"}`,
-			Enabled:       true,
-			Kind:          kind,
-			CreatedByKind: "chain",
-			CreatedBy:     root.CreatedBy,
+			FamilyID:     root.FamilyID,
+			GroupID:      sql.NullString{String: s.GroupID, Valid: s.GroupID != ""},
+			LocationID:   sql.NullString{String: s.LocationID, Valid: s.LocationID != ""},
+			ParentTaskID: sql.NullString{String: root.ID, Valid: true},
+			RootTaskID:   root.ID,
+			Name:         s.Name,
+			ScheduleType: "once",
+			ScheduleData: `{"time":"09:00"}`,
+			Enabled:      true,
+			Kind:         kind,
+			OwnerKind:    "chain",
+			CreatedBy:    root.CreatedBy,
 		}
 		if i > 0 {
 			child.ParentTaskID = sql.NullString{String: prevTaskID, Valid: true}
@@ -112,9 +110,9 @@ func (h *handler) SaveExtra(storage taskkind.TaskStorage, root *model.TaskModel,
 		}
 	}
 
-	// Ensure root task dispatches to this handler on todo completion (not "simple").
-	if root.CreatedByKind == "" || root.CreatedByKind == "simple" {
-		root.CreatedByKind = "chain"
+	// Ensure root task dispatches to this handler on todo completion.
+	if taskkind.IsDefaultKind(root.OwnerKind) {
+		root.OwnerKind = "chain"
 		_ = storage.UpdateTaskFields(root)
 	}
 
@@ -195,9 +193,17 @@ func (h *handler) OnTodo(storage taskkind.TaskStorage, todo *model.TodoModel, ex
 		return nil
 	}
 
-	// 1. If this is a non-root chain step, delegate to the real kind handler first.
-	//    e.g., inspection step → inspection.OnTodo records results, spawns branch tasks.
-	if !todo.Task.IsRoot {
+	// Determine whether current todo belongs to a chain step or is a chain entry todo.
+	// We use chain_steps relation instead of Task.IsRoot so nested chain branch tasks work too.
+	var curStep ChainStepModel
+	err := storage.DB().Where("child_task_id = ?", todo.Task.ID).First(&curStep).Error
+	isStepTodo := err == nil
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+
+	// Step todo: delegate to real kind handler first (e.g. inspection branch generation), then advance.
+	if isStepTodo {
 		if realHandler := storage.LookupHandler(todo.Task.Kind); realHandler != nil {
 			if err := realHandler.OnTodo(storage, todo, extra); err != nil {
 				return err
@@ -205,27 +211,18 @@ func (h *handler) OnTodo(storage taskkind.TaskStorage, todo *model.TodoModel, ex
 		}
 	}
 
-	// 2. Chain progression: create todo for the next step.
-	rootTaskID := todo.Task.RootTaskID
-	if rootTaskID == "" {
-		rootTaskID = todo.Task.ID
-	}
-
 	db := storage.DB()
 
 	var nextStep ChainStepModel
-	if todo.Task.IsRoot {
-		if err := db.Where("task_id = ? AND sort_order = ?", rootTaskID, 0).First(&nextStep).Error; err != nil {
-			return nil // no steps defined
-		}
-	} else {
-		var curStep ChainStepModel
-		if err := db.Where("child_task_id = ?", todo.Task.ID).First(&curStep).Error; err != nil {
-			return nil // not a chain step
-		}
-		err := db.Where("task_id = ? AND sort_order = ?", rootTaskID, curStep.SortOrder+1).First(&nextStep).Error
+	if isStepTodo {
+		err = db.Where("task_id = ? AND sort_order = ?", curStep.TaskID, curStep.SortOrder+1).First(&nextStep).Error
 		if err != nil {
 			return nil // no more steps — chain complete
+		}
+	} else {
+		err = db.Where("task_id = ? AND sort_order = ?", todo.Task.ID, 0).First(&nextStep).Error
+		if err != nil {
+			return nil // no steps defined for this chain entry
 		}
 	}
 

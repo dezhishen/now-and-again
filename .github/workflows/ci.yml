@@ -9,7 +9,19 @@ permissions:
   contents: read
 
 jobs:
+  plugin-isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Check plugin isolation rules
+        run: make check-plugin-isolation
+
   test:
+    needs: plugin-isolation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

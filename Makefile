@@ -4,7 +4,7 @@
         lint lint-backend lint-frontend \
         db-reset db-seed \
         install install-cli \
-        clean check-contracts fix-dupes \
+	clean check-contracts check-plugin-isolation fix-dupes \
         docker-build docker-up docker-down docker-logs
 
 # ─── Default ──────────────────────────────────────────────────────
@@ -136,6 +136,9 @@ check-contracts: fix-dupes ## 验证 backend 和 CLI 都实现了 contracts 接�
 	@cd cli && go build ./... || (echo "❌ CLI 编译失败 — 检查是否实现了所有 contracts 接口" && exit 1)
 	@echo "  ✅ CLI"
 
+check-plugin-isolation: ## 静态规则：主流程/插件边界隔离检查（禁止结构与具体 kind 泄漏）
+	@./scripts/check_plugin_isolation.sh
+
 # ─── Database ─────────────────────────────────────────────────────
 
 db-reset: ## 删除 SQLite 数据库文件
@@ -171,7 +174,7 @@ deps: ## 安装所有依赖
 
 # ─── CI ───────────────────────────────────────────────────────────
 
-ci: deps check-contracts lint test build ## CI 完整流水线
+ci: deps check-contracts check-plugin-isolation lint test build ## CI 完整流水线
 	@echo "→ CI passed ✅"
 
 # ─── Docker ───────────────────────────────────────────────────────
