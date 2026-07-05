@@ -75,10 +75,14 @@ build-backend: ## 编译后端二进制 → backend/na-server（需先 build-fro
 	@cd backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o na-server ./cmd/server
 	@echo "  → backend/na-server"
 
-build-cli: ## 编译 CLI 二进制 → cli/na
+build-cli: ## 编译 CLI 二进制 → cli/na（含 UPX 压缩）
 	@echo "Building CLI..."
 	@cd cli && CGO_ENABLED=0 go build -ldflags="-s -w" -o na .
-	@echo "  → cli/na"
+	@if command -v upx >/dev/null 2>&1; then \
+		upx --best --lzma cli/na && echo "  → cli/na (UPX compressed)"; \
+	else \
+		echo "  → cli/na (UPX not installed, skip compression)"; \
+	fi
 
 build-frontend: ## 构建前端 → frontend/dist/
 	@echo "Building frontend..."

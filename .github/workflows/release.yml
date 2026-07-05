@@ -177,6 +177,14 @@ jobs:
           if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
           go build -ldflags="-s -w" -o ../dist/na-${GOOS}-${GOARCH}${EXT} .
 
+      - name: Compress with UPX
+        if: matrix.goos != 'darwin'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq upx-ucl 2>/dev/null || true
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          upx --best --lzma dist/na-${{ matrix.goos }}-${{ matrix.goarch }}${EXT} || echo "UPX skipped (may not support this arch)"
+
       - name: Package
         shell: bash
         run: |
