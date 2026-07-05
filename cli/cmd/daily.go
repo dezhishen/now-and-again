@@ -44,7 +44,7 @@ var dailyCmd = &cobra.Command{
 			todoNames[i] = name
 			due := ""
 			if !t.DueDate.IsZero() {
-				due = " ⏰ " + t.DueDate.Format("01-02 15:04")
+				due = " ⏰ " + na.FormatTime(t.DueDate, "01-02 15:04")
 			}
 			fmt.Printf("  %2d. %s%s\n", i+1, name, due)
 		}

@@ -11,11 +11,15 @@ import (
 // ─── Task CRUD (convenience wrappers with active family) ──────────
 
 // CreateTask creates a task in the active family.
+// User-supplied schedule_data times are assumed to be in the configured timezone
+// and are automatically converted to UTC before sending.
 func (na *NA) CreateTask(ctx context.Context, req *types.CreateTaskRequest) (*types.Task, error) {
 	fid, err := na.requireFamilyID()
 	if err != nil {
 		return nil, err
 	}
+	// Convert schedule_data times from local→UTC before sending.
+	req.Task.ScheduleData = scheduleDataToUTC(req.Task.ScheduleData, na.GetTimezone())
 	return na.Task.CreateTask(ctx, fid, req)
 }
 
@@ -44,10 +48,16 @@ func (na *NA) GetTask(ctx context.Context, taskID string) (*types.Task, error) {
 }
 
 // UpdateTask updates a task.
+// User-supplied schedule_data times are assumed to be in the configured timezone
+// and are automatically converted to UTC before sending.
 func (na *NA) UpdateTask(ctx context.Context, taskID string, req *types.UpdateTaskRequest) (*types.Task, error) {
 	id, err := uuid.Parse(taskID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid task id: %w", err)
+	}
+	// Convert schedule_data times from local→UTC before sending.
+	if req.Task != nil {
+		req.Task.ScheduleData = scheduleDataToUTC(req.Task.ScheduleData, na.GetTimezone())
 	}
 	return na.Task.UpdateTask(ctx, id, req)
 }

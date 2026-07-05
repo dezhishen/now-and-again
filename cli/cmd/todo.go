@@ -36,7 +36,7 @@ var todoListCmd = &cobra.Command{
 			}
 			due := ""
 			if !t.DueDate.IsZero() {
-				due = "  ⏰ " + t.DueDate.Format("01-02 15:04")
+				due = "  ⏰ " + na.FormatTime(t.DueDate, "01-02 15:04")
 			}
 			fmt.Printf("  %2d. [%s] %s%s\n", i+1, t.ID[:6], name, due)
 		}

@@ -74,8 +74,13 @@ func (na *NA) CreateTaskFromTemplate(ctx context.Context, code string, params ma
 		req.Task.LocationID = lid
 	}
 
-	// Step 4: Create
-	return na.CreateTask(ctx, req)
+	// Step 4: Create — use low-level call to skip timezone conversion.
+	// Template rendering already returns UTC times from the backend.
+	fid, err := na.requireFamilyID()
+	if err != nil {
+		return nil, err
+	}
+	return na.Task.CreateTask(ctx, fid, req)
 }
 
 // ─── Internal HTTP helpers (mirror the backend handler paths) ─────

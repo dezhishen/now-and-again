@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/dezhishen/now-and-again/sdk/internal/client"
 	"gopkg.in/yaml.v3"
@@ -87,6 +88,9 @@ type NA struct {
 	ApiKey *client.ApiKeyClient
 	Task   *client.TaskClient
 
+	// Timezone for local↔UTC conversions. Defaults to time.Local.
+	timezone *time.Location
+
 	// Cached value: the active family ID (set via Init or SetActiveFamily).
 	activeFamilyID string
 }
@@ -114,6 +118,7 @@ func NewWithConfig(cfg *Config) *NA {
 		Family:         client.NewFamilyClient(httpClient),
 		ApiKey:         client.NewApiKeyClient(httpClient),
 		Task:           client.NewTaskClient(httpClient),
+		timezone:       time.Local,
 		activeFamilyID: cfg.ActiveFamilyID,
 	}
 }
