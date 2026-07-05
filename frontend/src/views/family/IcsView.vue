@@ -146,10 +146,24 @@ async function deleteFeed(id: string) {
   try { await api.delete('/ics-feeds/' + id); await loadFeeds(); toast.success(t('ics.deleted')) } catch (e: any) { setError(e) }
 }
 
-function copyLink(url: string) {
-  navigator.clipboard.writeText(url).then(() => {
+async function copyLink(url: string) {
+  try {
+    await navigator.clipboard.writeText(url)
     toast.success(t('ics.copyLinkDone'))
-  })
+  } catch {
+    // Fallback for non-HTTPS or older browsers
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = url
+      ta.style.position = 'fixed'; ta.style.opacity = '0'
+      document.body.appendChild(ta); ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+      toast.success(t('ics.copyLinkDone'))
+    } catch {
+      toast.error(t('ics.copyFailed'))
+    }
+  }
 }
 
 function getAuthLabel(feed: IcsFeed): string {

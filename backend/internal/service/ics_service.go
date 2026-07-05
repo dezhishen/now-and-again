@@ -164,6 +164,10 @@ func (s *IcsService) GenerateICS(token, apiKey, username, password string) (stri
 	sb.WriteString("BEGIN:VCALENDAR\r\n")
 	sb.WriteString("VERSION:2.0\r\n")
 	sb.WriteString("PRODID:" + icsProdID + "\r\n")
+	sb.WriteString("CALSCALE:GREGORIAN\r\n")
+	sb.WriteString("NAME:")
+	sb.WriteString(escapeICS(feed.Name))
+	sb.WriteString("\r\n")
 	sb.WriteString("X-WR-CALNAME:")
 	sb.WriteString(escapeICS(feed.Name))
 	sb.WriteString("\r\n")
@@ -184,14 +188,17 @@ func (s *IcsService) GenerateICS(token, apiKey, username, password string) (stri
 		// Parse time from schedule data
 		schedTime := parseScheduleTime(task.ScheduleType, task.ScheduleData)
 		rrule := buildRRule(task.ScheduleType, task.ScheduleData)
-		window := scheduleWindow(task.ScheduleType, task.ScheduleData)
+		// ICS event duration is a fixed 1-hour window (recurrence is handled by RRULE,
+		// not by DTEND-DTSTART span). Using scheduleWindow here would cause multi-day
+		// events (daily=24h, weekly=7d, etc.), which confuses calendar clients.
+		eventDuration := 1 * time.Hour
 
 		sb.WriteString("BEGIN:VEVENT\r\n")
 		sb.WriteString("UID:")
 		sb.WriteString(task.ID)
 		sb.WriteString("\r\n")
 		dtStart := schedTime.Format("20060102T150405Z")
-		dtEnd := schedTime.Add(window).Format("20060102T150405Z")
+		dtEnd := schedTime.Add(eventDuration).Format("20060102T150405Z")
 		sb.WriteString("DTSTART:")
 		sb.WriteString(dtStart)
 		sb.WriteString("\r\n")

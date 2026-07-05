@@ -190,6 +190,7 @@ export default {
     edit: 'Edit',
     delete: 'Delete',
     copyLinkDone: 'Link copied!',
+    copyFailed: 'Copy failed, please copy manually',
     deleteConfirm: 'Delete this ICS subscription?',
     updated: 'Subscription updated',
     created: 'ICS subscription created',
@@ -346,6 +347,7 @@ export default {
   apiKey: {
     heading: 'API Key', description: 'API Keys allow CLI or third-party tools to access the system. Each key can have scope and expiry.',
     created: 'New API Key created — shown only once:', copyAndClose: 'Copy & Close',
+    copied: 'Copied to clipboard', copyFailed: 'Copy failed, please copy manually',
     cancel: 'Cancel', createBtn: 'Create API Key', namePlaceholder: 'Key name, e.g. home-automation',
     scopeLabel: 'Scope (empty = full access):', readonly: 'Read-only', readwrite: 'Read-write',
     admin: 'Admin', expiresLabel: 'Expiry (optional, leave empty for no expiry):', create: 'Create',

@@ -194,6 +194,7 @@ export default {
     edit: '编辑',
     delete: '删除',
     copyLinkDone: '链接已复制！',
+    copyFailed: '复制失败，请手动复制',
     deleteConfirm: '确定删除此 ICS 订阅？',
     updated: '订阅已更新',
     created: 'ICS 订阅已创建',
@@ -362,6 +363,7 @@ export default {
   apiKey: {
     heading: 'API Key', description: 'API Key 用于 CLI 或第三方工具访问系统。每个 Key 可设置权限范围和过期时间。',
     created: '新 API Key 已创建，此密钥仅显示一次：', copyAndClose: '复制并关闭',
+    copied: '已复制到剪贴板', copyFailed: '复制失败，请手动复制',
     cancel: '取消', createBtn: '创建 API Key', namePlaceholder: 'Key 名称，如：家庭自动化脚本',
     scopeLabel: '权限范围（不选则为全部权限）：', readonly: '只读', readwrite: '读写',
     admin: '管理员', expiresLabel: '过期时间（可选，留空则永不过期）：', create: '创建',

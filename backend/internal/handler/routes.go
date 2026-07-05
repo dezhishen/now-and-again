@@ -116,7 +116,9 @@ func RegisterRoutes(public *gin.Engine, auth, adminAuth, familyAuth, ownerAuth *
 	familyAuth.DELETE("/api/ics-feeds/:feed_id", icsHandler.Delete)
 
 	// ICS public endpoint (no JWT - custom auth)
+	// Both routes: /api/ics/:token (legacy) and /api/ics/:token/:slug (friendly name in URL)
 	public.GET("/api/ics/:token", icsHandler.ServeICS)
+	public.GET("/api/ics/:token/:slug", icsHandler.ServeICS)
 
 	// ── Task Templates (family-visible, all members) ───────────
 	familyAuth.GET("/api/task-templates", taskTemplateHandler.List)

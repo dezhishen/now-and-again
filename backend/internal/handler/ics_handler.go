@@ -2,6 +2,8 @@ package handler
 
 import (
 	"net/http"
+	"strings"
+	"unicode"
 
 	"github.com/dezhishen/now-and-again/backend/internal/repository"
 	"github.com/dezhishen/now-and-again/backend/internal/service"
@@ -134,7 +136,13 @@ func (h *IcsHandlers) ServeICS(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "text/calendar; charset=utf-8")
-	c.Header("Content-Disposition", "attachment; filename=\"calendar.ics\"")
+	// Use feed name as filename so calendar clients show a friendly name
+	// instead of the UUID token.
+	filename := "calendar.ics"
+	if feedErr == nil && feed.Name != "" {
+		filename = sanitizeICSFilename(feed.Name)
+	}
+	c.Header("Content-Disposition", "attachment; filename=\""+filename+"\"")
 	c.String(200, ics)
 }
 
@@ -168,6 +176,10 @@ type icsFeedResponse struct {
 }
 
 func feedToResponse(f *repository.IcsFeedModel) icsFeedResponse {
+	slug := slugify(f.Name)
+	if slug == "" {
+		slug = "calendar"
+	}
 	r := icsFeedResponse{
 		ID:            f.ID,
 		FamilyID:      f.FamilyID,
@@ -179,11 +191,42 @@ func feedToResponse(f *repository.IcsFeedModel) icsFeedResponse {
 		AuthType:      f.AuthType,
 		AppUsername:   f.AppUsername,
 		Enabled:       f.Enabled,
-		IcsURL:        "/api/ics/" + f.AccessToken + ".ics",
+		IcsURL:        "/api/ics/" + f.AccessToken + "/" + slug + ".ics",
 		CreatedAt:     f.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	if f.ApiKey != nil {
 		r.ApiKeyPrefix = f.ApiKey.KeyPrefix
 	}
 	return r
+}
+
+// sanitizeICSFilename returns a safe filename for Content-Disposition header.
+func sanitizeICSFilename(name string) string {
+	// Remove characters unsafe for filenames
+	safe := strings.Map(func(r rune) rune {
+		if r == '/' || r == '\\' || r == ':' || r == '*' || r == '?' || r == '"' || r == '<' || r == '>' || r == '|' {
+			return -1
+		}
+		return r
+	}, name)
+	if safe == "" {
+		return "calendar.ics"
+	}
+	return safe + ".ics"
+}
+
+// slugify converts a feed name to a URL-safe slug for the ICS URL path.
+// e.g. "My Family Calendar" → "My-Family-Calendar"
+func slugify(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' {
+			b.WriteRune(r)
+		} else if r == ' ' || r == '.' {
+			b.WriteRune('-')
+		}
+		// CJK and other special chars are dropped for URL safety
+	}
+	result := strings.Trim(b.String(), "-")
+	return result
 }
