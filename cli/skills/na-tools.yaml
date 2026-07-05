@@ -1,7 +1,7 @@
 # Now & Again — CLI Skill Definitions
 
 name: now-and-again
-description: "家庭事务管理 CLI。配置存储在 ~/.na.yaml。"
+description: "家庭事务管理 CLI。配置默认存储在 ~/.na.yaml（可用 -c 指定其他路径）。"
 
 tools:
   - name: na_init

@@ -9,9 +9,10 @@ import (
 )
 
 var (
-	serverURL string
-	apiToken  string
-	outputFmt string
+	serverURL  string
+	apiToken   string
+	outputFmt  string
+	configFile string
 
 	na *sdk.NA
 )
@@ -39,6 +40,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&serverURL, "server", "", "API server URL (overrides saved config)")
 	rootCmd.PersistentFlags().StringVar(&apiToken, "token", "", "API auth token (overrides saved config)")
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "table", "output format: table, json, yaml")
+	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "config file path (default: ~/.na.yaml)")
 
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(dailyCmd)
@@ -50,7 +52,11 @@ func init() {
 
 func initNA() {
 	var err error
-	na, err = sdk.New()
+	if configFile != "" {
+		na, err = sdk.NewWithConfigPath(configFile)
+	} else {
+		na, err = sdk.New()
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to load config: %v\nrun 'na init' first\n", err)
 		os.Exit(1)

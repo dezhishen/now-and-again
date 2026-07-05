@@ -14,22 +14,45 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config holds persistent SDK configuration stored in ~/.na.yaml.
+// DefaultConfigPath returns the default config file path (~/.na.yaml).
+func DefaultConfigPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("home dir: %w", err)
+	}
+	return filepath.Join(home, ".na.yaml"), nil
+}
+
+// Config holds persistent SDK configuration.
 type Config struct {
 	ServerURL string `yaml:"server_url"`
 	Token     string `yaml:"token"` // API key (preferred) or JWT
 	// Cached user preferences
 	ActiveFamilyID   string `yaml:"active_family_id,omitempty"`
 	ActiveFamilyName string `yaml:"active_family_name,omitempty"`
+
+	// path is the file path this config was loaded from / will be saved to.
+	// Not serialized to YAML.
+	path string `yaml:"-"`
 }
 
-// Save writes configuration to disk at ~/.na.yaml.
+// Path returns the file path associated with this config.
+func (c *Config) Path() string { return c.path }
+
+// SetPath sets the file path for subsequent Save calls.
+func (c *Config) SetPath(p string) { c.path = p }
+
+// Save writes configuration to disk at the config's path.
+// If no path is set, defaults to ~/.na.yaml.
 func (c *Config) Save() error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("home dir: %w", err)
+	cfgFile := c.path
+	if cfgFile == "" {
+		var err error
+		cfgFile, err = DefaultConfigPath()
+		if err != nil {
+			return err
+		}
 	}
-	cfgFile := filepath.Join(home, ".na.yaml")
 	if err := os.MkdirAll(filepath.Dir(cfgFile), 0755); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
@@ -43,15 +66,22 @@ func (c *Config) Save() error {
 // LoadConfig reads configuration from ~/.na.yaml.
 // Returns zero-value Config if the file does not exist.
 func LoadConfig() (*Config, error) {
-	home, err := os.UserHomeDir()
+	cfgFile, err := DefaultConfigPath()
 	if err != nil {
-		return nil, fmt.Errorf("home dir: %w", err)
+		return nil, err
 	}
-	cfgFile := filepath.Join(home, ".na.yaml")
+	return LoadConfigFromPath(cfgFile)
+}
+
+// LoadConfigFromPath reads configuration from the given file path.
+// Returns zero-value Config if the file does not exist.
+func LoadConfigFromPath(cfgFile string) (*Config, error) {
 	data, err := os.ReadFile(cfgFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &Config{ServerURL: "http://localhost:8080"}, nil
+			cfg := &Config{ServerURL: "http://localhost:8080"}
+			cfg.path = cfgFile
+			return cfg, nil
 		}
 		return nil, fmt.Errorf("read config: %w", err)
 	}
@@ -62,6 +92,7 @@ func LoadConfig() (*Config, error) {
 	if cfg.ServerURL == "" {
 		cfg.ServerURL = "http://localhost:8080"
 	}
+	cfg.path = cfgFile
 	return &cfg, nil
 }
 
@@ -99,6 +130,15 @@ type NA struct {
 // If no saved config exists, a zero-value config is used (server defaults to localhost:8080).
 func New() (*NA, error) {
 	cfg, err := LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("sdk: load config: %w", err)
+	}
+	return NewWithConfig(cfg), nil
+}
+
+// NewWithConfigPath creates an NA instance from a config file at the given path.
+func NewWithConfigPath(cfgPath string) (*NA, error) {
+	cfg, err := LoadConfigFromPath(cfgPath)
 	if err != nil {
 		return nil, fmt.Errorf("sdk: load config: %w", err)
 	}

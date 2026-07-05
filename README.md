@@ -153,7 +153,7 @@ now-and-again/
 │
 ├── sdk/                        # Go SDK — 独立模块，CLI 与外部工具共用
 │   ├── na.go                   #   NA 入口结构体（配置 + HTTP 客户端）
-│   ├── init.go                 #   初始化：登录 → API Key → 保存 ~/.na.yaml
+│   ├── init.go                 #   初始化：登录 → API Key → 保存配置（默认 ~/.na.yaml）
 │   ├── task.go                 #   任务高层操作
 │   ├── todo.go                 #   待办操作（完成/备注/跳过）
 │   ├── template.go             #   模板渲染与创建

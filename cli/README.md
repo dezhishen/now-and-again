@@ -84,9 +84,20 @@ na template use --code weekly_cleaning --params '{"area_name":"客厅"}'
 
 | 选项 | 说明 |
 |------|------|
+| `-c, --config <path>` | 指定配置文件路径（默认 `~/.na.yaml`） |
 | `--server <url>` | 服务器地址（覆盖配置文件） |
 | `--token <key>` | API Key（覆盖配置文件） |
-| `--output table\|json\|yaml` | 输出格式（默认 table） |
+| `-o, --output table\|json\|yaml` | 输出格式（默认 table） |
+
+### 使用自定义配置文件
+
+```bash
+# 指定配置文件
+na -c /path/to/custom-config.yaml task list
+
+# 初始化到自定义配置文件
+na -c /path/to/custom-config.yaml init -u admin -p 12345678
+```
 
 ## 时区说明
 
@@ -94,4 +105,4 @@ na template use --code weekly_cleaning --params '{"area_name":"客厅"}'
 显示时（如 `todo list` 的截止时间）自动从 UTC 转回本地时区。
 无需手动处理时区转换。当前时区从操作系统自动检测。
 
-> 所有配置存储在 `~/.na.yaml`，不需要设置环境变量。
+> 默认配置存储在 `~/.na.yaml`，可通过 `-c` 指定其他路径。不需要设置环境变量。
