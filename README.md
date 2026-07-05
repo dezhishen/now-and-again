@@ -241,6 +241,8 @@ cd frontend; pnpm install; pnpm run dev
 | [教程：家庭管理入门](doc/tutorial/family-quickstart.md) | 创建家庭、邀请成员、角色权限管理 |
 | [教程：巡检任务使用指南](doc/tutorial/inspection-quickstart.md) | 检查项与分支判定、异常跟进、完成巡检 |
 | [教程：日历大屏与 ICS 订阅](doc/tutorial/calendar-quickstart.md) | 日历视图、大屏嵌入、ICS 订阅源配置 |
+| [教程：地点管理](doc/tutorial/location-quickstart.md) | 新建地点、配置颜色与类型、关联户型图 |
+| [教程：小组管理](doc/tutorial/group-quickstart.md) | 创建小组、管理成员、任务指派分工 |
 | [前端约束](doc/frontend-conventions.md) | 前端开发规范（按钮/输入框/页签/弹窗） |
 
 ### taskkind 插件 README

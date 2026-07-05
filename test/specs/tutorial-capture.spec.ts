@@ -236,3 +236,77 @@ test('教程截图：日历与大屏', async ({ page }) => {
     await calendarPage.close()
   }
 })
+
+// ──────────────────────────────────────────────────────────────────
+// 4. 地点管理教程
+// ──────────────────────────────────────────────────────────────────
+test('教程截图：地点管理——创建与查看地点', async ({ page }) => {
+  await loginAndEnterFamily(page)
+
+  // Navigate to locations
+  await page.locator('[data-testid="family-nav-locations"]').first().click()
+  await page.waitForTimeout(500)
+
+  // Screenshot: empty location list
+  await page.screenshot({ path: shotPath('location', '01-location-list.png'), fullPage: true })
+
+  // Click add
+  await page.getByRole('button', { name: /添加|Add/ }).first().click()
+  await page.waitForTimeout(300)
+
+  // Fill name
+  const nameInput = page.locator('input').first()
+  await nameInput.fill('客厅')
+
+  // Screenshot: create location dialog
+  await page.screenshot({ path: shotPath('location', '02-location-create.png'), fullPage: true })
+
+  // Save
+  await page.getByRole('button', { name: /保存|Save/ }).first().click()
+  await page.waitForTimeout(500)
+
+  // Add another location
+  await page.getByRole('button', { name: /添加|Add/ }).first().click()
+  await page.waitForTimeout(200)
+  const nameInput2 = page.locator('input').first()
+  await nameInput2.fill('厨房')
+  await page.getByRole('button', { name: /保存|Save/ }).first().click()
+  await page.waitForTimeout(500)
+
+  // Screenshot: location list with items
+  await page.screenshot({ path: shotPath('location', '03-location-list-with-items.png'), fullPage: true })
+})
+
+// ──────────────────────────────────────────────────────────────────
+// 5. 小组管理教程
+// ──────────────────────────────────────────────────────────────────
+test('教程截图：小组管理——创建小组与成员管理', async ({ page }) => {
+  await loginAndEnterFamily(page)
+
+  // Navigate to groups
+  await page.locator('[data-testid="family-nav-groups"]').first().click()
+  await page.waitForTimeout(500)
+
+  // Screenshot: empty group list
+  await page.screenshot({ path: shotPath('group', '01-group-list.png'), fullPage: true })
+
+  // Click create
+  await page.getByText(/新建小组/).first().click()
+  await page.waitForTimeout(300)
+
+  // Fill form
+  const nameInput = page.locator('input').first()
+  await nameInput.fill('保洁组')
+  const descInput = page.locator('input').nth(1)
+  await descInput.fill('负责日常打扫与整理')
+
+  // Screenshot: create group form
+  await page.screenshot({ path: shotPath('group', '02-group-create.png'), fullPage: true })
+
+  // Submit
+  await page.locator('button:has-text("创建"):not(:has-text("取消"))').last().click()
+  await page.waitForTimeout(600)
+
+  // Screenshot: group list with created group
+  await page.screenshot({ path: shotPath('group', '03-group-list-with-item.png'), fullPage: true })
+})

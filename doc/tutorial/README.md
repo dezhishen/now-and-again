@@ -12,3 +12,5 @@
 | [家庭管理入门](family-quickstart.md) | 创建家庭、首页概况、邀请成员、角色权限管理 | 3 张 |
 | [巡检任务使用指南](inspection-quickstart.md) | 创建巡检、检查项与分支判定、异常跟进、完成巡检 | 5 张 |
 | [日历大屏与 ICS 订阅](calendar-quickstart.md) | 日历视图、全屏大屏、ICS 订阅源配置、嵌入外部网页 | 2 张 |
+| [地点管理](location-quickstart.md) | 新建地点、配置颜色与类型、关联户型图 | 3 张 |
+| [小组管理](group-quickstart.md) | 创建小组、管理成员、任务指派分工 | 3 张 |
