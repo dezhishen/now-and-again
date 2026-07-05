@@ -102,7 +102,6 @@ ghcr.io/dezhishen/now-and-again:v1
 | `NA_PORT` | `8080` | HTTP 端口 |
 | `NA_ADMIN_DEFAULT_PASSWORD` | — | 首次启动管理员密码 |
 | `NA_JWT_SECRET` | 自动生成 | JWT 签名密钥 |
-| `DEFAULT_TIMEZONE` | `Asia/Shanghai` | 后端默认时区（IANA 格式） |
 
 ## 健康检查
 

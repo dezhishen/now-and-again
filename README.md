@@ -222,13 +222,12 @@ cd frontend; pnpm install; pnpm run dev
 | `NA_ADMIN_DEFAULT_PASSWORD` | (随机生成) | 首次运行时默认管理员密码 |
 | `NA_DB_DRIVER` | `sqlite` | 数据库驱动（仅 SQLite） |
 | `NA_DATA_DIR` | `./data` | 数据根目录 |
-| `DEFAULT_TIMEZONE` | `Asia/Shanghai` | 默认时区（IANA 格式，如 `America/New_York`） |
 | `NA_FAMILY_DEFAULTS_INIT` | `true` | 新建家庭是否自动初始化地点/小组 |
 | `GIN_MODE` | `debug` | Gin 运行模式 |
 
 ### ⏱️ 时区说明
 
-**内部存储统一使用 UTC**。所有时间戳（`created_at`、`due_date`、`completed_at` 等）在数据库中以 UTC 存储和计算。
+**后端强制使用 UTC**，不允许配置。所有时间戳（`created_at`、`due_date`、`completed_at` 等）在数据库中以 UTC 存储和计算，`timeutil.Now()` 始终返回 UTC。
 
 各客户端在 API 边界做 **UTC ↔ 本地时区** 的自动转换：
 

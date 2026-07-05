@@ -208,9 +208,9 @@ taskkind.TaskStorage（注入给 Handler 的方法集合）
 
 #### 后端
 
-- `pkg/timeutil` — 禁止直接使用 `time.Now()`，必须使用 `timeutil.Now()`（返回 UTC）。
-- 所有 `time.Time` 字段在数据库和 API 响应中均为 UTC。
-- `DEFAULT_TIMEZONE` 环境变量为调度器提供备选时区（如模板中的 "09:00" 在此表示该时区的上午 9 点），默认 `Asia/Shanghai`。
+- `pkg/timeutil` — 禁止直接使用 `time.Now()`，必须使用 `timeutil.Now()`（始终返回 UTC）。
+- 所有 `time.Time` 字段在数据库和 API 响应中均为 UTC，后端不提供任何时区配置选项。
+- 调度器内部计算全部使用 `time.UTC`，时区转换完全由客户端负责。
 
 #### Web 前端
 

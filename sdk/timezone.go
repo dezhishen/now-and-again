@@ -188,5 +188,5 @@ var (
 	dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 )
 
-func isValidHM(s string) bool  { return hmRe.MatchString(s) }
+func isValidHM(s string) bool   { return hmRe.MatchString(s) }
 func isValidDate(s string) bool { return dateRe.MatchString(s) }
