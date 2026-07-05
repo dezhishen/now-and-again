@@ -49,13 +49,13 @@ make dev
 
 ![任务表单已预填](images/template-quickstart/04-prefilled-task-form.png)
 
-## 5. 生成待办并完成
+## 5. 待办自动生成并完成
 
-在任务卡片点击“生成”，再到“首页”查看待办卡片并点击“完成”。
+任务创建后，系统调度器会根据设定的调度策略（每日/每周/每月等）在到期时自动生成待办。在“首页”即可看到当前待办卡片：
 
 ![待办进行中](images/template-quickstart/05-dashboard-pending-todo.png)
 
-完成后，待办会从列表消失（或变为已完成状态）。
+点击“完成”，待办会从列表消失（下一次调度到期时会再次生成）。
 
 ![待办完成后](images/template-quickstart/06-dashboard-after-done.png)
 
@@ -79,9 +79,9 @@ make dev
 
 ![任务链卡片](images/template-quickstart/08-chain-task-card.png)
 
-### 6.3 触发待办并推进
+### 6.3 待办推进
 
-点击“生成”后，系统会按顺序生成待办。当前的待办卡片会显示：
+任务链根节点的待办由调度器自动生成。根待办完成后，系统会按顺序创建下一步待办。当前待办卡片会显示：
 
 - 任务链名称
 - 当前步骤摘要

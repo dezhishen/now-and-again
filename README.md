@@ -236,8 +236,11 @@ cd frontend; pnpm install; pnpm run dev
 | [API 文档](doc/api/endpoints.md) | 完整 RESTful API 路由表（69 个端点） |
 | [数据库 Schema](doc/database/schema.md) | 23 张表结构、索引策略 |
 | [CLI 使用](doc/cli/README.md) | 命令行工具安装、配置、命令参考 |
-| [教程：从模板创建任务并完成待办](doc/tutorial/template-quickstart.md) | 家庭内从模板创建任务并完成待办的图文步骤（含任务链） |
-| [教程索引](doc/tutorial/README.md) | 所有教程的入口目录 |
+| [📋 教程索引](doc/tutorial/README.md) | 图文入门：模板建任务 | 任务链 | 巡检 | 家庭管理 | 日历大屏 |
+| [教程：从模板创建任务并完成待办](doc/tutorial/template-quickstart.md) | 基于模板快速建任务，含任务链多步骤推进 |
+| [教程：家庭管理入门](doc/tutorial/family-quickstart.md) | 创建家庭、邀请成员、角色权限管理 |
+| [教程：巡检任务使用指南](doc/tutorial/inspection-quickstart.md) | 检查项与分支判定、异常跟进、完成巡检 |
+| [教程：日历大屏与 ICS 订阅](doc/tutorial/calendar-quickstart.md) | 日历视图、大屏嵌入、ICS 订阅源配置 |
 | [前端约束](doc/frontend-conventions.md) | 前端开发规范（按钮/输入框/页签/弹窗） |
 
 ### taskkind 插件 README
