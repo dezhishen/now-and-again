@@ -75,10 +75,14 @@ build-backend: ## 编译后端二进制 → backend/na-server（需先 build-fro
 	@cd backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o na-server ./cmd/server
 	@echo "  → backend/na-server"
 
-build-cli: ## 编译 CLI 二进制 → cli/na
+build-cli: ## 编译 CLI 二进制 → cli/na（含 UPX 压缩）
 	@echo "Building CLI..."
 	@cd cli && CGO_ENABLED=0 go build -ldflags="-s -w" -o na .
-	@echo "  → cli/na"
+	@if command -v upx >/dev/null 2>&1; then \
+		upx --best --lzma cli/na && echo "  → cli/na (UPX compressed)"; \
+	else \
+		echo "  → cli/na (UPX not installed, skip compression)"; \
+	fi
 
 build-frontend: ## 构建前端 → frontend/dist/
 	@echo "Building frontend..."
@@ -99,8 +103,12 @@ test: test-backend test-cli ## 运行所有 Go 测试
 test-backend: ## 运行 backend 测试（含 pkg/）
 	@cd backend && go test ./... -count=1 -short
 
-test-cli: ## 运行 CLI 测试
+test-cli: ## 运行 CLI 单元测试
 	@cd cli && go test ./... -count=1 -short
+
+test-cli-integration: ## 运行 CLI 集成测试（需先 make db-reset && make dev-backend）
+	@curl -sf http://localhost:8080/api/system/status >/dev/null 2>&1 || (echo "❌ 后端未运行，请先执行 make dev-backend" && exit 1)
+	@cd cli && go test ./tests/integration/... -count=1 -v -timeout 120s
 
 test-e2e: ## 运行 E2E 浏览器自动化测试（需先 make dev 或单独启动服务）
 	@echo "→ Installing E2E dependencies..."
@@ -115,6 +123,12 @@ test-e2e-headed: ## 运行 E2E 测试（有头浏览器，便于调试）
 test-e2e-install: ## 安装 Playwright 浏览器
 	@cd test && npm install
 	@cd test && npx playwright install chromium
+
+screenshots: ## 生成教程截图（需先 make dev）
+	@echo "→ 生成教程截图..."
+	@cd test && npm install --silent 2>/dev/null || true
+	@cd test && npm run screenshots
+	@echo "→ 截图已输出到 doc/tutorial/images/"
 
 docker-e2e-image: ## 构建通用 E2E 工具镜像（无项目代码）
 	docker build -t $(E2E_IMAGE) -f Dockerfile.e2e .

@@ -14,23 +14,51 @@ import (
 type HTTPClient struct {
 	BaseURL    string
 	Token      string
+	FamilyID   string // set for family-scoped requests
+	AuthMethod string // "jwt" or "apikey", auto-detected
 	HTTPClient *http.Client
 }
 
 // NewHTTPClient creates a new HTTP client with sensible defaults.
 func NewHTTPClient(baseURL, token string) *HTTPClient {
 	return &HTTPClient{
-		BaseURL: baseURL,
-		Token:   token,
+		BaseURL:    baseURL,
+		Token:      token,
+		AuthMethod: detectAuthMethod(token),
 		HTTPClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 	}
 }
 
-// SetToken updates the auth token.
+// SetToken updates the auth token and re-detects the auth method.
 func (c *HTTPClient) SetToken(token string) {
 	c.Token = token
+	c.AuthMethod = detectAuthMethod(token)
+}
+
+// SetFamilyID sets the X-Family-Id header value for family-scoped requests.
+func (c *HTTPClient) SetFamilyID(familyID string) {
+	c.FamilyID = familyID
+}
+
+// detectAuthMethod returns "apikey" if token starts with "na_", otherwise "jwt".
+func detectAuthMethod(token string) string {
+	if len(token) > 3 && token[:3] == "na_" {
+		return "apikey"
+	}
+	return "jwt"
+}
+
+// SetBaseURL updates the base URL.
+func (c *HTTPClient) SetBaseURL(url string) {
+	c.BaseURL = url
+}
+
+// Do performs an HTTP request, sending X-Family-Id if set, and unmarshals the JSON response.
+// This is the public version for SDK-level callers that need direct API access.
+func (c *HTTPClient) Do(method, path string, body, result interface{}) error {
+	return c.do(method, path, body, result)
 }
 
 // do performs an HTTP request and unmarshals the JSON response.
@@ -54,7 +82,14 @@ func (c *HTTPClient) do(method, path string, body, result interface{}) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	if c.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.Token)
+		if c.AuthMethod == "apikey" {
+			req.Header.Set("X-API-Key", c.Token)
+		} else {
+			req.Header.Set("Authorization", "Bearer "+c.Token)
+		}
+	}
+	if c.FamilyID != "" {
+		req.Header.Set("X-Family-Id", c.FamilyID)
 	}
 
 	resp, err := c.HTTPClient.Do(req)
@@ -69,17 +104,19 @@ func (c *HTTPClient) do(method, path string, body, result interface{}) error {
 	}
 
 	// API response envelope: {"success":true,"data":{...}} or {"success":false,"error":"..."}
+	// Note: "error" can be a plain string or a structured object.
 	var envelope struct {
 		Success bool            `json:"success"`
 		Data    json.RawMessage `json:"data"`
-		Error   string          `json:"error,omitempty"`
+		Error   json.RawMessage `json:"error,omitempty"`
 	}
 	if err := json.Unmarshal(respBody, &envelope); err != nil {
 		return fmt.Errorf("parse response: %w (body: %s)", err, string(respBody))
 	}
 
 	if !envelope.Success {
-		return fmt.Errorf("api error: %s", envelope.Error)
+		errMsg := unmarshalError(envelope.Error)
+		return fmt.Errorf("api error: %s", errMsg)
 	}
 
 	if result != nil && envelope.Data != nil {
@@ -109,4 +146,29 @@ func NewAllClients(httpClient *HTTPClient) *AllClients {
 		ApiKey: NewApiKeyClient(httpClient),
 		Task:   NewTaskClient(httpClient),
 	}
+}
+
+// unmarshalError extracts a human-readable message from the error field.
+// The backend may return a plain string or a structured object.
+func unmarshalError(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return "unknown error"
+	}
+	// Try plain string first.
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	// Try structured error with "summary" field.
+	var obj struct {
+		Code    string `json:"code"`
+		Summary string `json:"summary"`
+	}
+	if err := json.Unmarshal(raw, &obj); err == nil && obj.Summary != "" {
+		if obj.Code != "" {
+			return obj.Code + ": " + obj.Summary
+		}
+		return obj.Summary
+	}
+	return string(raw)
 }

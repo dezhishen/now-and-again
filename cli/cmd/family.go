@@ -1,19 +1,20 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
 
-	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/spf13/cobra"
 )
 
-// ─── family ──────────────────────────────────────────────────────
-
 var familyCmd = &cobra.Command{
 	Use:   "family",
-	Short: "Manage families",
-	Long:  `Create, join, and list your families.`,
+	Short: "家庭管理",
+	Long:  `创建、加入、查看、切换家庭。`,
 }
 
 var familyCreateCmd = &cobra.Command{
@@ -25,7 +26,7 @@ var familyCreateCmd = &cobra.Command{
 		if name == "" {
 			return fmt.Errorf("--name is required")
 		}
-		f, err := allClients.Family.Create(context.Background(), &types.CreateFamilyRequest{Name: name})
+		f, err := na.CreateFamily(context.Background(), name)
 		if err != nil {
 			return err
 		}
@@ -42,11 +43,10 @@ var familyJoinCmd = &cobra.Command{
 		if code == "" {
 			return fmt.Errorf("--code is required")
 		}
-		m, err := allClients.Family.Join(context.Background(), &types.JoinFamilyRequest{InviteCode: code})
-		if err != nil {
+		if err := na.JoinFamily(context.Background(), code); err != nil {
 			return err
 		}
-		fmt.Printf("Join request sent (status: %s)\n", m.Status)
+		fmt.Println("Join request sent")
 		return nil
 	},
 }
@@ -55,7 +55,7 @@ var familyListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List my families",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		families, err := allClients.Family.ListMyFamilies(context.Background())
+		families, err := na.ListMyFamilies(context.Background())
 		if err != nil {
 			return err
 		}
@@ -70,11 +70,60 @@ var familyListCmd = &cobra.Command{
 	},
 }
 
+var familySelectCmd = &cobra.Command{
+	Use:   "select",
+	Short: "切换活跃家庭（交互式）",
+	Long:  `列出所有家庭并让用户选择当前活跃的家庭。`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		families, err := na.ListMyFamilies(ctx)
+		if err != nil {
+			return fmt.Errorf("获取家庭列表失败: %w", err)
+		}
+		if len(families) == 0 {
+			return fmt.Errorf("还没有家庭，请先创建: na family create --name \"我的家\"")
+		}
+		if len(families) == 1 {
+			na.SetActiveFamily(families[0].ID, families[0].Name)
+			na.Config().Save()
+			fmt.Printf("✓ 已选择唯一家庭: %s\n", families[0].Name)
+			return nil
+		}
+
+		fmt.Printf("\n📋 选择活跃家庭:\n\n")
+		for i, f := range families {
+			mark := " "
+			if f.ID == na.ActiveFamilyID() {
+				mark = "★"
+			}
+			fmt.Printf("  %s %d. %s\n", mark, i+1, f.Name)
+		}
+
+		fmt.Printf("\n→ 输入编号 (1-%d): ", len(families))
+		scanner := bufio.NewScanner(os.Stdin)
+		if !scanner.Scan() {
+			return nil
+		}
+		input := strings.TrimSpace(scanner.Text())
+		n, err := strconv.Atoi(input)
+		if err != nil || n < 1 || n > len(families) {
+			return fmt.Errorf("无效选择: %s", input)
+		}
+
+		f := families[n-1]
+		na.SetActiveFamily(f.ID, f.Name)
+		na.Config().Save()
+		fmt.Printf("✓ 已切换到: %s\n", f.Name)
+		return nil
+	},
+}
+
 func init() {
-	familyCreateCmd.Flags().String("name", "", "Family name (required)")
-	familyJoinCmd.Flags().String("code", "", "Invite code (required)")
+	familyCreateCmd.Flags().String("name", "", "家庭名称")
+	familyJoinCmd.Flags().String("code", "", "邀请码")
 
 	familyCmd.AddCommand(familyCreateCmd)
 	familyCmd.AddCommand(familyJoinCmd)
 	familyCmd.AddCommand(familyListCmd)
+	familyCmd.AddCommand(familySelectCmd)
 }

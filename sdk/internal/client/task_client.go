@@ -21,7 +21,7 @@ func NewTaskClient(http *HTTPClient) *TaskClient {
 
 func (c *TaskClient) Create(familyID string, req *types.CreateTaskRequest) (*types.Task, error) {
 	var t types.Task
-	if err := c.http.do("POST", "/api/families/"+familyID+"/tasks", req, &t); err != nil {
+	if err := c.http.do("POST", "/api/tasks", req, &t); err != nil {
 		return nil, err
 	}
 	return &t, nil
@@ -29,7 +29,7 @@ func (c *TaskClient) Create(familyID string, req *types.CreateTaskRequest) (*typ
 
 func (c *TaskClient) List(familyID string) ([]types.Task, error) {
 	var tasks []types.Task
-	if err := c.http.do("GET", "/api/families/"+familyID+"/tasks", nil, &tasks); err != nil {
+	if err := c.http.do("GET", "/api/tasks", nil, &tasks); err != nil {
 		return nil, err
 	}
 	return tasks, nil
@@ -48,7 +48,7 @@ func (c *TaskClient) Delete(taskID string) error {
 }
 
 func (c *TaskClient) ListTodosSimple(familyID, status string) ([]types.Todo, error) {
-	path := "/api/families/" + familyID + "/todos"
+	path := "/api/todos"
 	if status != "" {
 		path += "?status=" + status
 	}

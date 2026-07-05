@@ -6,67 +6,86 @@
 cd cli && go build -o na . && sudo mv na /usr/local/bin/
 ```
 
-## 认证
+## 初始化（仅需一次）
 
 ```bash
-# 登录获取 token
-na login -u admin -p secret
+# 通过用户名密码登录，自动创建 API Key 并保存配置
+na init -u admin -p 12345678
 
-# 设置环境变量（推荐）
-export NA_TOKEN=<access_token>
-export NA_SERVER=http://localhost:8080
+# 或使用已有的 API Key
+na init --key na_key_xxxxxxxxxx
 ```
+
+配置自动保存到 `~/.na.yaml`，之后所有命令无需再传凭据。
 
 ## 命令参考
 
 ### `na family` — 家庭管理
 
-| 命令 | 说明 | 示例 |
-|------|------|------|
-| `family list` | 列出我的家庭 | `na family list` |
-| `family create --name <name>` | 创建家庭 | `na family create --name "我的家"` |
-| `family join --code <code>` | 通过邀请码加入 | `na family join --code ABC123` |
+| 命令 | 说明 |
+|------|------|
+| `family list` | 列出我的家庭 |
+| `family create --name <name>` | 创建新家庭（自动设为活跃） |
+| `family join --code <code>` | 通过邀请码加入家庭 |
 
-### `na task` — 任务管理
+### `na task` — 任务管理（使用活跃家庭）
 
-| 命令 | 说明 | 示例 |
-|------|------|------|
-| `task list --family-id <id>` | 列出任务 | `na task list --family-id abc` |
-| `task create` | 创建任务 | 见下方调度类型 |
-| `task todo --family-id <id>` | 列出待办 | `na task todo --family-id abc` |
-| `task done --id <id> --status done` | 完成/跳过待办 | `na task done --id xyz --status done` |
-| `task toggle --id <id> --enable false` | 启用/禁用任务 | `na task toggle --id xyz --enable false` |
-| `task delete --id <id>` | 删除任务 | `na task delete --id xyz` |
+| 命令 | 说明 |
+|------|------|
+| `task list` | 列出活跃家庭的所有任务 |
+| `task create --name <name> --schedule <type> --data <json>` | 创建任务 |
+| `task delete --id <id>` | 删除任务 |
 
-### 调度类型
+### `na todo` — 待办管理（使用活跃家庭）
+
+| 命令 | 说明 |
+|------|------|
+| `todo list` | 列出所有待办 |
+| `todo done --id <id> [--remark <text>]` | 完成待办（可附带备注） |
+| `todo skip --id <id>` | 跳过待办 |
+
+### `na template` — 模板管理
+
+| 命令 | 说明 |
+|------|------|
+| `template list` | 列出可用模板 |
+| `template use --code <code> --params <json>` | 从模板创建任务 |
+
+### 调度类型示例
 
 ```bash
-# 一次性
-na task create --family-id <id> --name "取快递" --schedule once \
-  --data '{"date":"2026-06-28","time":"18:00"}'
-
 # 每天
-na task create --family-id <id> --name "倒垃圾" --schedule daily \
-  --data '{"time":"09:00"}'
+na task create --name "倒垃圾" --schedule daily --data '{"time":"09:00"}'
 
-# 每周 (1=周一...7=周日)
-na task create --family-id <id> --name "周报" --schedule weekly \
-  --data '{"days":[1,3,5],"time":"10:00"}'
+# 每周一三五
+na task create --name "周报" --schedule weekly --data '{"days":[1,3,5],"time":"10:00"}'
 
-# 每月
-na task create --family-id <id> --name "大扫除" --schedule monthly \
-  --data '{"days":[1,15],"time":"08:00"}'
+# 每月1号和15号
+na task create --name "大扫除" --schedule monthly --data '{"days":[1,15],"time":"08:00"}'
 
-# 间隔天数
-na task create --family-id <id> --name "换床单" --schedule interval \
-  --data '{"days":14,"time":"09:00"}'
+# 每14天
+na task create --name "换床单" --schedule interval --data '{"days":14,"time":"09:00"}'
+
+# 一次性
+na task create --name "取快递" --schedule once --data '{"date":"2026-06-28","time":"18:00"}'
+```
+
+### 从模板创建
+
+```bash
+# 列出模板
+na template list
+
+# 使用模板
+na template use --code weekly_cleaning --params '{"area_name":"客厅"}'
 ```
 
 ## 全局选项
 
-| 选项 | 环境变量 | 默认值 | 说明 |
-|------|---------|--------|------|
-| `--server` | `NA_SERVER` | `http://localhost:8080` | API 服务器地址 |
-| `--token` | `NA_TOKEN` | — | 认证 Token |
-| `--output` / `-o` | — | `table` | 输出格式: table/json/yaml |
-| `--config` | — | `~/.na.yaml` | 配置文件路径 |
+| 选项 | 说明 |
+|------|------|
+| `--server <url>` | 服务器地址（覆盖配置文件） |
+| `--token <key>` | API Key（覆盖配置文件） |
+| `--output table\|json\|yaml` | 输出格式（默认 table） |
+
+> 所有配置存储在 `~/.na.yaml`，不需要设置环境变量。
