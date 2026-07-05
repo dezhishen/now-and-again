@@ -65,6 +65,18 @@ const kindColor = (kind: string) => {
   return map[kind] || 'bg-gray-500'
 }
 
+// Convert a UTC time string (HH:MM) to local time for display.
+// Backend stores all times in UTC; frontend converts to viewer's timezone.
+function utcTimeToLocal(timeStr: string): string {
+  if (!timeStr) return ''
+  const [h, m] = timeStr.split(':').map(Number)
+  if (isNaN(h) || isNaN(m)) return timeStr
+  // Use a fixed date to avoid DST edge cases — only timezone offset matters
+  const utc = new Date(Date.UTC(2000, 0, 1, h, m))
+  return utc.getHours().toString().padStart(2, '0') + ':' +
+         utc.getMinutes().toString().padStart(2, '0')
+}
+
 // ── Data loading ─────────────────────────────────────────────────
 const BASE_URL = '/api'
 
@@ -276,9 +288,9 @@ onBeforeUnmount(() => {
               v-for="evt in day.events.slice(0, 3)" :key="evt.task_id"
               class="text-xs px-1 py-0.5 rounded truncate cursor-default"
               :class="kindColor(evt.kind)"
-              :title="`${evt.name} (${evt.time})${evt.group_name ? ' - ' + evt.group_name : ''}`"
+              :title="`${evt.name} (${utcTimeToLocal(evt.time)})${evt.group_name ? ' - ' + evt.group_name : ''}`"
             >
-              <span class="text-white/90">{{ evt.time?.slice(0, 5) }}</span>
+              <span class="text-white/90">{{ utcTimeToLocal(evt.time) }}</span>
               <span class="text-white ml-1">{{ evt.name }}</span>
             </div>
             <div
