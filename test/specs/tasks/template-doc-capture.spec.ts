@@ -4,7 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const SHOT_DIR = path.resolve(__dirname, '../../../doc/images/template-quickstart')
+const SHOT_DIR = path.resolve(__dirname, '../../../doc/tutorial/images/template-quickstart')
 
 function shotPath(name: string): string {
   return path.join(SHOT_DIR, name)
@@ -126,4 +126,62 @@ test('文档截图：家庭内从模板创建任务并完成待办', async ({ pa
   await todoCard.locator('[data-testid="todo-quick-done"]').click()
   await expect(todoCard).not.toBeVisible({ timeout: 10000 })
   await page.screenshot({ path: shotPath('06-dashboard-after-done.png'), fullPage: true })
+})
+
+test('文档截图：任务链创建与步骤推进', async ({ page }) => {
+  fs.mkdirSync(SHOT_DIR, { recursive: true })
+
+  await loginAndEnterFamily(page)
+
+  // Navigate to tasks
+  await page.locator('[data-testid="family-nav-tasks"]').first().click()
+  await expect(page.locator('[data-testid="task-create-btn"]')).toBeVisible()
+
+  // Create a chain task manually
+  await page.locator('[data-testid="task-create-btn"]').click()
+  await page.locator('[data-testid="task-kind"]').selectOption('chain')
+  await page.locator('[data-testid="task-name"]').fill('新家入住巡检')
+
+  // Add step 1: inspection
+  await page.locator('[data-testid="chain-add-step"]').click()
+  await page.locator('[data-testid="subtask-name-input"]').first().fill('水电检查')
+  await page.locator('[data-testid="subtask-config-btn"]').first().click()
+  await page.locator('[data-testid="subtask-kind-select"]').first().selectOption('inspection')
+  await page.locator('[data-testid="check-item-add"]').click()
+  await page.locator('[data-testid="check-item-name-input"]').first().fill('总水阀')
+  await page.locator('[data-testid="subtask-confirm"]').click()
+
+  // Add step 2: simple
+  await page.locator('[data-testid="chain-add-step"]').click()
+  await page.locator('[data-testid="subtask-name-input"]').nth(1).fill('门窗检查')
+
+  // Screenshot: chain creation form with steps
+  await page.screenshot({ path: shotPath('07-chain-create-form.png'), fullPage: true })
+
+  await page.locator('[data-testid="task-submit"]').click()
+  const card = page.locator('[data-testid="task-card"][data-task-name="新家入住巡检"]').first()
+  await expect(card).toBeVisible()
+
+  // Screenshot: chain task card with orange badge and steps summary
+  await page.screenshot({ path: shotPath('08-chain-task-card.png'), fullPage: true })
+
+  // Trigger chain todo
+  await card.locator('[data-testid="task-trigger-btn"]').click()
+
+  // Go to dashboard
+  await page.locator('[data-testid="family-nav-dashboard"]').first().click()
+
+  // Wait for chain todo to appear
+  const chainTodo = page.locator('[data-testid="todo-card"][data-task-name="新家入住巡检"]').first()
+  await expect(chainTodo).toBeVisible()
+  await page.screenshot({ path: shotPath('09-chain-todo.png'), fullPage: true })
+
+  // Complete root chain todo → advances to step 1
+  await chainTodo.locator('[data-testid="chain-done-btn"]').click()
+  await expect(chainTodo).not.toBeVisible({ timeout: 10000 })
+
+  // Step 1 should now appear
+  const step1Todo = page.locator('[data-testid="todo-card"][data-task-name="水电检查"]').first()
+  await expect(step1Todo).toBeVisible()
+  await page.screenshot({ path: shotPath('10-chain-step-progress.png'), fullPage: true })
 })

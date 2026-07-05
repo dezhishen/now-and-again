@@ -59,6 +59,46 @@ make dev
 
 ![待办完成后](images/template-quickstart/06-dashboard-after-done.png)
 
+## 6. 复杂嵌套任务：任务链（Chain）
+
+对于需要多步骤串联执行的场景，可以使用“任务链”类型。每一步可用不同的任务类型，前一步完成后自动激活下一步。
+
+### 6.1 手动创建任务链
+
+在任务页点击“创建任务”，类型选择“任务链”，填写任务名称后添加步骤：
+
+- 每个步骤可以设置独立名称、类型（简单任务/巡检任务）
+- 巡检型步骤还可以配置检查项与分支
+- 步骤顺序可以上下拖拽调整
+
+![创建任务链表单](images/template-quickstart/07-chain-create-form.png)
+
+### 6.2 任务链卡片
+
+创建后的任务链会显示橙色角标和步骤摘要（如 `水电检查 → 门窗检查`），便于快速识别。
+
+![任务链卡片](images/template-quickstart/08-chain-task-card.png)
+
+### 6.3 触发待办并推进
+
+点击“生成”后，系统会按顺序生成待办。当前的待办卡片会显示：
+
+- 任务链名称
+- 当前步骤摘要
+- ✅ 完成 / 📝 备注 / ⏭️ 跳过 / ⛔ 中断 四个操作按钮
+
+![任务链待办进行中](images/template-quickstart/09-chain-todo.png)
+
+### 6.4 自动推进下一步
+
+完成当前步骤后，系统会自动激活下一步的待办：
+
+1. 点击 ✅ 完成第一个步骤（如“水电检查”）
+2. 第二个步骤（如“门窗检查”）会立即出现在待办列表中
+3. 依次完成后任务链才算全部完成
+
+![步骤推进后下一步待办自动出现](images/template-quickstart/10-chain-step-progress.png)
+
 ## 附：如何重新生成本文截图
 
 本文截图由 Playwright 自动生成，用例文件：
@@ -74,4 +114,4 @@ npx playwright test tasks/template-doc-capture.spec.ts --project=chromium
 
 截图输出目录：
 
-- `doc/images/template-quickstart/`
+- `doc/tutorial/images/template-quickstart/`
