@@ -21,9 +21,6 @@ jobs:
       - name: Set up pnpm
         run: corepack enable && corepack prepare pnpm@10 --activate
 
-      - name: Set up pnpm
-        run: corepack enable && corepack prepare pnpm@10 --activate
-
       - name: Build frontend
         run: |
           cd frontend
@@ -51,6 +48,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+
+      - name: Set up pnpm
+        run: corepack enable && corepack prepare pnpm@10 --activate
 
       - name: Download frontend dist
         uses: actions/download-artifact@v4
