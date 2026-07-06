@@ -6,6 +6,12 @@ on:
 
 permissions:
   contents: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  SERVER_IMAGE: ghcr.io/${{ github.repository_owner }}/now-and-again
+  CLI_IMAGE: ghcr.io/${{ github.repository_owner }}/now-and-again-cli
 
 jobs:
   # ── 前端构建（上传 artifact） ──────────────────────────────
@@ -45,7 +51,7 @@ jobs:
       - run: cd backend && go vet ./...
       - run: cd backend && go test ./... -count=1 -short
 
-  # ── 集成测试 + E2E（需前置全部通过） ──────────────────────
+  # ── 集成测试 + E2E ────────────────────────────────────────
   integration:
     needs: [build-frontend, backend-test, cli-test]
     runs-on: ubuntu-latest
@@ -56,20 +62,14 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '24' }
       - run: corepack enable && corepack prepare pnpm@10 --activate
-
       # Rebuild frontend with test attrs for E2E
       - run: cd frontend && pnpm install --frozen-lockfile && pnpm build
         env: { NA_STRIP_TEST_ATTRS: '0' }
-
-      - name: Build backend
+      - name: Build backend + CLI
         run: |
-          rm -rf backend/internal/webui/dist
-          cp -r frontend/dist backend/internal/webui/dist
+          rm -rf backend/internal/webui/dist && cp -r frontend/dist backend/internal/webui/dist
           cd backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o na-server ./cmd/server/
-
-      - name: Build CLI
-        run: cd cli && CGO_ENABLED=0 go build -ldflags="-s -w" -o na .
-
+          cd ../cli && CGO_ENABLED=0 go build -ldflags="-s -w" -o na .
       - name: Start backend
         run: |
           cd backend
@@ -79,20 +79,15 @@ jobs:
             sleep 1
           done
           echo "Backend failed"; cat /tmp/na-server.log; exit 1
-
       - name: CLI integration tests
         run: cd cli && go test ./tests/integration/... -count=1 -v -timeout 300s
-
-      - name: E2E setup
+      - name: E2E setup + run
         run: |
           cd test && npm install
           npx playwright install chromium --with-deps
           sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
-
-      - name: Run E2E tests
-        run: cd test && xvfb-run -a npx playwright test --project=chromium --headed --reporter=list
+          xvfb-run -a npx playwright test --project=chromium --headed --reporter=list
         env: { CI: true }
-
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -100,7 +95,7 @@ jobs:
           path: test/playwright-report/
           retention-days: 7
 
-  # ── 跨平台构建（需测试全部通过） ──────────────────────────
+  # ── 跨平台二进制构建 ──────────────────────────────────────
   build-binaries:
     needs: integration
     runs-on: ubuntu-latest
@@ -117,42 +112,85 @@ jobs:
         with: { go-version: '1.25' }
       - uses: actions/download-artifact@v4
         with: { name: frontend-dist, path: backend/internal/webui/dist }
-
       - name: Build backend
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 0
+        env: { GOOS: ${{ matrix.goos }}, GOARCH: ${{ matrix.goarch }}, CGO_ENABLED: 0 }
         run: |
+          EXT=""; [ "$GOOS" = "windows" ] && EXT=".exe"
           cd backend
-          EXT=""; if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
           go build -ldflags="-s -w" -o ../dist/now-and-again-${GOOS}-${GOARCH}${EXT} ./cmd/server/
-
       - name: Build CLI
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 0
+        env: { GOOS: ${{ matrix.goos }}, GOARCH: ${{ matrix.goarch }}, CGO_ENABLED: 0 }
         run: |
-          cd cli
-          EXT=""; if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
-          go build -ldflags="-s -w" -o ../dist/na-${GOOS}-${GOARCH}${EXT} .
-
+          EXT=""; [ "$GOOS" = "windows" ] && EXT=".exe"
+          cd cli && go build -ldflags="-s -w" -o ../dist/na-${GOOS}-${GOARCH}${EXT} .
       - name: Compress with UPX
         if: matrix.goos != 'darwin'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq upx-ucl 2>/dev/null || true
-          EXT=""; if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          EXT=""; [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
           upx --best --lzma dist/na-${{ matrix.goos }}-${{ matrix.goarch }}${EXT} || echo "UPX skipped"
-
       - name: Package
         run: |
           cd dist
-          EXT=""; if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          EXT=""; [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
           tar czf now-and-again_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz now-and-again-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}
           tar czf na_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz na-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}
-
       - uses: actions/upload-artifact@v4
         with:
           name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*.tar.gz
+
+  # ── Docker 镜像（amd64 + arm64） ──────────────────────────
+  docker:
+    needs: integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta-server
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.SERVER_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=short
+          flavor: |
+            latest=${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') }}
+
+      - id: meta-cli
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.CLI_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=short
+          flavor: |
+            latest=${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.ci
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-server.outputs.tags }}
+          labels: ${{ steps.meta-server.outputs.labels }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: cli/Dockerfile.ci
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-cli.outputs.tags }}
+          labels: ${{ steps.meta-cli.outputs.labels }}
