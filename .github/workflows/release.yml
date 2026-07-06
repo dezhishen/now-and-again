@@ -215,7 +215,8 @@ jobs:
             type=semver,pattern={{major}}
             type=sha,format=short
           flavor: |
-            latest=${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') }}
+            # latest 仅正式版 (v1.0.0)；beta/alpha/rc/pre 不发 latest
+            latest=${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') && !contains(github.ref, '-pre') }}
 
       - id: meta-cli
         uses: docker/metadata-action@v5
@@ -227,7 +228,8 @@ jobs:
             type=semver,pattern={{major}}
             type=sha,format=short
           flavor: |
-            latest=${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') }}
+            # latest 仅正式版 (v1.0.0)；beta/alpha/rc/pre 不发 latest
+            latest=${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') && !contains(github.ref, '-pre') }}
 
       - uses: docker/build-push-action@v6
         with:
