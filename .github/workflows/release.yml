@@ -344,6 +344,33 @@ jobs:
           echo '```' >> /tmp/release-notes.md
           echo "" >> /tmp/release-notes.md
           echo "---" >> /tmp/release-notes.md
+          echo "## 📥 直接下载" >> /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+          echo "| 平台 | 架构 | 服务端 | CLI |" >> /tmp/release-notes.md
+          echo "|------|------|--------|-----|" >> /tmp/release-notes.md
+          for os in linux darwin windows; do
+            for arch in amd64 arm64; do
+              case "$os-$arch" in
+                windows-arm64) continue ;;
+                linux-*)    os_label="Linux" ;;
+                darwin-*)   os_label="macOS" ;;
+                windows-*)  os_label="Windows" ;;
+              esac
+              srv="now-and-again_${os}_${arch}.tar.gz"
+              cli="na_${os}_${arch}.tar.gz"
+              echo "| ${os_label} | ${arch} | [${srv}](${BASE_URL}/${srv}) | [$cli](${BASE_URL}/${cli}) |" >> /tmp/release-notes.md
+            done
+          done
+          echo "" >> /tmp/release-notes.md
+          echo "<details><summary>SHA256 校验</summary>" >> /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+          echo '```' >> /tmp/release-notes.md
+          cat dist/sha256sum.txt >> /tmp/release-notes.md
+          echo '```' >> /tmp/release-notes.md
+          echo "</details>" >> /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+          echo "---" >> /tmp/release-notes.md
           echo "**完整对比**: [${PREV_TAG}...${{ github.ref_name }}](https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${{ github.ref_name }})" >> /tmp/release-notes.md
 
           echo "=== 生成的发布说明 ==="
