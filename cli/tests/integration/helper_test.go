@@ -63,13 +63,18 @@ func runNAOK(t *testing.T, args ...string) string {
 	return out
 }
 
-// resetBackend clears test state.
+// resetBackend clears test state and schedules cleanup after the test.
 func resetBackend(t *testing.T) {
 	t.Helper()
 	testHome = filepath.Join(os.TempDir(), "na-test-"+t.Name())
 	os.RemoveAll(testHome)
 	os.MkdirAll(testHome, 0755)
 	os.Remove(filepath.Join(testHome, ".na.yaml"))
+
+	// Clean up the temp HOME directory (and its .na.yaml) after the test finishes.
+	t.Cleanup(func() {
+		os.RemoveAll(testHome)
+	})
 }
 
 // ensureBackendReady polls the server status endpoint until it responds.

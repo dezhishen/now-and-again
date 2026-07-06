@@ -58,7 +58,7 @@ func (c *FamilyClient) ListMyFamilies(ctx context.Context) ([]types.Family, erro
 
 func (c *FamilyClient) ListMembers(ctx context.Context, familyID uuid.UUID) ([]types.FamilyMember, error) {
 	var members []types.FamilyMember
-	if err := c.http.do("GET", fmt.Sprintf("/api/families/%s/members", familyID), nil, &members); err != nil {
+	if err := c.http.do("GET", "/api/members", nil, &members); err != nil {
 		return nil, err
 	}
 	return members, nil
@@ -66,43 +66,43 @@ func (c *FamilyClient) ListMembers(ctx context.Context, familyID uuid.UUID) ([]t
 
 func (c *FamilyClient) UpdateMemberRole(ctx context.Context, familyID, userID uuid.UUID, role types.FamilyRole) error {
 	req := types.UpdateMemberRoleRequest{Role: role}
-	return c.http.do("PUT", fmt.Sprintf("/api/families/%s/members/%s/role", familyID, userID), req, nil)
+	return c.http.do("PUT", fmt.Sprintf("/api/members/%s/role", userID), req, nil)
 }
 
 func (c *FamilyClient) RemoveMember(ctx context.Context, familyID, userID uuid.UUID) error {
-	return c.http.do("DELETE", fmt.Sprintf("/api/families/%s/members/%s", familyID, userID), nil, nil)
+	return c.http.do("DELETE", fmt.Sprintf("/api/members/%s", userID), nil, nil)
 }
 
 func (c *FamilyClient) LeaveFamily(ctx context.Context, familyID uuid.UUID) error {
-	return c.http.do("POST", fmt.Sprintf("/api/families/%s/leave", familyID), nil, nil)
+	return c.http.do("POST", "/api/family/leave", nil, nil)
 }
 
 // ─── Join Requests ────────────────────────────────────────────────
 
 func (c *FamilyClient) ListJoinRequests(ctx context.Context, familyID uuid.UUID) ([]types.FamilyMember, error) {
 	var members []types.FamilyMember
-	if err := c.http.do("GET", fmt.Sprintf("/api/families/%s/join-requests", familyID), nil, &members); err != nil {
+	if err := c.http.do("GET", "/api/family/join-requests", nil, &members); err != nil {
 		return nil, err
 	}
 	return members, nil
 }
 
 func (c *FamilyClient) ReviewJoinRequest(ctx context.Context, familyID uuid.UUID, req *types.ReviewJoinRequest) error {
-	return c.http.do("PUT", fmt.Sprintf("/api/families/%s/join-requests", familyID), req, nil)
+	return c.http.do("PUT", "/api/family/join-requests", req, nil)
 }
 
 // ─── Family Group ─────────────────────────────────────────────────
 
 func (c *FamilyClient) CreateGroup(ctx context.Context, familyID uuid.UUID, req *types.CreateFamilyGroupRequest) (*types.FamilyGroup, error) {
 	var g types.FamilyGroup
-	if err := c.http.do("POST", fmt.Sprintf("/api/families/%s/groups", familyID), req, &g); err != nil {
+	if err := c.http.do("POST", "/api/groups", req, &g); err != nil {
 		return nil, err
 	}
 	return &g, nil
 }
 
 func (c *FamilyClient) ListGroups(ctx context.Context, familyID uuid.UUID, name string) ([]types.FamilyGroup, error) {
-	path := fmt.Sprintf("/api/families/%s/groups", familyID)
+	path := "/api/groups"
 	if name != "" {
 		path += "?name=" + url.QueryEscape(name)
 	}
