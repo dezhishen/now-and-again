@@ -7,7 +7,7 @@ RUN apk add --no-cache ca-certificates tzdata
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 ENV TZ=Asia/Shanghai
 
-COPY dist/na-${TARGETARCH} /usr/local/bin/na
+COPY dist/na-linux-${TARGETARCH} /usr/local/bin/na
 RUN chmod +x /usr/local/bin/na
 
 USER appuser

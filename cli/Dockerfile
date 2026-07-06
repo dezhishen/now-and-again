@@ -5,7 +5,8 @@ COPY backend/ backend/
 COPY cli/go.mod cli/go.sum cli/
 RUN cd cli && go mod download
 COPY cli/ cli/
-RUN cd cli && CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/na .
+ARG VERSION=dev
+RUN cd cli && CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/dezhishen/now-and-again/cli/cmd.Version=${VERSION}" -o /app/na .
 RUN upx --best --lzma /app/na
 
 FROM registry.alpinelinux.org/img/alpine:3.24

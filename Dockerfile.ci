@@ -8,7 +8,7 @@ RUN apk add --no-cache ca-certificates tzdata
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
-COPY dist/now-and-again-${TARGETARCH} /app/server
+COPY dist/now-and-again-linux-${TARGETARCH} /app/server
 
 ENV NA_DATA_DIR=/data
 ENV GIN_MODE=release

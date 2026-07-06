@@ -76,12 +76,12 @@ build-backend: ## 编译后端二进制 → backend/na-server（需先 build-fro
 	else \
 		echo "  ⚠️  frontend/dist not found, building without embedded UI"; \
 	fi
-	@cd backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o na-server ./cmd/server
+	@cd backend && CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/dezhishen/now-and-again/backend/internal/handler.Version=$${VERSION:-dev}" -o na-server ./cmd/server
 	@echo "  → backend/na-server"
 
 build-cli: ## 编译 CLI 二进制 → cli/na（含 UPX 压缩）
 	@echo "Building CLI..."
-	@cd cli && CGO_ENABLED=0 go build -ldflags="-s -w" -o na .
+	@cd cli && CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/dezhishen/now-and-again/cli/cmd.Version=$${VERSION:-dev}" -o na .
 	@if command -v upx >/dev/null 2>&1; then \
 		upx --best --lzma cli/na && echo "  → cli/na (UPX compressed)"; \
 	else \

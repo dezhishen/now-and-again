@@ -22,7 +22,8 @@ COPY backend/ backend/
 # Embed frontend dist
 COPY --from=frontend-builder /frontend/dist /app/backend/internal/webui/dist
 
-RUN cd backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/server ./cmd/server
+ARG VERSION=dev
+RUN cd backend && CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/dezhishen/now-and-again/backend/internal/handler.Version=${VERSION}" -o /app/server ./cmd/server
 
 # ─── Runtime ──────────────────────────────────────────────────────
 FROM registry.alpinelinux.org/img/alpine:3.24

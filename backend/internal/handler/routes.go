@@ -8,12 +8,18 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/contracts"
 )
 
+// Version is set at build time via ldflags: -X github.com/dezhishen/now-and-again/backend/internal/handler.Version=v1.2.3
+var Version = "dev"
+
 func RegisterRoutes(public *gin.Engine, auth, adminAuth, familyAuth, ownerAuth *gin.RouterGroup, c *contracts.AllContracts, imgHandler *ImageHandlers, settingsHandler *SettingsHandlers, taskHandler *TaskHandlers, todoHandler *TodoHandlers, logHandler *LogHandlers, icsHandler *IcsHandlers, calendarHandler *CalendarHandlers, locationHandler *LocationHandlers, taskTemplateHandler *TaskTemplateHandlers) {
 	h := NewHandlers(c)
 
 	// ── Public ──────────────────────────────────────────────────
 	public.GET("/api/system/status", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "ok",
+			"version": Version,
+		})
 	})
 	public.POST("/api/auth/register", h.User.Register)
 	public.POST("/api/auth/login", h.User.Login)

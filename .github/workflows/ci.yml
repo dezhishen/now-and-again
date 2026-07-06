@@ -78,10 +78,10 @@ jobs:
         with: { name: frontend-dist, path: backend/internal/webui/dist }
 
       - name: Build backend
-        run: cd backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o na-server ./cmd/server/
+        run: cd backend && CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/dezhishen/now-and-again/backend/internal/handler.Version=${GITHUB_REF_NAME:-dev}" -o na-server ./cmd/server/
 
       - name: Build CLI
-        run: cd cli && CGO_ENABLED=0 go build -ldflags="-s -w" -o na .
+        run: cd cli && CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/dezhishen/now-and-again/cli/cmd.Version=${GITHUB_REF_NAME:-dev}" -o na .
 
       - name: Start backend
         run: |
