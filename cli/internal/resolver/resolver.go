@@ -338,3 +338,93 @@ func (c *Cache) ResolveLocationIDInteractive(ctx context.Context, na *sdk.NA, in
 	_ = state.Save(s)
 	return "", fmt.Errorf("未找到匹配的地址 %q。\n→ 使用 na family status 查看所有地址", input)
 }
+
+// ─── Template resolution ──────────────────────────────────────────
+
+// ResolveTemplateCode finds a template by name or code.
+// Priority: exact code → exact name → substring name.
+// Returns the template code (unique identifier) for use with CreateTaskFromTemplate.
+func (c *Cache) ResolveTemplateCode(ctx context.Context, na *sdk.NA, input string) (string, *types.TaskTemplate, error) {
+	templates, err := na.ListTemplates(ctx, "")
+	if err != nil {
+		return "", nil, fmt.Errorf("获取模板列表失败: %w", err)
+	}
+
+	// 1. Exact code match
+	for _, t := range templates {
+		if t.TemplateCode == input {
+			return t.TemplateCode, &t, nil
+		}
+	}
+
+	// 2. Exact name match
+	var exactMatches []types.TaskTemplate
+	for _, t := range templates {
+		if t.Name == input {
+			exactMatches = append(exactMatches, t)
+		}
+	}
+	if len(exactMatches) == 1 {
+		return exactMatches[0].TemplateCode, &exactMatches[0], nil
+	}
+	if len(exactMatches) > 1 {
+		return "", nil, fmt.Errorf("找到多个同名模板 %q，请使用 --code 指定", input)
+	}
+
+	// 3. Substring name match
+	var substringMatches []types.TaskTemplate
+	inputLower := strings.ToLower(input)
+	for _, t := range templates {
+		if strings.Contains(strings.ToLower(t.Name), inputLower) {
+			substringMatches = append(substringMatches, t)
+		}
+	}
+	if len(substringMatches) == 1 {
+		return substringMatches[0].TemplateCode, &substringMatches[0], nil
+	}
+	if len(substringMatches) > 1 {
+		return "", nil, fmt.Errorf("找到 %d 个匹配的模板", len(substringMatches))
+	}
+
+	return "", nil, fmt.Errorf("未找到匹配的模板: %s", input)
+}
+
+// ResolveTemplateCodeInteractive tries name→code resolution. On ambiguity,
+// saves candidates to action-id state file.
+func (c *Cache) ResolveTemplateCodeInteractive(ctx context.Context, na *sdk.NA, input, actionID, cmd string, args map[string]string) (string, *types.TaskTemplate, error) {
+	code, t, err := c.ResolveTemplateCode(ctx, na, input)
+	if err == nil {
+		return code, t, nil
+	}
+
+	// Check if ambiguity (multiple substring matches).
+	templates, listErr := na.ListTemplates(ctx, "")
+	if listErr != nil {
+		return "", nil, err
+	}
+
+	inputLower := strings.ToLower(input)
+	var candidates []types.TaskTemplate
+	for _, t := range templates {
+		if strings.Contains(strings.ToLower(t.Name), inputLower) {
+			candidates = append(candidates, t)
+		}
+	}
+
+	if len(candidates) > 1 {
+		opts := make([]state.EntityOption, len(candidates))
+		for i, t := range candidates {
+			opts[i] = state.EntityOption{ID: t.TemplateCode, Name: t.Name}
+		}
+		return "", nil, state.ResolveAmbiguousTemplate(actionID, cmd, args, input, opts)
+	}
+
+	s := &state.ActionState{
+		ActionID: actionID,
+		Step:     "select_template",
+		Command:  cmd,
+		Args:     args,
+	}
+	_ = state.Save(s)
+	return "", nil, fmt.Errorf("未找到匹配的模板 %q。\n→ 使用 na template list 查看所有模板", input)
+}

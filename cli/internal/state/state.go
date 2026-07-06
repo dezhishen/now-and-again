@@ -157,6 +157,34 @@ func ResolveAmbiguousLocation(actionID string, cmd string, args map[string]strin
 	return fmt.Errorf("%s", sb.String())
 }
 
+// ResolveAmbiguousTemplate generates an error message and saves state when
+// multiple templates match the given name.
+func ResolveAmbiguousTemplate(actionID string, cmd string, args map[string]string, input string, candidates []EntityOption) error {
+	s := &ActionState{
+		ActionID:   actionID,
+		Step:       "select_template",
+		Command:    cmd,
+		Args:       args,
+		Candidates: candidates,
+	}
+	if err := Save(s); err != nil {
+		return fmt.Errorf("save state: %w", err)
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("找到 %d 个匹配的模板 %q:\n", len(candidates), input))
+	for i, c := range candidates {
+		sb.WriteString(fmt.Sprintf("  %d. %s  (code: %s)\n", i+1, c.Name, c.ID))
+	}
+	sb.WriteString(fmt.Sprintf("\n→ 请使用精确名称或 --code 重试，如:\n"))
+	if len(candidates) > 0 {
+		sb.WriteString(fmt.Sprintf("  na --action-id %s %s --name \"%s\" ...\n", actionID, cmd, candidates[0].Name))
+		sb.WriteString(fmt.Sprintf("  na --action-id %s %s --code %s ...\n", actionID, cmd, candidates[0].ID))
+	}
+	sb.WriteString(fmt.Sprintf("\n状态已保存至: %s", statePath(actionID)))
+	return fmt.Errorf("%s", sb.String())
+}
+
 // CleanupIfDone deletes the state file if the current step is "done"
 // (i.e., no more pending resolutions).
 func CleanupIfDone(actionID string) {
