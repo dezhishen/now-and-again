@@ -382,3 +382,4 @@ jobs:
             dist/*.tar.gz
             dist/sha256sum.txt
           body_path: /tmp/release-notes.md
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') || contains(github.ref_name, '-pre') }}
