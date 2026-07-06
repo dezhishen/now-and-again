@@ -9,116 +9,102 @@ permissions:
   contents: read
 
 jobs:
+  # ── 快速检查，不依赖任何构建 ──────────────────────────────
   plugin-isolation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install ripgrep
         run: sudo apt-get update && sudo apt-get install -y ripgrep
-
       - name: Check plugin isolation rules
         run: make check-plugin-isolation
 
-  test:
-    needs: plugin-isolation
+  # ── 前端构建（并行于其他检查） ───────────────────────────
+  build-frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Set up pnpm
-        run: corepack enable && corepack prepare pnpm@10 --activate
-
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - run: corepack enable && corepack prepare pnpm@10 --activate
       - name: Build frontend
-        run: |
-          cd frontend
-          pnpm install --frozen-lockfile
-          pnpm build
+        run: cd frontend && pnpm install --frozen-lockfile && pnpm build
         env:
-          # 保留 data-testid 等测试属性，E2E 测试依赖这些属性定位元素
           NA_STRIP_TEST_ATTRS: '0'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
 
-      - name: Go vet
-        run: |
-          mkdir -p backend/internal/webui/dist
-          cp -r frontend/dist backend/internal/webui/
-          cd backend && go vet ./...
-          cd ../cli && go vet ./...
+  # ── CLI vet + 单元测试（无需前端） ────────────────────────
+  cli-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.25' }
+      - run: cd cli && go vet ./...
+      - run: cd cli && go test ./... -count=1 -short
 
-      - name: Go test
-        run: |
-          cd backend && go test ./... -count=1 -short
-          cd ../cli && go test ./... -count=1 -short
+  # ── Backend vet + 单元测试（需要前端 dist 用于 embed） ──
+  backend-test:
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.25' }
+      - uses: actions/download-artifact@v4
+        with: { name: frontend-dist, path: backend/internal/webui/dist }
+      - run: cd backend && go vet ./...
+      - run: cd backend && go test ./... -count=1 -short
 
-      - name: Build backend (linux/amd64)
-        run: |
-          rm -rf backend/internal/webui/dist
-          cp -r frontend/dist backend/internal/webui/dist
-          cd backend
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o na-server ./cmd/server/
+  # ── 集成测试 + E2E（需要前后端测试全部通过） ────────────
+  integration:
+    needs: [plugin-isolation, build-frontend, backend-test, cli-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.25' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - run: corepack enable && corepack prepare pnpm@10 --activate
 
-      - name: Build CLI (linux/amd64)
-        run: |
-          cd cli
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o na .
+      - uses: actions/download-artifact@v4
+        with: { name: frontend-dist, path: backend/internal/webui/dist }
+
+      - name: Build backend
+        run: cd backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o na-server ./cmd/server/
+
+      - name: Build CLI
+        run: cd cli && CGO_ENABLED=0 go build -ldflags="-s -w" -o na .
 
       - name: Start backend
         run: |
           cd backend
           NA_DATA_DIR=../data NA_ADMIN_DEFAULT_PASSWORD=12345678 NA_SYNC_TEMPLATES_ON_STARTUP=false ./na-server > /tmp/na-server.log 2>&1 &
-          ready=0
           for i in $(seq 1 90); do
-            if curl -s http://localhost:8080/api/system/status | grep -q ok; then
-              echo "Backend ready"
-              ready=1
-              break
-            fi
+            curl -s http://localhost:8080/api/system/status | grep -q ok && echo "Backend ready" && exit 0
             sleep 1
           done
-          if [ "$ready" -ne 1 ]; then
-            echo "Backend failed to become ready"
-            cat /tmp/na-server.log || true
-            exit 1
-          fi
+          echo "Backend failed"; cat /tmp/na-server.log; exit 1
 
       - name: CLI integration tests
-        run: |
-          cd cli
-          go test ./tests/integration/... -count=1 -v -timeout 300s
+        run: cd cli && go test ./tests/integration/... -count=1 -v -timeout 300s
 
-      - name: Install E2E dependencies
+      - name: E2E setup
         run: |
-          cd test
-          npm install
-
-      - name: Install Playwright
-        run: |
-          cd test
+          cd test && npm install
           npx playwright install chromium --with-deps
-
-      - name: Install xvfb
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
 
       - name: Run E2E tests
-        run: |
-          cd test
-          xvfb-run -a npx playwright test --project=chromium --headed --reporter=list
-        env:
-          CI: true
+        run: cd test && xvfb-run -a npx playwright test --project=chromium --headed --reporter=list
+        env: { CI: true }
 
-      - name: Upload test report (on failure)
+      - uses: actions/upload-artifact@v4
         if: failure()
-        uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: test/playwright-report/

@@ -8,141 +8,101 @@ permissions:
   contents: write
 
 jobs:
+  # ── 前端构建（上传 artifact） ──────────────────────────────
   build-frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Set up pnpm
-        run: corepack enable && corepack prepare pnpm@10 --activate
-
-      - name: Build frontend
-        run: |
-          cd frontend
-          pnpm install --frozen-lockfile
-          pnpm build
-
-      - name: Upload frontend dist
-        uses: actions/upload-artifact@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - run: corepack enable && corepack prepare pnpm@10 --activate
+      - run: cd frontend && pnpm install --frozen-lockfile && pnpm build
+      - uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: frontend/dist/
 
-  test:
+  # ── CLI vet + 单元测试（并行于 backend-test） ────────────
+  cli-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.25' }
+      - run: cd cli && go vet ./...
+      - run: cd cli && go test ./... -count=1 -short
+
+  # ── Backend vet + 单元测试（需要前端 artifact） ──────────
+  backend-test:
     needs: build-frontend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.25' }
+      - uses: actions/download-artifact@v4
+        with: { name: frontend-dist, path: backend/internal/webui/dist }
+      - run: cd backend && go vet ./...
+      - run: cd backend && go test ./... -count=1 -short
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
+  # ── 集成测试 + E2E（需前置全部通过） ──────────────────────
+  integration:
+    needs: [build-frontend, backend-test, cli-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.25' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - run: corepack enable && corepack prepare pnpm@10 --activate
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
+      # Rebuild frontend with test attrs for E2E
+      - run: cd frontend && pnpm install --frozen-lockfile && pnpm build
+        env: { NA_STRIP_TEST_ATTRS: '0' }
 
-      - name: Set up pnpm
-        run: corepack enable && corepack prepare pnpm@10 --activate
-
-      - name: Download frontend dist
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: backend/internal/webui/dist
-
-      - name: Build frontend for E2E (keep test attrs)
+      - name: Build backend
         run: |
-          cd frontend
-          pnpm install --frozen-lockfile
-          pnpm build
-          cd ..
           rm -rf backend/internal/webui/dist
           cp -r frontend/dist backend/internal/webui/dist
-        env:
-          NA_STRIP_TEST_ATTRS: '0'
+          cd backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o na-server ./cmd/server/
 
-      - name: Go vet
-        run: |
-          cd backend && go vet ./...
-          cd ../cli && go vet ./...
-
-      - name: Go test
-        run: |
-          cd backend && go test ./... -count=1 -short
-          cd ../cli && go test ./... -count=1 -short
-
-      - name: Build backend (linux/amd64)
-        run: |
-          cd backend
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o na-server ./cmd/server/
-
-      - name: Build CLI (linux/amd64)
-        run: |
-          cd cli
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o na .
+      - name: Build CLI
+        run: cd cli && CGO_ENABLED=0 go build -ldflags="-s -w" -o na .
 
       - name: Start backend
         run: |
           cd backend
           NA_DATA_DIR=../data NA_ADMIN_DEFAULT_PASSWORD=12345678 NA_SYNC_TEMPLATES_ON_STARTUP=false ./na-server > /tmp/na-server.log 2>&1 &
-          ready=0
           for i in $(seq 1 90); do
-            if curl -s http://localhost:8080/api/system/status | grep -q ok; then
-              echo "Backend ready"
-              ready=1
-              break
-            fi
+            curl -s http://localhost:8080/api/system/status | grep -q ok && echo "Backend ready" && exit 0
             sleep 1
           done
-          if [ "$ready" -ne 1 ]; then
-            echo "Backend failed to become ready"
-            cat /tmp/na-server.log || true
-            exit 1
-          fi
+          echo "Backend failed"; cat /tmp/na-server.log; exit 1
 
       - name: CLI integration tests
-        run: |
-          cd cli
-          go test ./tests/integration/... -count=1 -v -timeout 300s
+        run: cd cli && go test ./tests/integration/... -count=1 -v -timeout 300s
 
-      - name: Install E2E dependencies
+      - name: E2E setup
         run: |
-          cd test
-          npm install
-
-      - name: Install Playwright
-        run: |
-          cd test
+          cd test && npm install
           npx playwright install chromium --with-deps
-
-      - name: Install xvfb
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
 
       - name: Run E2E tests
-        run: |
-          cd test
-          xvfb-run -a npx playwright test --project=chromium --headed --reporter=list
-        env:
-          CI: true
+        run: cd test && xvfb-run -a npx playwright test --project=chromium --headed --reporter=list
+        env: { CI: true }
 
-      - name: Upload test report (on failure)
+      - uses: actions/upload-artifact@v4
         if: failure()
-        uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: test/playwright-report/
           retention-days: 7
 
+  # ── 跨平台构建（需测试全部通过） ──────────────────────────
   build-binaries:
-    needs: [build-frontend, test]
+    needs: integration
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -153,17 +113,10 @@ jobs:
             goarch: arm64
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-
-      - name: Download frontend dist
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: backend/internal/webui/dist
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.25' }
+      - uses: actions/download-artifact@v4
+        with: { name: frontend-dist, path: backend/internal/webui/dist }
 
       - name: Build backend
         env:
@@ -172,8 +125,7 @@ jobs:
           CGO_ENABLED: 0
         run: |
           cd backend
-          EXT=""
-          if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
+          EXT=""; if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
           go build -ldflags="-s -w" -o ../dist/now-and-again-${GOOS}-${GOARCH}${EXT} ./cmd/server/
 
       - name: Build CLI
@@ -183,68 +135,24 @@ jobs:
           CGO_ENABLED: 0
         run: |
           cd cli
-          EXT=""
-          if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
+          EXT=""; if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
           go build -ldflags="-s -w" -o ../dist/na-${GOOS}-${GOARCH}${EXT} .
 
       - name: Compress with UPX
         if: matrix.goos != 'darwin'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq upx-ucl 2>/dev/null || true
-          EXT=""
-          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
-          upx --best --lzma dist/na-${{ matrix.goos }}-${{ matrix.goarch }}${EXT} || echo "UPX skipped (may not support this arch)"
+          EXT=""; if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          upx --best --lzma dist/na-${{ matrix.goos }}-${{ matrix.goarch }}${EXT} || echo "UPX skipped"
 
       - name: Package
-        shell: bash
         run: |
-          EXT=""
-          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
           cd dist
+          EXT=""; if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
           tar czf now-and-again_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz now-and-again-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}
           tar czf na_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz na-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*.tar.gz
-
-  release:
-    needs: build-binaries
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          pattern: binaries-*
-          merge-multiple: true
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -z "$PREV_TAG" ]; then
-            echo "changelog=🎉 Initial release" >> $GITHUB_OUTPUT
-          else
-            LOG=$(git log --oneline --no-merges ${PREV_TAG}..HEAD | sed 's/^/- /')
-            echo "changelog<<EOF" >> $GITHUB_OUTPUT
-            echo "$LOG" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: ${{ github.ref_name }}
-          body: ${{ steps.changelog.outputs.changelog }}
-          draft: false
-          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
-          generate_release_notes: true
-          make_latest: ${{ !contains(github.ref_name, '-rc') && !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha') }}
-          files: dist/*.tar.gz
