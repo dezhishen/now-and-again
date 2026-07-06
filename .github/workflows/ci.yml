@@ -21,7 +21,7 @@ jobs:
       - name: Check plugin isolation rules
         run: make check-plugin-isolation
 
-  # ── 前端构建（并行于其他检查） ───────────────────────────
+  # ── 前端测试构建（保留 data-testid 供 E2E 使用） ────
   build-frontend:
     runs-on: ubuntu-latest
     steps:
@@ -29,9 +29,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '24' }
       - run: corepack enable && corepack prepare pnpm@10 --activate
-      - name: Build frontend
+      - name: Build frontend (test)
         run: cd frontend && pnpm install --frozen-lockfile && pnpm build
         env:
+          # 保留 data-testid 等测试属性，E2E 依赖这些属性定位元素
           NA_STRIP_TEST_ATTRS: '0'
       - uses: actions/upload-artifact@v4
         with:
