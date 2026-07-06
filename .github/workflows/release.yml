@@ -18,14 +18,14 @@ jobs:
   build-frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v5
         with: { node-version: '24' }
       - run: corepack enable && corepack prepare pnpm@10 --activate
       - name: Build frontend (production)
         run: cd frontend && pnpm install --frozen-lockfile && pnpm build
         # 不设 NA_STRIP_TEST_ATTRS → 默认剥离 data-testid 等测试属性，减小包体积
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: frontend-dist
           path: frontend/dist/
@@ -34,7 +34,7 @@ jobs:
   cli-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with: { go-version: '1.25', cache-dependency-path: cli/go.sum }
       - run: cd cli && go vet ./...
@@ -45,10 +45,10 @@ jobs:
     needs: build-frontend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with: { go-version: '1.25', cache-dependency-path: backend/go.sum }
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v7
         with: { name: frontend-dist, path: backend/internal/webui/dist }
       - run: cd backend && go vet ./...
       - run: cd backend && go test ./... -count=1 -short
@@ -58,7 +58,7 @@ jobs:
     needs: [build-frontend, backend-test, cli-test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with: { go-version: '1.25', cache-dependency-path: backend/go.sum }
       - uses: actions/setup-node@v5
@@ -100,7 +100,7 @@ jobs:
       - name: Run E2E tests
         run: cd test && npx playwright test --project=chromium
         env: { CI: true }
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: playwright-report
@@ -119,10 +119,10 @@ jobs:
           - goos: windows
             goarch: arm64
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with: { go-version: '1.25', cache-dependency-path: backend/go.sum }
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v7
         with: { name: frontend-dist, path: backend/internal/webui/dist }
       - name: Build backend
         env: { GOOS: ${{ matrix.goos }}, GOARCH: ${{ matrix.goarch }}, CGO_ENABLED: 0 }
@@ -147,7 +147,7 @@ jobs:
           EXT=""; [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
           tar czf now-and-again_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz now-and-again-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}
           tar czf na_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz na-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*.tar.gz
@@ -157,10 +157,10 @@ jobs:
     needs: build-binaries
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download all binaries
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with: { path: dist, merge-multiple: true }
 
       - name: Prepare dist for Docker
@@ -228,8 +228,8 @@ jobs:
     needs: build-binaries
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v5
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v7
         with: { path: dist, merge-multiple: true }
 
       - name: Generate SHA256 checksums
