@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,109 +28,104 @@ var taskCmd = &cobra.Command{
 
 var taskCreateCmd = &cobra.Command{
 	Use:   "create",
-	Short: "创建新任务",
+	Short: "创建新任务（支持引导式交互）",
 	Long: `在活跃家庭中创建新任务。
 
-调度类型 (--schedule) 及对应的 --data 参数：
+引导式交互（无参数时自动进入）:
+  na task create
 
-  daily       {"time":"09:00"}                         每天指定时间
-  weekly      {"time":"09:00","days":[1,3,5]}          每周一三五 (1=周一,7=周日)
-  monthly     {"time":"09:00","days":[1,15]}            每月1号和15号
-  yearly      {"time":"09:00","day":6,"month":7}       每年7月6日
-  interval    {"days":3}                                每3天一次
-  once        {"date":"2026-07-10","time":"14:00"}     仅一次
-
-示例:
+快速模式:
   na task create --name "洗碗" --schedule daily --data '{"time":"19:00"}'
-  na task create --name "大扫除" --schedule weekly --data '{"time":"09:00","days":[6]}' --group 大人 --location 厨房`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := autoEnsureFamily(); err != nil {
-			return err
+  na task create --name "大扫除" --schedule weekly --data '{"time":"09:00","days":[6]}' --group 大人 --location 厨房
+
+调度类型 (--schedule) 及对应的 --data 参数：
+  daily       {"time":"09:00"}
+  weekly      {"time":"09:00","days":[1,3,5]}    (1=周一,7=周日)
+  monthly     {"time":"09:00","days":[1,15]}
+  yearly      {"time":"09:00","day":6,"month":7}
+  interval    {"days":3}
+  once        {"date":"2026-07-10","time":"14:00"}`,
+	RunE: runTaskCreate,
+}
+
+func runTaskCreate(cmd *cobra.Command, args []string) error {
+	if err := autoEnsureFamily(); err != nil {
+		return err
+	}
+	ctx := context.Background()
+	actID := string(action.CurrentID())
+	cache := resolver.NewCache()
+
+	name, _ := cmd.Flags().GetString("name")
+	schedule, _ := cmd.Flags().GetString("schedule")
+	dataStr, _ := cmd.Flags().GetString("data")
+	groupName, _ := cmd.Flags().GetString("group")
+	locationName, _ := cmd.Flags().GetString("location")
+	groupID, _ := cmd.Flags().GetString("group-id")
+	locationID, _ := cmd.Flags().GetString("location-id")
+	kind, _ := cmd.Flags().GetString("kind")
+	yes, _ := cmd.Flags().GetBool("yes")
+
+	// ── Interactive mode when required flags are missing ────────
+	if name == "" || schedule == "" || dataStr == "" {
+		if name != "" || schedule != "" || dataStr != "" {
+			return fmt.Errorf("--name, --schedule, --data 三者必须同时提供，或全部省略进入引导模式")
 		}
-		ctx := context.Background()
-		actID := string(action.CurrentID())
+		return runTaskCreateInteractive(ctx, cache, actID, kind, groupName, groupID, locationName, locationID, yes)
+	}
 
-		name, _ := cmd.Flags().GetString("name")
-		schedule, _ := cmd.Flags().GetString("schedule")
-		dataStr, _ := cmd.Flags().GetString("data")
-		groupName, _ := cmd.Flags().GetString("group")
-		locationName, _ := cmd.Flags().GetString("location")
-		groupID, _ := cmd.Flags().GetString("group-id")
-		locationID, _ := cmd.Flags().GetString("location-id")
-		kind, _ := cmd.Flags().GetString("kind")
+	// ── Fast path: flags provided ─────────────────────────────
+	var data interface{}
+	if err := json.Unmarshal([]byte(dataStr), &data); err != nil {
+		return fmt.Errorf("--data JSON格式错误: %w", err)
+	}
 
-		if name == "" || schedule == "" || dataStr == "" {
-			return fmt.Errorf("--name, --schedule, --data 不能为空")
-		}
+	req := &types.CreateTaskRequest{
+		Task: types.Task{
+			Name:         name,
+			ScheduleType: schedule,
+			ScheduleData: data,
+			Kind:         kind,
+		},
+	}
 
-		var data interface{}
-		if err := json.Unmarshal([]byte(dataStr), &data); err != nil {
-			return fmt.Errorf("--data JSON格式错误: %w", err)
-		}
+	stateArgs := map[string]string{
+		"name": name, "schedule": schedule, "data": dataStr, "kind": kind,
+		"group": groupName, "location": locationName,
+		"group-id": groupID, "location-id": locationID,
+	}
 
-		req := &types.CreateTaskRequest{
-			Task: types.Task{
-				Name:         name,
-				ScheduleType: schedule,
-				ScheduleData: data,
-				Kind:         kind,
-			},
-		}
-
-		// Build args snapshot for state persistence (exclude sensitive values).
-		stateArgs := map[string]string{
-			"name": name, "schedule": schedule, "data": dataStr, "kind": kind,
-			"group": groupName, "location": locationName,
-			"group-id": groupID, "location-id": locationID,
-		}
-
-		// Resolve group: --group-id takes priority, then interactive --group by name
-		cache := resolver.NewCache()
-		if groupID != "" {
-			req.Task.GroupID = groupID
-		} else if groupName != "" {
-			gid, err := cache.ResolveGroupIDInteractive(ctx, na, groupName, actID, "task create", stateArgs)
-			if err != nil {
-				return fmt.Errorf("--group: %w", err)
-			}
-			req.Task.GroupID = gid
-		}
-
-		// Resolve location: --location-id takes priority, then interactive --location by name
-		if locationID != "" {
-			req.Task.LocationID = locationID
-		} else if locationName != "" {
-			lid, err := cache.ResolveLocationIDInteractive(ctx, na, locationName, actID, "task create", stateArgs)
-			if err != nil {
-				return fmt.Errorf("--location: %w", err)
-			}
-			req.Task.LocationID = lid
-		}
-
-		t, err := na.CreateTask(ctx, req)
+	if groupID != "" {
+		req.Task.GroupID = groupID
+	} else if groupName != "" {
+		gid, err := cache.ResolveGroupIDInteractive(ctx, na, groupName, actID, "task create", stateArgs)
 		if err != nil {
-			return err
+			return fmt.Errorf("--group: %w", err)
 		}
+		req.Task.GroupID = gid
+	}
 
-		// Clean up state file on success.
-		state.Delete(actID)
+	if locationID != "" {
+		req.Task.LocationID = locationID
+	} else if locationName != "" {
+		lid, err := cache.ResolveLocationIDInteractive(ctx, na, locationName, actID, "task create", stateArgs)
+		if err != nil {
+			return fmt.Errorf("--location: %w", err)
+		}
+		req.Task.LocationID = lid
+	}
 
-		// Show friendly names in output
-		groupLabel := ""
-		if groupName != "" {
-			groupLabel = fmt.Sprintf(" 小组: %s", groupName)
-		} else if groupID != "" {
-			groupLabel = fmt.Sprintf(" 小组: %s", groupID[:8])
-		}
-		locLabel := ""
-		if locationName != "" {
-			locLabel = fmt.Sprintf(" 地址: %s", locationName)
-		} else if locationID != "" {
-			locLabel = fmt.Sprintf(" 地址: %s", locationID[:8])
-		}
-		action.Printf("✅ 任务已创建: %s (%s)%s%s", t.Name, t.ScheduleType, groupLabel, locLabel)
-		return nil
-	},
+	t, err := na.CreateTask(ctx, req)
+	if err != nil {
+		return err
+	}
+	state.Delete(actID)
+
+	action.Printf("✅ 任务已创建: %s (%s)%s%s",
+		t.Name, t.ScheduleType,
+		groupLabel(groupName, groupID),
+		locLabel(locationName, locationID))
+	return nil
 }
 
 // ─── task list ────────────────────────────────────────────────────
@@ -507,9 +503,288 @@ var taskTriggerCmd = &cobra.Command{
 
 // ─── Flag registration ────────────────────────────────────────────
 
+// ─── Interactive task creation ───────────────────────────────────
+
+func runTaskCreateInteractive(ctx context.Context, cache *resolver.Cache, actID, kind, groupName, groupID, locationName, locationID string, yes bool) error {
+	action.Println("\n📝 引导式任务创建\n")
+
+	// 1. Task name
+	name := promptInput("任务名称", "")
+	if name == "" {
+		return fmt.Errorf("任务名称不能为空")
+	}
+
+	// 2. Task kind
+	if kind == "" {
+		action.Println("\n任务类型:")
+		action.Println("  1. 📌 simple     — 简单定时任务")
+		action.Println("  2. 🔍 inspection — 巡检任务 (检查项)")
+		action.Println("  3. 🔗 chain      — 任务链 (多步骤)")
+		k := promptInput("选择类型", "1")
+		switch k {
+		case "2":
+			kind = "inspection"
+		case "3":
+			kind = "chain"
+		default:
+			kind = "simple"
+		}
+	}
+
+	// 3. Schedule type
+	action.Println("\n调度类型:")
+	action.Println("  1. daily    — 每天")
+	action.Println("  2. weekly   — 每周")
+	action.Println("  3. monthly  — 每月")
+	action.Println("  4. yearly   — 每年")
+	action.Println("  5. interval — 间隔N天")
+	action.Println("  6. once     — 仅一次")
+	schedChoice := promptInput("选择调度", "1")
+
+	schedule, schedData := buildScheduleData(schedChoice)
+	if schedule == "" {
+		return fmt.Errorf("无效的调度类型")
+	}
+
+	// 4. Extra data for inspection/chain
+	var extra interface{}
+	if kind == "inspection" {
+		extra = buildInspectionExtra()
+	} else if kind == "chain" {
+		extra = buildChainExtra()
+	}
+
+	// 5. Group (optional)
+	var gid string
+	if groupID != "" {
+		gid = groupID
+	} else if groupName != "" {
+		stateArgs := map[string]string{"name": name, "kind": kind, "schedule": schedule, "group": groupName}
+		var err error
+		gid, err = cache.ResolveGroupIDInteractive(ctx, na, groupName, actID, "task create", stateArgs)
+		if err != nil {
+			return err
+		}
+	} else if !yes {
+		gInput := promptInput("\n分配到小组 (可选，回车跳过)", "")
+		if gInput != "" {
+			stateArgs := map[string]string{"name": name, "kind": kind, "schedule": schedule, "group": gInput}
+			var err error
+			gid, err = cache.ResolveGroupIDInteractive(ctx, na, gInput, actID, "task create", stateArgs)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// 6. Location (optional)
+	var lid string
+	if locationID != "" {
+		lid = locationID
+	} else if locationName != "" {
+		stateArgs := map[string]string{"name": name, "kind": kind, "schedule": schedule, "location": locationName}
+		var err error
+		lid, err = cache.ResolveLocationIDInteractive(ctx, na, locationName, actID, "task create", stateArgs)
+		if err != nil {
+			return err
+		}
+	} else if !yes {
+		lInput := promptInput("关联地址 (可选，回车跳过)", "")
+		if lInput != "" {
+			stateArgs := map[string]string{"name": name, "kind": kind, "schedule": schedule, "location": lInput}
+			var err error
+			lid, err = cache.ResolveLocationIDInteractive(ctx, na, lInput, actID, "task create", stateArgs)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// 7. Confirm
+	schedJSON, _ := json.MarshalIndent(schedData, "  ", "  ")
+	if !yes {
+		fmt.Println()
+		action.Println("即将创建任务:")
+		action.Printf("  名称: %s", name)
+		action.Printf("  类型: %s", kind)
+		action.Printf("  调度: %s", schedule)
+		action.Printf("  参数: %s", string(schedJSON))
+		if gid != "" {
+			action.Printf("  小组: %s", gid[:min(8, len(gid))])
+		}
+		if lid != "" {
+			action.Printf("  地址: %s", lid[:min(8, len(lid))])
+		}
+
+		confirm := promptInput("\n确认创建? (Y/n)", "y")
+		if strings.ToLower(confirm) != "y" && strings.ToLower(confirm) != "yes" && confirm != "" {
+			state.CleanupIfDone(actID)
+			action.Println("已取消")
+			return nil
+		}
+	}
+
+	// 8. Create
+	req := &types.CreateTaskRequest{
+		Task: types.Task{
+			Name:         name,
+			ScheduleType: schedule,
+			ScheduleData: schedData,
+			Kind:         kind,
+			GroupID:      gid,
+			LocationID:   lid,
+		},
+		Extra: extra,
+	}
+
+	t, err := na.CreateTask(ctx, req)
+	if err != nil {
+		return err
+	}
+	state.Delete(actID)
+
+	action.Printf("✅ 任务已创建: %s (%s) [%s]", t.Name, t.ScheduleType, kind)
+	return nil
+}
+
+// buildScheduleData prompts for schedule details based on type.
+func buildScheduleData(choice string) (scheduleType string, data map[string]interface{}) {
+	data = make(map[string]interface{})
+	switch choice {
+	case "1", "daily":
+		scheduleType = "daily"
+		t := promptInput("  时间 (HH:MM)", "09:00")
+		data["time"] = t
+	case "2", "weekly":
+		scheduleType = "weekly"
+		t := promptInput("  时间 (HH:MM)", "09:00")
+		data["time"] = t
+		daysStr := promptInput("  星期几 (1-7, 逗号分隔, 1=周一)", "1,3,5")
+		var days []int
+		for _, s := range strings.Split(daysStr, ",") {
+			s = strings.TrimSpace(s)
+			if n, err := strconv.Atoi(s); err == nil && n >= 1 && n <= 7 {
+				days = append(days, n)
+			}
+		}
+		data["days"] = days
+	case "3", "monthly":
+		scheduleType = "monthly"
+		t := promptInput("  时间 (HH:MM)", "09:00")
+		data["time"] = t
+		daysStr := promptInput("  几号 (1-31, 逗号分隔)", "1,15")
+		var days []int
+		for _, s := range strings.Split(daysStr, ",") {
+			s = strings.TrimSpace(s)
+			if n, err := strconv.Atoi(s); err == nil && n >= 1 && n <= 31 {
+				days = append(days, n)
+			}
+		}
+		data["days"] = days
+	case "4", "yearly":
+		scheduleType = "yearly"
+		t := promptInput("  时间 (HH:MM)", "09:00")
+		data["time"] = t
+		mStr := promptInput("  月份 (1-12)", "7")
+		m, _ := strconv.Atoi(mStr)
+		data["month"] = m
+		dStr := promptInput("  日期 (1-31)", "6")
+		d, _ := strconv.Atoi(dStr)
+		data["day"] = d
+	case "5", "interval":
+		scheduleType = "interval"
+		dStr := promptInput("  间隔天数", "3")
+		d, _ := strconv.Atoi(dStr)
+		data["days"] = d
+	case "6", "once":
+		scheduleType = "once"
+		dateStr := promptInput("  日期 (YYYY-MM-DD)", time.Now().Format("2006-01-02"))
+		data["date"] = dateStr
+		tStr := promptInput("  时间 (HH:MM)", "09:00")
+		data["time"] = tStr
+	default:
+		return "", nil
+	}
+	return
+}
+
+// buildInspectionExtra builds check_items interactively for inspection tasks.
+func buildInspectionExtra() interface{} {
+	action.Println("\n🔍 巡检项目 (每行一个，空行结束):")
+	var items []map[string]interface{}
+	for i := 1; ; i++ {
+		itemName := promptInput(fmt.Sprintf("  项目%d 名称", i), "")
+		if itemName == "" {
+			break
+		}
+		item := map[string]interface{}{"name": itemName}
+
+		action.Printf("    结果选项 (逗号分隔，如: 合格,不合格):")
+		branchesStr := promptInput("    ", "合格,不合格")
+		var branches []map[string]interface{}
+		for _, b := range strings.Split(branchesStr, ",") {
+			b = strings.TrimSpace(b)
+			if b != "" {
+				branches = append(branches, map[string]interface{}{
+					"name":        b,
+					"create_todo": false,
+				})
+			}
+		}
+		item["branches"] = branches
+		items = append(items, item)
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	return map[string]interface{}{"check_items": items}
+}
+
+// buildChainExtra builds steps interactively for chain tasks.
+func buildChainExtra() interface{} {
+	action.Println("\n🔗 任务链步骤 (每行一个步骤名，空行结束):")
+	var steps []map[string]interface{}
+	for i := 1; ; i++ {
+		stepName := promptInput(fmt.Sprintf("  步骤%d 名称", i), "")
+		if stepName == "" {
+			break
+		}
+		steps = append(steps, map[string]interface{}{
+			"name": stepName,
+			"kind": "simple",
+		})
+	}
+	if len(steps) == 0 {
+		return nil
+	}
+	return map[string]interface{}{"steps": steps}
+}
+
+// groupLabel returns a human-readable group label.
+func groupLabel(name, id string) string {
+	if name != "" {
+		return fmt.Sprintf(" 小组: %s", name)
+	}
+	if id != "" {
+		return fmt.Sprintf(" 小组: %s", id[:min(8, len(id))])
+	}
+	return ""
+}
+
+// locLabel returns a human-readable location label.
+func locLabel(name, id string) string {
+	if name != "" {
+		return fmt.Sprintf(" 地址: %s", name)
+	}
+	if id != "" {
+		return fmt.Sprintf(" 地址: %s", id[:min(8, len(id))])
+	}
+	return ""
+}
+
 func init() {
 	// task create
-	taskCreateCmd.Flags().String("name", "", "任务名称（必填）")
+	taskCreateCmd.Flags().String("name", "", "任务名称（快速模式必填）")
 	taskCreateCmd.Flags().String("schedule", "", "调度类型: daily|weekly|monthly|yearly|interval|once")
 	taskCreateCmd.Flags().String("data", "", "调度数据 JSON（见 --help 示例）")
 	taskCreateCmd.Flags().String("group", "", "分配小组名称")
@@ -517,6 +792,7 @@ func init() {
 	taskCreateCmd.Flags().String("location", "", "分配地址名称")
 	taskCreateCmd.Flags().String("location-id", "", "分配地址ID（精确UUID，跳过名称解析）")
 	taskCreateCmd.Flags().String("kind", "simple", "任务类型: simple|inspection|chain")
+	taskCreateCmd.Flags().BoolP("yes", "y", false, "跳过确认提示（引导模式）")
 
 	// task list
 	taskListCmd.Flags().Bool("all", false, "显示全部任务（包括已归档和已禁用的）")
