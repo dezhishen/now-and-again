@@ -253,6 +253,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # 获取完整历史和所有 tag，git log 需要
+
       - uses: actions/download-artifact@v7
         with:
           path: dist
@@ -264,9 +267,76 @@ jobs:
           sha256sum *.tar.gz > sha256sum.txt
           cat sha256sum.txt
 
+      - name: Generate release notes
+        run: |
+          # 找到上一个 tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD~ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="${PREV_TAG}..HEAD"
+          fi
+
+          echo "## 📦 变更内容" > /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+
+          # feat
+          FEATS=$(git log ${RANGE} --pretty=format:"- %s" --grep="^feat" | head -50)
+          if [ -n "$FEATS" ]; then
+            echo "### 🚀 新功能" >> /tmp/release-notes.md
+            echo "$FEATS" >> /tmp/release-notes.md
+            echo "" >> /tmp/release-notes.md
+          fi
+
+          # fix
+          FIXES=$(git log ${RANGE} --pretty=format:"- %s" --grep="^fix" | head -50)
+          if [ -n "$FIXES" ]; then
+            echo "### 🐛 修复" >> /tmp/release-notes.md
+            echo "$FIXES" >> /tmp/release-notes.md
+            echo "" >> /tmp/release-notes.md
+          fi
+
+          # perf
+          PERFS=$(git log ${RANGE} --pretty=format:"- %s" --grep="^perf" | head -50)
+          if [ -n "$PERFS" ]; then
+            echo "### ⚡ 性能优化" >> /tmp/release-notes.md
+            echo "$PERFS" >> /tmp/release-notes.md
+            echo "" >> /tmp/release-notes.md
+          fi
+
+          # refactor
+          REFACTORS=$(git log ${RANGE} --pretty=format:"- %s" --grep="^refactor" | head -50)
+          if [ -n "$REFACTORS" ]; then
+            echo "### ♻️ 重构" >> /tmp/release-notes.md
+            echo "$REFACTORS" >> /tmp/release-notes.md
+            echo "" >> /tmp/release-notes.md
+          fi
+
+          # chore/docs/style/ci/test (misc)
+          MISC=$(git log ${RANGE} --pretty=format:"- %s" --grep="^chore\|^docs\|^style\|^ci\|^test\|^build" | head -50)
+          if [ -n "$MISC" ]; then
+            echo "### 🔧 杂项" >> /tmp/release-notes.md
+            echo "$MISC" >> /tmp/release-notes.md
+            echo "" >> /tmp/release-notes.md
+          fi
+
+          # 没有匹配到分类的 commits
+          OTHER=$(git log ${RANGE} --pretty=format:"- %s" --invert-grep --grep="^feat\|^fix\|^perf\|^refactor\|^chore\|^docs\|^style\|^ci\|^test\|^build\|^Merge" | head -50)
+          if [ -n "$OTHER" ]; then
+            echo "### 📋 其他" >> /tmp/release-notes.md
+            echo "$OTHER" >> /tmp/release-notes.md
+            echo "" >> /tmp/release-notes.md
+          fi
+
+          echo "---" >> /tmp/release-notes.md
+          echo "**完整对比**: [${PREV_TAG}...${{ github.ref_name }}](https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${{ github.ref_name }})" >> /tmp/release-notes.md
+
+          echo "=== 生成的发布说明 ==="
+          cat /tmp/release-notes.md
+
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/*.tar.gz
             dist/sha256sum.txt
-          generate_release_notes: true
+          body_path: /tmp/release-notes.md
