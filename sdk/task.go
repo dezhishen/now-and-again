@@ -13,6 +13,10 @@ import (
 // CreateTask creates a task in the active family.
 // User-supplied schedule_data times are assumed to be in the configured timezone
 // and are automatically converted to UTC before sending.
+//
+// ⚠️ For template-created tasks, use CreateTaskFromTemplate() instead.
+// Template schedule_data is already UTC from backend rendering and must NOT
+// be converted again.
 func (na *NA) CreateTask(ctx context.Context, req *types.CreateTaskRequest) (*types.Task, error) {
 	fid, err := na.requireFamilyID()
 	if err != nil {
@@ -62,6 +66,10 @@ func (na *NA) GetTask(ctx context.Context, taskID string) (*types.Task, error) {
 // UpdateTask updates a task.
 // User-supplied schedule_data times are assumed to be in the configured timezone
 // and are automatically converted to UTC before sending.
+//
+// ⚠️ For template-created tasks, avoid passing schedule_data through this
+// method — use the low-level na.Task.UpdateTask() to skip double-conversion.
+// Setting only GroupID/LocationID (nil schedule_data) is safe.
 func (na *NA) UpdateTask(ctx context.Context, taskID string, req *types.UpdateTaskRequest) (*types.Task, error) {
 	id, err := uuid.Parse(taskID)
 	if err != nil {

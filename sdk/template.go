@@ -1,3 +1,16 @@
+// Package sdk — Template operations.
+//
+// ⚠️ TIMEZONE POLICY: Template data is timezone-agnostic by design.
+// "早上8点" means 8 AM everywhere in the world. Templates do not carry
+// timezone semantics. Therefore:
+//
+//   - Template loading (ListTemplates, RenderTemplate) must NEVER apply
+//     timezone conversion.
+//   - CreateTaskFromTemplate must use the low-level na.Task.CreateTask()
+//     which sends schedule_data as-is (already UTC from backend rendering).
+//   - Do NOT route template-created tasks through na.CreateTask() or
+//     na.UpdateTask() for schedule_data — those wrappers apply local→UTC
+//     conversion which would double-convert template times.
 package sdk
 
 import (
