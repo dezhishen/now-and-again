@@ -45,6 +45,7 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
         env:
+          # 保留 data-testid 等测试属性，E2E 测试依赖这些属性定位元素
           NA_STRIP_TEST_ATTRS: '0'
 
       - name: Go vet
