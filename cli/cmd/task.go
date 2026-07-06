@@ -37,6 +37,8 @@ var taskCreateCmd = &cobra.Command{
 快速模式:
   na task create --name "洗碗" --schedule daily --data '{"time":"19:00"}'
   na task create --name "大扫除" --schedule weekly --data '{"time":"09:00","days":[6]}' --group 大人 --location 厨房
+  na task create --name "安全检查" --kind inspection --schedule daily --data '{"time":"08:00"}' --extra '{"check_items":[...]}'
+  na task create --name "搬家流程" --kind chain --schedule once --data '{"date":"2026-08-01","time":"09:00"}' --extra '{"steps":[...]}'
 
 调度类型 (--schedule) 及对应的 --data 参数：
   daily       {"time":"09:00"}
@@ -44,7 +46,12 @@ var taskCreateCmd = &cobra.Command{
   monthly     {"time":"09:00","days":[1,15]}
   yearly      {"time":"09:00","day":6,"month":7}
   interval    {"days":3}
-  once        {"date":"2026-07-10","time":"14:00"}`,
+  once        {"date":"2026-07-10","time":"14:00"}
+
+任务类型 (--kind):
+  simple      简单定时任务（默认）
+  inspection  巡检任务（需配合 --extra 指定 check_items）
+  chain       任务链（需配合 --extra 指定 steps）`,
 	RunE: runTaskCreate,
 }
 
@@ -64,6 +71,7 @@ func runTaskCreate(cmd *cobra.Command, args []string) error {
 	groupID, _ := cmd.Flags().GetString("group-id")
 	locationID, _ := cmd.Flags().GetString("location-id")
 	kind, _ := cmd.Flags().GetString("kind")
+	extraStr, _ := cmd.Flags().GetString("extra")
 	yes, _ := cmd.Flags().GetBool("yes")
 
 	// ── Interactive mode when required flags are missing ────────
@@ -80,6 +88,14 @@ func runTaskCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("--data JSON格式错误: %w", err)
 	}
 
+	// Parse extra data for complex tasks (chain steps / inspection check items)
+	var extra interface{}
+	if extraStr != "" {
+		if err := json.Unmarshal([]byte(extraStr), &extra); err != nil {
+			return fmt.Errorf("--extra JSON格式错误: %w", err)
+		}
+	}
+
 	req := &types.CreateTaskRequest{
 		Task: types.Task{
 			Name:         name,
@@ -87,6 +103,7 @@ func runTaskCreate(cmd *cobra.Command, args []string) error {
 			ScheduleData: data,
 			Kind:         kind,
 		},
+		Extra: extra,
 	}
 
 	stateArgs := map[string]string{
@@ -198,7 +215,7 @@ var taskListCmd = &cobra.Command{
 
 var taskInfoCmd = &cobra.Command{
 	Use:   "info",
-	Short: "查看任务详情（支持名称或ID）",
+	Short: "查看任务详情（支持名称或ID，自动显示嵌套结构）",
 	Example: `  na task info --name "洗碗"
   na task info --id abc123`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -249,18 +266,30 @@ var taskInfoCmd = &cobra.Command{
 			status = "⏸️  已禁用"
 		}
 
+		// Build kind-specific info
+		kindLabel := task.Kind
+		switch task.Kind {
+		case "chain":
+			kindLabel = "🔗 任务链"
+		case "inspection":
+			kindLabel = "🔍 巡检"
+		default:
+			kindLabel = "📌 简单"
+		}
+
 		fmt.Printf(`
 📋 任务详情
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   名称:       %s
   ID:         %s
-  类型:       %s (%s)
+  类型:       %s
   状态:       %s
   小组:       %s
   地址:       %s
   调度类型:   %s
   调度参数:
 %s
+  展示摘要:   %s
   创建时间:   %s
   更新时间:   %s
   上次待办:   %s
@@ -268,18 +297,140 @@ var taskInfoCmd = &cobra.Command{
 `,
 			task.Name,
 			task.ID,
-			task.Kind, task.ScheduleType,
+			kindLabel,
 			status,
 			groupName,
 			locName,
 			task.ScheduleType,
 			string(schedData),
+			task.DisplaySummary,
 			na.FormatTime(task.CreatedAt, "2006-01-02 15:04"),
 			na.FormatTime(task.UpdatedAt, "2006-01-02 15:04"),
 			formatLastTodo(task.LastTodoAt),
 		)
+
+		// Show nested structure for complex tasks
+		if task.Kind == "chain" || task.Kind == "inspection" {
+			printComplexTaskExtra(ctx, task)
+		}
+
 		return nil
 	},
+}
+
+// printComplexTaskExtra fetches and displays the extra data for chain/inspection tasks.
+func printComplexTaskExtra(ctx context.Context, task *types.Task) {
+	twe, err := na.GetTaskWithExtra(ctx, task.ID)
+	if err != nil {
+		action.Printf("⚠️  无法获取嵌套详情: %v", err)
+		return
+	}
+	if twe == nil || twe.Extra == nil {
+		return
+	}
+
+	extraMap, ok := twe.Extra.(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	switch task.Kind {
+	case "chain":
+		printChainSteps(extraMap)
+	case "inspection":
+		printCheckItems(extraMap)
+	}
+}
+
+// printChainSteps displays chain step details from extra data.
+func printChainSteps(extra map[string]interface{}) {
+	stepsRaw, ok := extra["steps"]
+	if !ok {
+		return
+	}
+	steps, ok := stepsRaw.([]interface{})
+	if !ok || len(steps) == 0 {
+		return
+	}
+
+	fmt.Printf("\n🔗 任务链步骤 (%d):\n", len(steps))
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	for i, s := range steps {
+		step, ok := s.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		name, _ := step["name"].(string)
+		kind, _ := step["kind"].(string)
+		if kind == "" {
+			kind = "simple"
+		}
+		kindIcon := "📌"
+		switch kind {
+		case "inspection":
+			kindIcon = "🔍"
+		case "chain":
+			kindIcon = "🔗"
+		}
+		fmt.Printf("  %d. %s %s  [%s]\n", i+1, kindIcon, name, kind)
+	}
+	fmt.Println()
+}
+
+// printCheckItems displays inspection check items from extra data.
+func printCheckItems(extra map[string]interface{}) {
+	itemsRaw, ok := extra["check_items"]
+	if !ok {
+		return
+	}
+	items, ok := itemsRaw.([]interface{})
+	if !ok || len(items) == 0 {
+		return
+	}
+
+	fmt.Printf("\n🔍 巡检项目 (%d):\n", len(items))
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	for i, ci := range items {
+		item, ok := ci.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		name, _ := item["name"].(string)
+		fmt.Printf("  %d. %s\n", i+1, name)
+
+		branchesRaw, ok := item["branches"]
+		if !ok {
+			continue
+		}
+		branches, ok := branchesRaw.([]interface{})
+		if !ok {
+			continue
+		}
+		for _, b := range branches {
+			branch, ok := b.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			bName, _ := branch["name"].(string)
+			createTodo, _ := branch["create_todo"].(bool)
+			mark := "  "
+			if createTodo {
+				mark = "📋"
+			}
+			fmt.Printf("     %s %s", mark, bName)
+			if createTodo {
+				if bt, ok := branch["branch_task"].(map[string]interface{}); ok {
+					if btTask, ok := bt["task"].(map[string]interface{}); ok {
+						if tname, ok := btTask["name"].(string); ok {
+							fmt.Printf(" → 创建任务: %s", tname)
+						}
+					}
+				}
+			}
+			fmt.Println()
+		}
+	}
+	fmt.Println()
 }
 
 // ─── task update ──────────────────────────────────────────────────
@@ -497,6 +648,104 @@ var taskTriggerCmd = &cobra.Command{
 			return err
 		}
 		action.Printf("⚡ 已触发任务: %s", task.Name)
+		return nil
+	},
+}
+
+// ─── task children ────────────────────────────────────────────────
+
+var taskChildrenCmd = &cobra.Command{
+	Use:   "children",
+	Short: "列出任务的子任务（适用于任务链/巡检等复杂任务）",
+	Long: `列出指定任务的直接子任务。对于任务链，显示每个步骤对应的子任务；
+对于巡检任务，显示各检查项分支创建的子任务。
+
+示例:
+  na task children --name "大扫除"
+  na task children --id abc123`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := autoEnsureFamily(); err != nil {
+			return err
+		}
+		ctx := context.Background()
+		cache := resolver.NewCache()
+
+		input, err := resolveTaskInput(cmd)
+		if err != nil {
+			return err
+		}
+
+		task, err := cache.ResolveTask(ctx, na, input)
+		if err != nil {
+			return err
+		}
+
+		// List all tasks and filter by parent_task_id
+		allTasks, err := na.ListTasksFiltered(ctx, true, true, "")
+		if err != nil {
+			return fmt.Errorf("获取任务列表失败: %w", err)
+		}
+
+		var children []types.Task
+		for _, t := range allTasks {
+			if t.ParentTaskID == task.ID {
+				children = append(children, t)
+			}
+		}
+
+		if len(children) == 0 {
+			fmt.Printf("\n📭 任务 %q 没有子任务\n", task.Name)
+			if task.Kind == "simple" {
+				fmt.Println("💡 简单任务没有子任务。使用 na task create --kind chain 创建任务链")
+			} else {
+				fmt.Println("💡 子任务在触发待办后才会创建。使用 na task trigger --name \"" + task.Name + "\" 触发")
+			}
+			return nil
+		}
+
+		// Pre-load groups and locations for display
+		groups, _ := na.ListGroups(ctx, "")
+		locations, _ := na.ListLocations(ctx, "")
+		groupMap := make(map[string]string)
+		for _, g := range groups {
+			groupMap[g.ID] = g.Name
+		}
+		locMap := make(map[string]string)
+		for _, l := range locations {
+			locMap[l.ID] = l.Name
+		}
+
+		fmt.Printf("\n📋 %q 的子任务 (%d):\n\n", task.Name, len(children))
+		for i, child := range children {
+			s := "✅"
+			if child.Archived {
+				s = "📦"
+			} else if !child.Enabled {
+				s = "⏸️"
+			}
+
+			kindIcon := "📌"
+			switch child.Kind {
+			case "chain":
+				kindIcon = "🔗"
+			case "inspection":
+				kindIcon = "🔍"
+			}
+
+			extra := ""
+			if gn, ok := groupMap[child.GroupID]; ok {
+				extra += fmt.Sprintf(" [%s]", gn)
+			}
+			if ln, ok := locMap[child.LocationID]; ok {
+				extra += fmt.Sprintf(" @%s", ln)
+			}
+			if child.DisplaySummary != "" {
+				extra += fmt.Sprintf("  %s", child.DisplaySummary)
+			}
+
+			fmt.Printf("  %2d. %s %s %-25s %s%s\n", i+1, s, kindIcon, child.Name, child.ScheduleType, extra)
+		}
+		fmt.Println()
 		return nil
 	},
 }
@@ -741,23 +990,81 @@ func buildInspectionExtra() interface{} {
 }
 
 // buildChainExtra builds steps interactively for chain tasks.
+// Each step can be simple or inspection with its own config.
 func buildChainExtra() interface{} {
-	action.Println("\n🔗 任务链步骤 (每行一个步骤名，空行结束):")
+	action.Println("\n🔗 任务链步骤 (每次输入步骤名称，空行结束)")
+	action.Println("   提示: 可在名称后附加 |inspection 指定为巡检步骤，如: 水电检查|inspection")
 	var steps []map[string]interface{}
 	for i := 1; ; i++ {
 		stepName := promptInput(fmt.Sprintf("  步骤%d 名称", i), "")
 		if stepName == "" {
 			break
 		}
-		steps = append(steps, map[string]interface{}{
+
+		stepKind := "simple"
+		// Support inline kind specifier: "name|inspection" or "name|chain"
+		if idx := strings.LastIndex(stepName, "|"); idx > 0 {
+			suffix := strings.ToLower(stepName[idx+1:])
+			switch suffix {
+			case "inspection", "insp", "巡检":
+				stepKind = "inspection"
+				stepName = stepName[:idx]
+			case "chain", "链":
+				stepKind = "chain"
+				stepName = stepName[:idx]
+			case "simple", "简单":
+				stepKind = "simple"
+				stepName = stepName[:idx]
+			}
+		}
+
+		step := map[string]interface{}{
 			"name": stepName,
-			"kind": "simple",
-		})
+			"kind": stepKind,
+		}
+
+		// For inspection steps, optionally configure check items
+		if stepKind == "inspection" {
+			action.Printf("    [%s 为巡检步骤] 可选配置检查项 (空行跳过):", stepName)
+			step["extra"] = buildInspectionExtraSimple()
+		}
+
+		steps = append(steps, step)
 	}
 	if len(steps) == 0 {
 		return nil
 	}
 	return map[string]interface{}{"steps": steps}
+}
+
+// buildInspectionExtraSimple builds a simplified inspection extra without too many prompts.
+func buildInspectionExtraSimple() interface{} {
+	var items []map[string]interface{}
+	for i := 1; i <= 5; i++ {
+		itemName := promptInput(fmt.Sprintf("    检查项%d 名称", i), "")
+		if itemName == "" {
+			break
+		}
+		item := map[string]interface{}{"name": itemName}
+
+		branchesStr := promptInput(fmt.Sprintf("    结果选项 (逗号分隔，默认: 合格,不合格)"), "合格,不合格")
+		var branches []map[string]interface{}
+		for _, b := range strings.Split(branchesStr, ",") {
+			b = strings.TrimSpace(b)
+			if b != "" {
+				branches = append(branches, map[string]interface{}{
+					"name":        b,
+					"create_todo": false,
+				})
+			}
+		}
+		item["branches"] = branches
+		items = append(items, item)
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	return map[string]interface{}{"check_items": items}
 }
 
 // groupLabel returns a human-readable group label.
@@ -792,6 +1099,7 @@ func init() {
 	taskCreateCmd.Flags().String("location", "", "分配地址名称")
 	taskCreateCmd.Flags().String("location-id", "", "分配地址ID（精确UUID，跳过名称解析）")
 	taskCreateCmd.Flags().String("kind", "simple", "任务类型: simple|inspection|chain")
+	taskCreateCmd.Flags().String("extra", "", "额外数据 JSON（链步骤/巡检项，快速模式使用）")
 	taskCreateCmd.Flags().BoolP("yes", "y", false, "跳过确认提示（引导模式）")
 
 	// task list
@@ -819,12 +1127,17 @@ func init() {
 	taskTriggerCmd.Flags().String("name", "", "任务名称")
 	taskTriggerCmd.Flags().String("id", "", "任务ID（完整UUID或≥3位前缀）")
 
+	// task children
+	taskChildrenCmd.Flags().String("name", "", "父任务名称")
+	taskChildrenCmd.Flags().String("id", "", "父任务ID（完整UUID或≥3位前缀）")
+
 	taskCmd.AddCommand(taskCreateCmd)
 	taskCmd.AddCommand(taskListCmd)
 	taskCmd.AddCommand(taskInfoCmd)
 	taskCmd.AddCommand(taskUpdateCmd)
 	taskCmd.AddCommand(taskDeleteCmd)
 	taskCmd.AddCommand(taskTriggerCmd)
+	taskCmd.AddCommand(taskChildrenCmd)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────

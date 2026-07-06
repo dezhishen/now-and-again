@@ -54,13 +54,16 @@ func (na *NA) GetTask(ctx context.Context, taskID string) (*types.Task, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid task id: %w", err)
 	}
-	// Direct HTTP call since TaskClient doesn't have GetTask yet.
-	var t types.Task
-	path := fmt.Sprintf("/api/tasks/%s", id)
-	if err := na.http.Do("GET", path, nil, &t); err != nil {
-		return nil, err
+	return na.Task.GetTask(ctx, id)
+}
+
+// GetTaskWithExtra returns a single task with its extra data (chain steps, inspection check items, etc.).
+func (na *NA) GetTaskWithExtra(ctx context.Context, taskID string) (*types.TaskWithExtra, error) {
+	id, err := uuid.Parse(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid task id: %w", err)
 	}
-	return &t, nil
+	return na.Task.GetTaskWithExtra(ctx, id)
 }
 
 // UpdateTask updates a task.
@@ -120,6 +123,22 @@ func (na *NA) FindTaskByName(ctx context.Context, name string) (*types.Task, err
 	}
 	// Then first substring match
 	return &tasks[0], nil
+}
+
+// ListChildTasks returns all direct child tasks of a parent task.
+// This is useful for examining chain steps, inspection sub-tasks, etc.
+func (na *NA) ListChildTasks(ctx context.Context, parentTaskID string) ([]types.Task, error) {
+	tasks, err := na.ListTasksFiltered(ctx, true, true, "")
+	if err != nil {
+		return nil, err
+	}
+	var children []types.Task
+	for _, t := range tasks {
+		if t.ParentTaskID == parentTaskID {
+			children = append(children, t)
+		}
+	}
+	return children, nil
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────

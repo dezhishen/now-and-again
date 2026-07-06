@@ -75,6 +75,24 @@ func (c *TaskClient) Delete(taskID string) error {
 	return c.http.do("DELETE", "/api/tasks/"+taskID, nil, nil)
 }
 
+// Get returns a single task by ID.
+func (c *TaskClient) Get(taskID string) (*types.Task, error) {
+	var t types.Task
+	if err := c.http.do("GET", "/api/tasks/"+taskID, nil, &t); err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// GetWithExtra returns a single task with its extra data (chain steps, inspection check items, etc.).
+func (c *TaskClient) GetWithExtra(taskID string) (*types.TaskWithExtra, error) {
+	var t types.TaskWithExtra
+	if err := c.http.do("GET", "/api/tasks/"+taskID+"?with_extra=true", nil, &t); err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
 func (c *TaskClient) ListTodosSimple(familyID, status string) ([]types.Todo, error) {
 	path := "/api/todos"
 	if status != "" {
@@ -102,6 +120,12 @@ func (c *TaskClient) CompleteTodoSimple(todoID, status string) (*types.Todo, err
 
 func (c *TaskClient) CreateTask(_ context.Context, familyID uuid.UUID, req *types.CreateTaskRequest) (*types.Task, error) {
 	return c.Create(familyID.String(), req)
+}
+func (c *TaskClient) GetTask(_ context.Context, taskID uuid.UUID) (*types.Task, error) {
+	return c.Get(taskID.String())
+}
+func (c *TaskClient) GetTaskWithExtra(_ context.Context, taskID uuid.UUID) (*types.TaskWithExtra, error) {
+	return c.GetWithExtra(taskID.String())
 }
 func (c *TaskClient) UpdateTask(_ context.Context, taskID uuid.UUID, req *types.UpdateTaskRequest) (*types.Task, error) {
 	return c.Update(taskID.String(), req)
