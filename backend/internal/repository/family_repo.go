@@ -107,9 +107,13 @@ func (r *FamilyRepo) FindGroupByID(id string) (*FamilyGroupModel, error) {
 	return &g, err
 }
 
-func (r *FamilyRepo) ListGroups(familyID string) ([]FamilyGroupModel, error) {
+func (r *FamilyRepo) ListGroups(familyID, name string) ([]FamilyGroupModel, error) {
 	var groups []FamilyGroupModel
-	err := r.db.Where("family_id = ?", familyID).Find(&groups).Error
+	q := r.db.Where("family_id = ?", familyID)
+	if name != "" {
+		q = q.Where("LOWER(name) LIKE LOWER(?)", "%"+name+"%")
+	}
+	err := q.Find(&groups).Error
 	return groups, err
 }
 

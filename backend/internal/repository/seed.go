@@ -182,8 +182,3 @@ func GenInviteCode() string {
 	}
 	return string(b)
 }
-
-// randomPassword is an alias kept for backward compatibility.
-func randomPassword(length int) string {
-	return randomString(length)
-}

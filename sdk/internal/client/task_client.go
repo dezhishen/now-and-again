@@ -2,7 +2,8 @@ package client
 
 import (
 	"context"
-	"strconv"
+	"fmt"
+	"net/url"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/google/uuid"
@@ -35,15 +36,18 @@ func (c *TaskClient) List(familyID string) ([]types.Task, error) {
 	return tasks, nil
 }
 
-// ListFiltered returns tasks with optional archived/disabled filters via query params.
-func (c *TaskClient) ListFiltered(familyID string, includeArchived, includeDisabled bool) ([]types.Task, error) {
+// ListFiltered returns tasks with optional archived/disabled/name filters via query params.
+func (c *TaskClient) ListFiltered(familyID string, includeArchived, includeDisabled bool, name string) ([]types.Task, error) {
 	path := "/api/tasks"
-	parts := make([]string, 0, 2)
+	parts := make([]string, 0, 3)
 	if includeArchived {
 		parts = append(parts, "archived=true")
 	}
 	if includeDisabled {
 		parts = append(parts, "disabled=true")
+	}
+	if name != "" {
+		parts = append(parts, "name="+url.QueryEscape(name))
 	}
 	for i, p := range parts {
 		if i == 0 {
@@ -108,8 +112,8 @@ func (c *TaskClient) DeleteTask(_ context.Context, taskID uuid.UUID) error {
 func (c *TaskClient) ListTasks(_ context.Context, familyID uuid.UUID) ([]types.Task, error) {
 	return c.List(familyID.String())
 }
-func (c *TaskClient) ListTasksFiltered(_ context.Context, familyID uuid.UUID, includeArchived, includeDisabled bool) ([]types.Task, error) {
-	return c.ListFiltered(familyID.String(), includeArchived, includeDisabled)
+func (c *TaskClient) ListTasksFiltered(_ context.Context, familyID uuid.UUID, includeArchived, includeDisabled bool, name string) ([]types.Task, error) {
+	return c.ListFiltered(familyID.String(), includeArchived, includeDisabled, name)
 }
 func (c *TaskClient) TriggerTask(_ context.Context, taskID uuid.UUID) error {
 	return c.http.do("POST", "/api/tasks/"+taskID.String()+"/trigger", nil, nil)
@@ -125,7 +129,7 @@ func (c *TaskClient) CompleteTodo(_ context.Context, todoID uuid.UUID, req *type
 	return &t, nil
 }
 func (c *TaskClient) ListTaskLogs(_ context.Context, taskID uuid.UUID, limit int, userOnly bool) ([]types.TaskLog, error) {
-	path := "/api/tasks/" + taskID.String() + "/logs?limit=" + strconv.Itoa(limit)
+	path := fmt.Sprintf("/api/tasks/%s/logs?limit=%d", taskID.String(), limit)
 	if userOnly {
 		path += "&type=user"
 	}

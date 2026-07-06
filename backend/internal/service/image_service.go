@@ -14,21 +14,12 @@ import (
 )
 
 type ImageService struct {
-	repo         *repository.ImageRepo
-	uploadDir    string
-	settingsRepo *repository.SettingsRepo
+	repo      *repository.ImageRepo
+	uploadDir string
 }
 
-func NewImageService(repo *repository.ImageRepo, uploadDir string, settingsRepo *repository.SettingsRepo) *ImageService {
-	return &ImageService{repo: repo, uploadDir: uploadDir, settingsRepo: settingsRepo}
-}
-
-func (s *ImageService) getStorageType() string {
-	setting, err := s.settingsRepo.Get("storage.type")
-	if err != nil || setting == nil || setting.Value == "" {
-		return "local"
-	}
-	return setting.Value
+func NewImageService(repo *repository.ImageRepo, uploadDir string) *ImageService {
+	return &ImageService{repo: repo, uploadDir: uploadDir}
 }
 
 func (s *ImageService) Save(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*repository.ImageModel, error) {

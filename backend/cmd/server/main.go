@@ -69,7 +69,7 @@ func main() {
 	userSvc := service.NewUserService(userRepo, settingsRepo, cfg.JWTSecret)
 	familySvc := service.NewFamilyService(familyRepo, floorPlanRepo, userRepo)
 	apiKeySvc := service.NewApiKeyService(apiKeyRepo)
-	imageSvc := service.NewImageService(imageRepo, cfg.UploadDir, settingsRepo)
+	imageSvc := service.NewImageService(imageRepo, cfg.UploadDir)
 	floorPlanSvc := service.NewFloorPlanService(floorPlanRepo, familyRepo, userRepo, imageSvc, imageRepo)
 
 	// Scheduler with DB log

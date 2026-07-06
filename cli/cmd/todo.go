@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/dezhishen/now-and-again/cli/internal/action"
 	"github.com/spf13/cobra"
 )
 
@@ -20,14 +21,28 @@ var todoListCmd = &cobra.Command{
 		if err := autoEnsureFamily(); err != nil {
 			return err
 		}
-		todos, err := na.GetPendingTodos(context.Background())
+		ctx := context.Background()
+		todos, err := na.GetPendingTodos(ctx)
 		if err != nil {
 			return err
 		}
 		if len(todos) == 0 {
-			fmt.Println("🎉 暂无待办")
+			action.Println("🎉 暂无待办")
 			return nil
 		}
+
+		// Pre-load groups and locations for display
+		groups, _ := na.ListGroups(ctx, "")
+		locations, _ := na.ListLocations(ctx, "")
+		groupMap := make(map[string]string)
+		for _, g := range groups {
+			groupMap[g.ID] = g.Name
+		}
+		locMap := make(map[string]string)
+		for _, l := range locations {
+			locMap[l.ID] = l.Name
+		}
+
 		fmt.Printf("📋 待办 (%d项):\n\n", len(todos))
 		for i, t := range todos {
 			name := t.TaskName
@@ -38,7 +53,16 @@ var todoListCmd = &cobra.Command{
 			if !t.DueDate.IsZero() {
 				due = "  ⏰ " + na.FormatTime(t.DueDate, "01-02 15:04")
 			}
-			fmt.Printf("  %2d. [%s] %s%s\n", i+1, t.ID[:6], name, due)
+			extra := ""
+			if t.Task != nil {
+				if gn, ok := groupMap[t.Task.GroupID]; ok {
+					extra += fmt.Sprintf(" [%s]", gn)
+				}
+			}
+			if ln, ok := locMap[t.LocationID]; ok {
+				extra += fmt.Sprintf(" @%s", ln)
+			}
+			fmt.Printf("  %2d. %s%s%s\n", i+1, name, due, extra)
 		}
 		fmt.Println("\n💡 使用 na todo done --id abc123 完成（支持短ID，至少3位）")
 		fmt.Println("💡 或使用 na daily 交互式处理")
@@ -67,7 +91,7 @@ var todoDoneCmd = &cobra.Command{
 		if t.Task != nil {
 			name = t.Task.Name
 		}
-		fmt.Printf("✅ 已完成: %s", name)
+		action.Printf("✅ 已完成: %s", name)
 		if remark != "" {
 			fmt.Printf(" (%s)", remark)
 		}
@@ -90,7 +114,7 @@ var todoSkipCmd = &cobra.Command{
 		if _, err := na.SkipTodo(context.Background(), todoID); err != nil {
 			return err
 		}
-		fmt.Println("⏭️  已跳过")
+		action.Println("⏭️  已跳过")
 		return nil
 	},
 }

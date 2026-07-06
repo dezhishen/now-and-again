@@ -277,8 +277,8 @@ func (s *FamilyService) CreateGroup(ctx context.Context, familyID uuid.UUID, req
 	return toGroup(g), nil
 }
 
-func (s *FamilyService) ListGroups(ctx context.Context, familyID uuid.UUID) ([]types.FamilyGroup, error) {
-	groups, err := s.repo.ListGroups(familyID.String())
+func (s *FamilyService) ListGroups(ctx context.Context, familyID uuid.UUID, name string) ([]types.FamilyGroup, error) {
+	groups, err := s.repo.ListGroups(familyID.String(), name)
 	if err != nil {
 		return nil, err
 	}

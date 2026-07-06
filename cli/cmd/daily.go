@@ -8,17 +8,22 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dezhishen/now-and-again/cli/internal/action"
 	"github.com/spf13/cobra"
 )
 
 var dailyCmd = &cobra.Command{
 	Use:   "daily",
 	Short: "查看并处理今天的待办",
-	Long: `一键日常：列出待办 → 输入编号 → 输入备注 → 完成。
+	Long: `查看今天的待办事项。
 
-示例:
-  na daily              交互式处理
-  na daily --done 3     直接完成第 3 项`,
+交互模式 (TTY):
+  na daily              交互式处理（输入编号 → 备注 → 完成）
+
+非交互模式 (AI/脚本):
+  na daily              仅列出待办（自动检测非TTY）
+  na daily --done 3     直接完成第 3 项
+  na daily --output json JSON格式输出`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		if err := autoEnsureFamily(); err != nil {
@@ -30,11 +35,23 @@ var dailyCmd = &cobra.Command{
 			return fmt.Errorf("获取待办失败: %w", err)
 		}
 		if len(todos) == 0 {
-			fmt.Println("🎉 当前没有待办事项！")
+			action.Println("🎉 当前没有待办事项！")
 			return nil
 		}
 
 		todoNames := make([]string, len(todos))
+		// Pre-load groups and locations for display
+		groups, _ := na.ListGroups(ctx, "")
+		locations, _ := na.ListLocations(ctx, "")
+		groupMap := make(map[string]string)
+		for _, g := range groups {
+			groupMap[g.ID] = g.Name
+		}
+		locMap := make(map[string]string)
+		for _, l := range locations {
+			locMap[l.ID] = l.Name
+		}
+
 		fmt.Printf("\n📋 待办 (%d项):\n\n", len(todos))
 		for i, t := range todos {
 			name := t.TaskName
@@ -46,7 +63,16 @@ var dailyCmd = &cobra.Command{
 			if !t.DueDate.IsZero() {
 				due = " ⏰ " + na.FormatTime(t.DueDate, "01-02 15:04")
 			}
-			fmt.Printf("  %2d. %s%s\n", i+1, name, due)
+			extra := ""
+			if t.Task != nil {
+				if gn, ok := groupMap[t.Task.GroupID]; ok {
+					extra += fmt.Sprintf(" [%s]", gn)
+				}
+			}
+			if ln, ok := locMap[t.LocationID]; ok {
+				extra += fmt.Sprintf(" @%s", ln)
+			}
+			fmt.Printf("  %2d. %s%s%s\n", i+1, name, due, extra)
 		}
 
 		directDone, _ := cmd.Flags().GetInt("done")
@@ -55,7 +81,13 @@ var dailyCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			fmt.Printf("✅ 已完成: %s\n", todoNames[directDone-1])
+			action.Printf("✅ 已完成: %s", todoNames[directDone-1])
+			return nil
+		}
+
+		// Non-TTY mode (AI / piped): just list and exit, don't prompt
+		if fi, _ := os.Stdin.Stat(); fi != nil && (fi.Mode()&os.ModeCharDevice) == 0 {
+			fmt.Println("\n💡 非交互模式：使用 na daily --done N 完成待办")
 			return nil
 		}
 
@@ -93,6 +125,9 @@ var dailyCmd = &cobra.Command{
 				fmt.Printf("✅ 已完成: %s\n", todoNames[n-1])
 			}
 		}
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("读取输入失败: %w", err)
+		}
 		return nil
 	},
 }
@@ -111,7 +146,7 @@ func autoEnsureFamily() error {
 	}
 	na.SetActiveFamily(families[0].ID, families[0].Name)
 	na.Config().Save()
-	fmt.Printf("🏠 已自动选择家庭: %s\n", families[0].Name)
+	action.Printf("🏠 已自动选择家庭: %s", families[0].Name)
 	return nil
 }
 

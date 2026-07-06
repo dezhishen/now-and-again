@@ -174,8 +174,8 @@ func (s *FloorPlanService) CreateLocation(ctx context.Context, familyID uuid.UUI
 	return &result, nil
 }
 
-func (s *FloorPlanService) ListFamilyLocations(ctx context.Context, familyID uuid.UUID) ([]types.Location, error) {
-	locs, err := s.repo.ListLocationsByFamilyID(familyID.String())
+func (s *FloorPlanService) ListFamilyLocations(ctx context.Context, familyID uuid.UUID, name string) ([]types.Location, error) {
+	locs, err := s.repo.ListLocationsByFamilyID(familyID.String(), name)
 	if err != nil {
 		return nil, err
 	}

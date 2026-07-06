@@ -38,7 +38,8 @@ func (h *LocationHandlers) ListFamilyLocations(c *gin.Context) {
 		badRequest(c, "invalid family_id")
 		return
 	}
-	locs, err := h.C.ListFamilyLocations(userCtx(c), familyID)
+	name := c.Query("name")
+	locs, err := h.C.ListFamilyLocations(userCtx(c), familyID, name)
 	if err != nil {
 		serverError(c, err)
 		return

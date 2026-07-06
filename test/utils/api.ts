@@ -14,7 +14,7 @@ export function getToken() { return authToken; }
 export function setFamilyId(id: string) { currentFamilyId = id; }
 export function getFamilyId() { return currentFamilyId; }
 
-async function request<T = any>(
+export async function request<T = any>(
   method: string,
   path: string,
   body?: any,

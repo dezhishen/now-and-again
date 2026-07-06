@@ -175,15 +175,6 @@ func bindJSON[T any](c *gin.Context) (*T, error) {
 	return &req, nil
 }
 
-// bindOrAbort binds JSON and aborts with validation error on failure.
-func bindOrAbort[T any](c *gin.Context) (*T, bool) {
-	req, err := bindJSON[T](c)
-	if err != nil {
-		validationError(c, err)
-		return nil, false
-	}
-	return req, true
-}
 func paramUUID(c *gin.Context, name string) (uuid.UUID, error) {
 	return uuid.Parse(c.Param(name))
 }

@@ -8,6 +8,10 @@ frontend/dist/
 frontend/.vite/
 backend/internal/webui/dist/
 *.tsbuildinfo
+# ─── Test data ────────────────────────────────────────────────────
+data/e2e/
+test-results/
+playwright-report/
 
 # ─── Secrets ───────────────────────────────────────────────────────
 .jwt_secret

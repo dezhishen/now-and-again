@@ -1,45 +1,29 @@
+/**
+ * 家庭管理测试
+ */
 import { test, expect } from '@playwright/test';
 
-test.describe('家庭管理', () => {
-
-  test('浏览器登录→创建家庭→进入', async ({ page }) => {
-    // Login
+test.describe('家庭', () => {
+  test('创建家庭并进入', async ({ page }) => {
     await page.goto('/login');
     await page.getByPlaceholder('输入用户名').fill('admin');
     await page.getByPlaceholder('输入密码').fill('12345678');
-    await page.getByRole('button', { name: '登录' }).click();
-    await page.waitForTimeout(2000);
+    await page.locator('[data-testid="login-submit"]').click();
+    await page.waitForTimeout(3000);
 
-    // Post-login landing may be root, families list, or directly family dashboard.
-    await expect
-      .poll(() => page.url(), { timeout: 5000 })
-      .toMatch(/\/$|\/families|\/family/);
-
-    if (page.url().endsWith('/')) {
-      await page.goto('/families');
-      await expect(page).toHaveURL(/\/families/);
-    }
-
-    // If no family, create one
-    const noFamily = page.locator('text=暂无家庭');
-    if (await noFamily.count() > 0) {
-      await page.getByRole('button', { name: /创建/ }).first().click();
-      await page.waitForTimeout(500);
-      await page.locator('input[placeholder*="家庭"]').first().fill('E2E测试家庭');
-      await page.getByRole('button', { name: /创建|确定/ }).click();
-      await page.waitForTimeout(1500);
-    }
-
-    // Enter family
-    const enterBtn = page.locator('button:has-text("进入")').first();
-    if (await enterBtn.count() > 0) {
-      await enterBtn.click();
+    // Enter existing family or create one
+    const enterBtns = page.locator('[data-testid="family-enter-btn"]');
+    if (await enterBtns.count() > 0) {
+      await enterBtns.first().click();
+    } else {
+      await page.locator('[data-testid="family-create-toggle"]').click();
+      await page.locator('[data-testid="family-name-input"]').fill('E2E-' + Date.now());
+      await page.locator('[data-testid="family-create-submit"]').click();
       await page.waitForTimeout(2000);
+      const newEnter = page.locator('[data-testid="family-enter-btn"]').first();
+      await newEnter.click();
     }
-
-    // Should be on family page (dashboard)
-    await expect
-      .poll(() => page.url(), { timeout: 5000 })
-      .toMatch(/\/family|\/families/);
+    await page.waitForTimeout(2000);
+    expect(page.url()).toMatch(/\/family/);
   });
 });

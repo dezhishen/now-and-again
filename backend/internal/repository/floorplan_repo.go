@@ -42,9 +42,13 @@ func (r *FloorPlanRepo) ListLocationsByFloorPlanID(floorPlanID string) ([]Locati
 	return locs, err
 }
 
-func (r *FloorPlanRepo) ListLocationsByFamilyID(familyID string) ([]LocationModel, error) {
+func (r *FloorPlanRepo) ListLocationsByFamilyID(familyID, name string) ([]LocationModel, error) {
 	var locs []LocationModel
-	err := r.db.Where("family_id = ?", familyID).Order("created_at ASC").Find(&locs).Error
+	q := r.db.Where("family_id = ?", familyID)
+	if name != "" {
+		q = q.Where("LOWER(name) LIKE LOWER(?)", "%"+name+"%")
+	}
+	err := q.Order("created_at ASC").Find(&locs).Error
 	return locs, err
 }
 

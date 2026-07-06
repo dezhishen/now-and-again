@@ -40,8 +40,9 @@ func (h *TaskHandlers) List(c *gin.Context) {
 	}
 	includeArchived := c.Query("archived") == "true"
 	includeDisabled := c.Query("disabled") == "true"
+	name := c.Query("name")
 
-	tasks, err := h.Svc.ListTasksFiltered(userCtx(c), familyID, includeArchived, includeDisabled)
+	tasks, err := h.Svc.ListTasksFiltered(userCtx(c), familyID, includeArchived, includeDisabled, name)
 	if err != nil {
 		serverError(c, err)
 		return

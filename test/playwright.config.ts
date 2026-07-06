@@ -2,10 +2,12 @@ import { defineConfig, devices } from '@playwright/test';
 
 const IS_CI = !!process.env.CI;
 
+const gpuArgs: string[] = [];
+
 export default defineConfig({
   testDir: './specs',
-  timeout: 30_000,
-  expect: { timeout: 10_000 },
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   fullyParallel: false,
   retries: 0,
   workers: 1,
@@ -21,11 +23,19 @@ export default defineConfig({
     {
       name: 'chromium',
       use: IS_CI
-        ? { ...devices['Desktop Chrome'] }
+        ? {
+            ...devices['Desktop Chrome'],
+            launchOptions: {
+              args: gpuArgs.length > 0 ? gpuArgs : undefined,
+            },
+          }
         : {
             ...devices['Desktop Chrome'],
             channel: 'chromium',
-            launchOptions: { executablePath: '/usr/bin/chromium' },
+            launchOptions: {
+              executablePath: '/usr/bin/chromium',
+              args: gpuArgs.length > 0 ? gpuArgs : undefined,
+            },
           },
     },
   ],

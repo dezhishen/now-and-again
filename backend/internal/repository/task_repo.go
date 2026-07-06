@@ -61,10 +61,11 @@ func (r *TaskRepo) ListTasksByFamily(familyID string) ([]TaskModel, error) {
 	return tasks, err
 }
 
-// ListTasksByFamilyFiltered returns tasks for a family with optional archived/enabled filters.
+// ListTasksByFamilyFiltered returns tasks for a family with optional archived/enabled/name filters.
 // includeArchived: when true, also returns archived tasks.
 // includeDisabled: when true, also returns disabled tasks.
-func (r *TaskRepo) ListTasksByFamilyFiltered(familyID string, includeArchived, includeDisabled bool) ([]TaskModel, error) {
+// name: when non-empty, filters tasks whose name contains the given substring (case-insensitive LIKE).
+func (r *TaskRepo) ListTasksByFamilyFiltered(familyID string, includeArchived, includeDisabled bool, name string) ([]TaskModel, error) {
 	var tasks []TaskModel
 	q := r.db.Preload("Group").Where("family_id = ? AND is_root = ?", familyID, true)
 	if !includeArchived {
@@ -72,6 +73,9 @@ func (r *TaskRepo) ListTasksByFamilyFiltered(familyID string, includeArchived, i
 	}
 	if !includeDisabled {
 		q = q.Where("enabled = ?", true)
+	}
+	if name != "" {
+		q = q.Where("LOWER(name) LIKE LOWER(?)", "%"+name+"%")
 	}
 	err := q.Order("created_at ASC").Find(&tasks).Error
 	return tasks, err

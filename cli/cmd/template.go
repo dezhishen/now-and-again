@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/dezhishen/now-and-again/cli/internal/action"
 	"github.com/spf13/cobra"
 )
 
@@ -67,7 +68,7 @@ var templateUseCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Printf("✅ 已从模板创建: %s (%s)\n", t.Name, t.ID[:6])
+		action.Printf("✅ 已从模板创建: %s (%s)", t.Name, t.ID[:6])
 		return nil
 	},
 }

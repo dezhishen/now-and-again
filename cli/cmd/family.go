@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dezhishen/now-and-again/cli/internal/action"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +31,7 @@ var familyCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Family created: %s (invite code: %s)\n", f.Name, f.InviteCode)
+		action.Printf("Family created: %s (invite code: %s)", f.Name, f.InviteCode)
 		return nil
 	},
 }
@@ -46,7 +47,7 @@ var familyJoinCmd = &cobra.Command{
 		if err := na.JoinFamily(context.Background(), code); err != nil {
 			return err
 		}
-		fmt.Println("Join request sent")
+		action.Println("Join request sent")
 		return nil
 	},
 }
@@ -72,8 +73,10 @@ var familyListCmd = &cobra.Command{
 
 var familySelectCmd = &cobra.Command{
 	Use:   "select",
-	Short: "切换活跃家庭（交互式）",
-	Long:  `列出所有家庭并让用户选择当前活跃的家庭。`,
+	Short: "切换活跃家庭（支持名称或交互式选择）",
+	Long:  `通过 --name 指定名称直接切换，或交互式选择当前活跃的家庭。`,
+	Example: `  na family select --name "我的家"
+  na family select                # 交互式选择`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		families, err := na.ListMyFamilies(ctx)
@@ -83,10 +86,24 @@ var familySelectCmd = &cobra.Command{
 		if len(families) == 0 {
 			return fmt.Errorf("还没有家庭，请先创建: na family create --name \"我的家\"")
 		}
+
+		// Try --name flag first
+		if name, _ := cmd.Flags().GetString("name"); name != "" {
+			for _, fam := range families {
+				if fam.Name == name {
+					na.SetActiveFamily(fam.ID, fam.Name)
+					na.Config().Save()
+					action.Printf("✓ 已切换到: %s", fam.Name)
+					return nil
+				}
+			}
+			return fmt.Errorf("未找到家庭: %s", name)
+		}
+
 		if len(families) == 1 {
 			na.SetActiveFamily(families[0].ID, families[0].Name)
 			na.Config().Save()
-			fmt.Printf("✓ 已选择唯一家庭: %s\n", families[0].Name)
+			action.Printf("✓ 已选择唯一家庭: %s", families[0].Name)
 			return nil
 		}
 
@@ -113,7 +130,7 @@ var familySelectCmd = &cobra.Command{
 		f := families[n-1]
 		na.SetActiveFamily(f.ID, f.Name)
 		na.Config().Save()
-		fmt.Printf("✓ 已切换到: %s\n", f.Name)
+		action.Printf("✓ 已切换到: %s", f.Name)
 		return nil
 	},
 }
@@ -121,6 +138,7 @@ var familySelectCmd = &cobra.Command{
 func init() {
 	familyCreateCmd.Flags().String("name", "", "家庭名称")
 	familyJoinCmd.Flags().String("code", "", "邀请码")
+	familySelectCmd.Flags().String("name", "", "家庭名称（直接切换，跳过交互）")
 
 	familyCmd.AddCommand(familyCreateCmd)
 	familyCmd.AddCommand(familyJoinCmd)

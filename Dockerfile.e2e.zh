@@ -1,9 +1,12 @@
 # E2E TOOLCHAIN IMAGE (CN mirrors, no project code)
 #
+# Display: Xorg with modesetting + DRI (needs --privileged for DRM master).
+# Falls back to xvfb when GPU unavailable or Xorg fails.
+# See scripts/e2e-display.sh for the runtime logic.
+#
 # Goal:
 # - Build once, reuse everywhere.
 # - Mount source code at runtime and run E2E in container.
-# - Support headed browser tests via xvfb in headless CI hosts.
 
 FROM mcr.azure.cn/playwright:v1.61.1-noble
 
@@ -16,8 +19,13 @@ ENV TZ=Asia/Shanghai
 RUN sed -i 's|http://archive.ubuntu.com/ubuntu/|https://mirrors.aliyun.com/ubuntu/|g' /etc/apt/sources.list.d/ubuntu.sources \
   && sed -i 's|http://security.ubuntu.com/ubuntu/|https://mirrors.aliyun.com/ubuntu/|g' /etc/apt/sources.list.d/ubuntu.sources
 
+# Install Go toolchain, common utilities, and display servers.
+# xorg → internal X server (GPU) | xvfb → fallback
+# gosu → user switching for file permission compat
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl git make xz-utils xvfb \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates curl git make xz-utils gosu \
+    xserver-xorg-core xserver-xorg-video-all x11-xserver-utils xauth xvfb mesa-utils \
   && rm -rf /var/lib/apt/lists/*
 
 RUN set -e; \
@@ -39,10 +47,17 @@ RUN set -e; \
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOPROXY="https://goproxy.cn,direct"
 
-RUN corepack enable && corepack prepare pnpm@10 --activate \
+# Deterministic frontend toolchain — pin version + CN mirror for corepack itself.
+ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
+RUN corepack enable && corepack prepare pnpm@10.15.0 --activate \
   && pnpm config set registry https://registry.npmmirror.com
 
-WORKDIR /workspace
+# Pre-create X11 socket directory
+RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
-# No source code is copied; mount repository at runtime.
+# Display & entrypoint scripts.
+COPY scripts/e2e-display.sh /usr/local/bin/e2e-display
+COPY scripts/e2e-entrypoint.sh /usr/local/bin/e2e-entrypoint
+
+ENTRYPOINT ["/usr/local/bin/e2e-entrypoint"]
 CMD ["bash"]

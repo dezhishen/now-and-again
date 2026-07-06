@@ -27,7 +27,7 @@ func userModelToUser(m *repository.UserModel) *types.User {
 	return types.UserFromModel(m)
 }
 
-func (s *UserService) generateTokens(ctx context.Context, userID string) (*types.TokenPair, error) {
+func (s *UserService) generateTokens(_ context.Context, userID string) (*types.TokenPair, error) {
 	claims := jwt.MapClaims{
 		"sub": userID,
 		"iat": timeutil.Now().Unix(),

@@ -47,7 +47,7 @@ type FamilyContract interface {
 
 	// Family Group
 	CreateGroup(ctx context.Context, familyID uuid.UUID, req *types.CreateFamilyGroupRequest) (*types.FamilyGroup, error)
-	ListGroups(ctx context.Context, familyID uuid.UUID) ([]types.FamilyGroup, error)
+	ListGroups(ctx context.Context, familyID uuid.UUID, name string) ([]types.FamilyGroup, error)
 	JoinGroup(ctx context.Context, groupID uuid.UUID) (*types.FamilyGroupMember, error)
 	LeaveGroup(ctx context.Context, groupID uuid.UUID) error
 	ListGroupMembers(ctx context.Context, groupID uuid.UUID) ([]types.FamilyGroupMember, error)
@@ -78,7 +78,7 @@ type FloorPlanContract interface {
 
 type LocationContract interface {
 	CreateLocation(ctx context.Context, familyID uuid.UUID, req *types.CreateLocationRequest) (*types.Location, error)
-	ListFamilyLocations(ctx context.Context, familyID uuid.UUID) ([]types.Location, error)
+	ListFamilyLocations(ctx context.Context, familyID uuid.UUID, name string) ([]types.Location, error)
 	ListFloorPlanLocations(ctx context.Context, floorPlanID uuid.UUID) ([]types.Location, error)
 	UpdateLocation(ctx context.Context, locationID uuid.UUID, req *types.UpdateLocationRequest) (*types.Location, error)
 	DeleteLocation(ctx context.Context, locationID uuid.UUID) error
@@ -95,7 +95,7 @@ type TaskContract interface {
 	SetTaskEnabled(ctx context.Context, taskID uuid.UUID, enabled bool) (*types.Task, error)
 	DeleteTask(ctx context.Context, taskID uuid.UUID) error
 	ListTasks(ctx context.Context, familyID uuid.UUID) ([]types.Task, error)
-	ListTasksFiltered(ctx context.Context, familyID uuid.UUID, includeArchived, includeDisabled bool) ([]types.Task, error)
+	ListTasksFiltered(ctx context.Context, familyID uuid.UUID, includeArchived, includeDisabled bool, name string) ([]types.Task, error)
 	TriggerTask(ctx context.Context, taskID uuid.UUID) error
 }
 

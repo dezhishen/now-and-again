@@ -252,7 +252,8 @@ func (h *FamilyHandlers) ListGroups(c *gin.Context) {
 		badRequest(c, "invalid family_id")
 		return
 	}
-	groups, err := h.C.ListGroups(userCtx(c), familyID)
+	name := c.Query("name")
+	groups, err := h.C.ListGroups(userCtx(c), familyID, name)
 	if err != nil {
 		serverError(c, err)
 		return

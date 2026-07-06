@@ -187,8 +187,8 @@ func (s *TaskService) ListTasks(ctx context.Context, familyID uuid.UUID) ([]type
 }
 
 // ListTasksFiltered returns tasks for a family with optional archived/enabled filters.
-func (s *TaskService) ListTasksFiltered(ctx context.Context, familyID uuid.UUID, includeArchived, includeDisabled bool) ([]types.Task, error) {
-	tasks, err := s.repo.ListTasksByFamilyFiltered(familyID.String(), includeArchived, includeDisabled)
+func (s *TaskService) ListTasksFiltered(ctx context.Context, familyID uuid.UUID, includeArchived, includeDisabled bool, name string) ([]types.Task, error) {
+	tasks, err := s.repo.ListTasksByFamilyFiltered(familyID.String(), includeArchived, includeDisabled, name)
 	if err != nil {
 		return nil, err
 	}
@@ -484,17 +484,6 @@ func scheduleWindow(scheduleType, scheduleData string) time.Duration {
 	default:
 		return 24 * time.Hour
 	}
-}
-
-func marshalJSON(v any) string {
-	if v == nil {
-		return ""
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return ""
-	}
-	return string(b)
 }
 
 func taskModelToType(t *repository.TaskModel) *types.Task {

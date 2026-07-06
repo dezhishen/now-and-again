@@ -6,17 +6,21 @@
         install install-cli \
 	clean check-contracts check-plugin-isolation fix-dupes \
 	        docker-build docker-up docker-down docker-logs \
-	        docker-e2e-image docker-e2e-image-zh docker-e2e-headed docker-e2e-headed-zh
+	        docker-e2e-image docker-e2e-image-zh docker-e2e-headed docker-e2e-headed-zh docker-e2e-gpu docker-e2e-gpu-zh
 
 E2E_IMAGE := now-and-again-e2e
 E2E_IMAGE_ZH := now-and-again-e2e:zh
 E2E_WORKSPACE := /workspace
 E2E_BASE_CMD = docker run --rm -it \
-	-v $(PWD):$(E2E_WORKSPACE) \
+	--name na-e2e \
+	-v $(shell pwd):$(E2E_WORKSPACE) \
 	-w $(E2E_WORKSPACE) \
 	--shm-size=2g \
+	--memory=4g \
 	--ipc=host \
-	-e CI=true
+	-e CI=true \
+	-e HOME=/tmp \
+	-e NA_DATA_DIR=../data/e2e
 
 # ─── Default ──────────────────────────────────────────────────────
 .DEFAULT_GOAL := help
@@ -140,33 +144,84 @@ define E2E_HEADED_CMD
 set -euo pipefail; \
 server_log=/tmp/na-server.log; \
 rm -f "$$server_log" && touch "$$server_log"; \
-cd frontend && pnpm install --frozen-lockfile && NA_STRIP_TEST_ATTRS=0 pnpm build; \
+mkdir -p data/e2e; \
+echo "━━━ 1/5 前端 ━━━"; \
+NEED_FRONTEND=false; \
+if [ ! -f frontend/dist/index.html ]; then NEED_FRONTEND=true; \
+else \
+  NEWEST_SRC=$$(find frontend/src -type f -newer frontend/dist/index.html 2>/dev/null | head -1); \
+  if [ -n "$$NEWEST_SRC" ] || [ frontend/package.json -nt frontend/dist/index.html ]; then NEED_FRONTEND=true; fi; \
+fi; \
+if $$NEED_FRONTEND; then \
+  echo "  重新构建前端..."; \
+  cd frontend && pnpm install --frozen-lockfile && NA_STRIP_TEST_ATTRS=0 pnpm build; \
+else \
+  echo "  ✓ 前端未变化，跳过构建"; \
+fi; \
+echo "━━━ 2/5 嵌入前端 → 后端 ━━━"; \
 cd $(E2E_WORKSPACE) && rm -rf backend/internal/webui/dist && mkdir -p backend/internal/webui/dist && cp -r frontend/dist/* backend/internal/webui/dist/; \
-cd backend && go mod download; \
-(NA_ADMIN_DEFAULT_PASSWORD=12345678 NA_DATA_DIR=../data NA_SYNC_TEMPLATES_ON_STARTUP=false go run ./cmd/server > "$$server_log" 2>&1) & \
+echo "━━━ 3/5 编译后端 ━━━"; \
+NEED_BACKEND=false; \
+if [ ! -f /tmp/na-server ]; then NEED_BACKEND=true; \
+else \
+  NEWEST_GO=$$(find backend -name '*.go' -newer /tmp/na-server 2>/dev/null | head -1); \
+  if [ -n "$$NEWEST_GO" ] || [ backend/go.mod -nt /tmp/na-server ] || [ backend/go.sum -nt /tmp/na-server ]; then NEED_BACKEND=true; fi; \
+fi; \
+if $$NEED_BACKEND; then \
+  echo "  重新编译后端..."; \
+  cd backend && go mod download && go build -o /tmp/na-server ./cmd/server; \
+else \
+  echo "  ✓ 后端未变化，跳过编译"; \
+fi; \
+echo "━━━ 4/5 启动后端服务 ━━━"; \
+(NA_ADMIN_DEFAULT_PASSWORD=12345678 NA_DATA_DIR=../data/e2e NA_SYNC_TEMPLATES_ON_STARTUP=false /tmp/na-server > "$$server_log" 2>&1) & \
 server_pid=$$!; \
-for i in $$(seq 1 90); do \
-	if curl -fsS http://127.0.0.1:8080/api/system/status >/dev/null; then break; fi; \
+for i in $$(seq 1 20); do \
+	if curl -fsS http://127.0.0.1:8080/api/system/status >/dev/null 2>&1; then echo " ✓ 后端就绪"; break; fi; \
 	if ! kill -0 "$$server_pid" 2>/dev/null; then \
-		echo "→ backend exited early, log:"; \
+		echo " ✗ 后端异常退出，日志:"; \
 		cat "$$server_log"; \
 		exit 1; \
 	fi; \
-	sleep 1; \
+	sleep 3; \
 done; \
-if ! curl -fsS http://127.0.0.1:8080/api/system/status >/dev/null; then \
-	echo "→ backend failed to become ready, log:"; \
+if ! curl -fsS http://127.0.0.1:8080/api/system/status >/dev/null 2>&1; then \
+	echo " ✗ 后端启动超时 (60s)，日志:"; \
 	cat "$$server_log"; \
 	exit 1; \
 fi; \
-cd $(E2E_WORKSPACE)/test && npm install && xvfb-run -a npx playwright test --project=chromium --headed --reporter=list
+echo "━━━ 5/5 运行 E2E 测试 ━━━"; \
+cd $(E2E_WORKSPACE)/test && npm install && e2e-display npx playwright test --project=chromium --headed --reporter=list; \
+echo ""; \
+echo "━━━ 测试完成 ━━━"; \
+echo "  结果目录:  test/test-results/"; \
+echo "  报告目录:  test/playwright-report/"; \
+ls test/test-results/ 2>/dev/null | head -5 | awk '{print "    " $$0}' || echo "    (无结果文件)"
 endef
 
-docker-e2e-headed: docker-e2e-image ## 在容器内挂载当前目录并用 xvfb 运行 headed E2E（默认镜像）
-	$(E2E_BASE_CMD) $(E2E_IMAGE) bash -lc '$(E2E_HEADED_CMD)'
+docker-e2e-headed: docker-e2e-image ## 在容器内运行 headed E2E（自动检测 GPU/X11，降级 xvfb）
+	$(E2E_BASE_CMD) \
+		-e NA_RUN_AS=$(shell id -u):$(shell id -g) \
+		$(E2E_IMAGE) bash -c '$(E2E_HEADED_CMD)'
 
-docker-e2e-headed-zh: docker-e2e-image-zh ## 在容器内挂载当前目录并用 xvfb 运行 headed E2E（大陆镜像源）
-	$(E2E_BASE_CMD) $(E2E_IMAGE_ZH) bash -lc '$(E2E_HEADED_CMD)'
+docker-e2e-headed-zh: docker-e2e-image-zh ## 在容器内运行 headed E2E（大陆镜像源）
+	$(E2E_BASE_CMD) \
+		-e NA_RUN_AS=$(shell id -u):$(shell id -g) \
+		$(E2E_IMAGE_ZH) bash -c '$(E2E_HEADED_CMD)'
+
+docker-e2e-gpu: docker-e2e-image ## 在容器内运行 headed E2E（内部 Xorg + 直通 GPU /dev/dri）
+	$(E2E_BASE_CMD) \
+		--privileged \
+		--device /dev/dri \
+		-e NA_RUN_AS=$(shell id -u):$(shell id -g) \
+		$(E2E_IMAGE) bash -c '$(E2E_HEADED_CMD)'
+
+docker-e2e-gpu-zh: docker-e2e-image-zh ## 在容器内运行 headed E2E（国内镜像 + 内部 Xorg + GPU）
+	$(E2E_BASE_CMD) \
+		--privileged \
+		--device /dev/dri \
+		-e NA_RUN_AS=$(shell id -u):$(shell id -g) \
+		$(E2E_IMAGE_ZH) bash -c '$(E2E_HEADED_CMD)'
 
 # ─── Lint / Vet ───────────────────────────────────────────────────
 

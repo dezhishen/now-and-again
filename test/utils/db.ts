@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CANDIDATE_DB_PATHS = [
+  path.resolve(process.env.NA_DATA_DIR || '../../data', 'now-and-again.db'),
   path.resolve(__dirname, '../../data/now-and-again.db'),
   path.resolve(__dirname, '../../backend/data/now-and-again.db'),
 ];

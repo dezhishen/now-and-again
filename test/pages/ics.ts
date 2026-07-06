@@ -45,8 +45,8 @@ export class IcsPage extends BasePage {
     return this.page.locator('code');
   }
 
-  async goto(familyId: string): Promise<void> {
-    await this.page.goto(`/family/${familyId}/ics`);
+  async goto(): Promise<void> {
+    await this.page.goto('/family/ics');
     await this.page.waitForLoadState('networkidle');
   }
 

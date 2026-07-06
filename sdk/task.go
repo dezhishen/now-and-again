@@ -32,15 +32,16 @@ func (na *NA) ListTasks(ctx context.Context) ([]types.Task, error) {
 	return na.Task.ListTasks(ctx, fid)
 }
 
-// ListTasksFiltered returns tasks in the active family with optional archived/disabled filters.
+// ListTasksFiltered returns tasks in the active family with optional archived/disabled/name filters.
 // Set includeArchived=true to include archived tasks.
 // Set includeDisabled=true to include disabled tasks.
-func (na *NA) ListTasksFiltered(ctx context.Context, includeArchived, includeDisabled bool) ([]types.Task, error) {
+// Set name to a non-empty string to filter by task name (server-side LIKE).
+func (na *NA) ListTasksFiltered(ctx context.Context, includeArchived, includeDisabled bool, name string) ([]types.Task, error) {
 	fid, err := na.requireFamilyID()
 	if err != nil {
 		return nil, err
 	}
-	return na.Task.ListTasksFiltered(ctx, fid, includeArchived, includeDisabled)
+	return na.Task.ListTasksFiltered(ctx, fid, includeArchived, includeDisabled, name)
 }
 
 // GetTask returns a single task by ID.
@@ -92,18 +93,25 @@ func (na *NA) TriggerTask(ctx context.Context, taskID string) error {
 }
 
 // FindTaskByName returns the first task in the active family whose name
-// contains the given substring. Returns nil if not found.
+// matches exactly, or contains the given substring. Uses server-side LIKE filtering.
+// Returns nil if not found.
+// Priority: exact match > substring match.
 func (na *NA) FindTaskByName(ctx context.Context, name string) (*types.Task, error) {
-	tasks, err := na.ListTasks(ctx)
+	tasks, err := na.ListTasksFiltered(ctx, true, true, name)
 	if err != nil {
 		return nil, err
 	}
+	if len(tasks) == 0 {
+		return nil, nil
+	}
+	// Exact match first
 	for _, t := range tasks {
-		if t.Name == name || containsSubstring(t.Name, name) {
+		if t.Name == name {
 			return &t, nil
 		}
 	}
-	return nil, nil
+	// Then first substring match
+	return &tasks[0], nil
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -114,17 +122,4 @@ func (na *NA) requireFamilyID() (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("no active family; run 'na init' first or call SetActiveFamily")
 	}
 	return uuid.Parse(fid)
-}
-
-func containsSubstring(s, sub string) bool {
-	return len(s) >= len(sub) && searchString(s, sub)
-}
-
-func searchString(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
 }

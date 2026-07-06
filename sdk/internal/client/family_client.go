@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/google/uuid"
@@ -100,9 +101,13 @@ func (c *FamilyClient) CreateGroup(ctx context.Context, familyID uuid.UUID, req 
 	return &g, nil
 }
 
-func (c *FamilyClient) ListGroups(ctx context.Context, familyID uuid.UUID) ([]types.FamilyGroup, error) {
+func (c *FamilyClient) ListGroups(ctx context.Context, familyID uuid.UUID, name string) ([]types.FamilyGroup, error) {
+	path := fmt.Sprintf("/api/families/%s/groups", familyID)
+	if name != "" {
+		path += "?name=" + url.QueryEscape(name)
+	}
 	var groups []types.FamilyGroup
-	if err := c.http.do("GET", fmt.Sprintf("/api/families/%s/groups", familyID), nil, &groups); err != nil {
+	if err := c.http.do("GET", path, nil, &groups); err != nil {
 		return nil, err
 	}
 	return groups, nil

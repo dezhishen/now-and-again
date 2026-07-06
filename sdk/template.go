@@ -85,8 +85,8 @@ func (na *NA) CreateTaskFromTemplate(ctx context.Context, code string, params ma
 
 // ─── Internal HTTP helpers (mirror the backend handler paths) ─────
 
-func (na *NA) callListTemplates(ctx context.Context, familyID uuid.UUID, kind string) ([]types.TaskTemplate, error) {
-	path := fmt.Sprintf("/api/task-templates")
+func (na *NA) callListTemplates(_ context.Context, _ uuid.UUID, kind string) ([]types.TaskTemplate, error) {
+	path := "/api/task-templates"
 	if kind != "" {
 		path += "?kind=" + kind
 	}
@@ -97,7 +97,7 @@ func (na *NA) callListTemplates(ctx context.Context, familyID uuid.UUID, kind st
 	return result, nil
 }
 
-func (na *NA) callRenderTemplate(ctx context.Context, familyID uuid.UUID, code string, params map[string]interface{}) (*types.RenderedTask, error) {
+func (na *NA) callRenderTemplate(_ context.Context, _ uuid.UUID, code string, params map[string]interface{}) (*types.RenderedTask, error) {
 	path := fmt.Sprintf("/api/task-templates/%s/render", code)
 	var result types.RenderedTask
 	if err := na.http.Do("POST", path, params, &result); err != nil {

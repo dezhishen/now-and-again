@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/dezhishen/now-and-again/cli/internal/action"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +32,7 @@ var initCmd = &cobra.Command{
 			if err := na.InitWithKey(key); err != nil {
 				return fmt.Errorf("初始化失败: %w", err)
 			}
-			fmt.Println("✓ 已初始化")
+			action.Println("✓ 已初始化")
 			return showConfig()
 		}
 
@@ -40,7 +41,7 @@ var initCmd = &cobra.Command{
 			if err := na.Init(username, password); err != nil {
 				return fmt.Errorf("初始化失败: %w", err)
 			}
-			fmt.Println("✓ 初始化成功")
+			action.Println("✓ 初始化成功")
 			return showConfig()
 		}
 
@@ -111,9 +112,9 @@ func interactiveInit() error {
 
 func showConfig() error {
 	cfg := na.Config()
-	fmt.Printf("  Server: %s\n", cfg.ServerURL)
+	action.Printf("  Server: %s", cfg.ServerURL)
 	if cfg.ActiveFamilyName != "" {
-		fmt.Printf("  Family: %s\n", cfg.ActiveFamilyName)
+		action.Printf("  Family: %s", cfg.ActiveFamilyName)
 	}
 	return nil
 }

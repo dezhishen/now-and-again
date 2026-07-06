@@ -163,7 +163,9 @@ func (s *IcsService) GenerateICS(token, apiKey, username, password string) (stri
 	var sb strings.Builder
 	sb.WriteString("BEGIN:VCALENDAR\r\n")
 	sb.WriteString("VERSION:2.0\r\n")
-	sb.WriteString("PRODID:" + icsProdID + "\r\n")
+	sb.WriteString("PRODID:")
+	sb.WriteString(icsProdID)
+	sb.WriteString("\r\n")
 	sb.WriteString("CALSCALE:GREGORIAN\r\n")
 	sb.WriteString("NAME:")
 	sb.WriteString(escapeICS(feed.Name))
