@@ -102,17 +102,19 @@ install-cli: build-cli ## 安装 CLI 到 $GOPATH/bin 或 /usr/local/bin
 
 # ─── Test ─────────────────────────────────────────────────────────
 
-test: test-backend test-cli ## 运行所有 Go 测试
+test: test-backend test-cli ## 运行所有单元测试（不含集成测试）
 
-test-backend: ## 运行 backend 测试（含 pkg/）
+test-all: test-backend test-cli test-cli-integration ## 运行全部测试（需后端运行）
+
+test-backend: ## 运行 backend 单元测试（含 pkg/）
 	@cd backend && go test ./... -count=1 -short
 
 test-cli: ## 运行 CLI 单元测试
 	@cd cli && go test ./... -count=1 -short
 
-test-cli-integration: ## 运行 CLI 集成测试（需先 make db-reset && make dev-backend）
+test-cli-integration: ## 运行 CLI 集成测试（需先启动后端）
 	@curl -sf http://localhost:8080/api/system/status >/dev/null 2>&1 || (echo "❌ 后端未运行，请先执行 make dev-backend" && exit 1)
-	@cd cli && go test ./tests/integration/... -count=1 -v -timeout 120s
+	@cd cli && go test ./tests/integration/... -count=1 -v -timeout 300s
 
 test-e2e: ## 运行 E2E 浏览器自动化测试（需先 make dev 或单独启动服务）
 	@echo "→ Installing E2E dependencies..."

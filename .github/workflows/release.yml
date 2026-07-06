@@ -84,6 +84,11 @@ jobs:
           cd backend
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o na-server ./cmd/server/
 
+      - name: Build CLI (linux/amd64)
+        run: |
+          cd cli
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o na .
+
       - name: Start backend
         run: |
           cd backend
@@ -102,6 +107,11 @@ jobs:
             cat /tmp/na-server.log || true
             exit 1
           fi
+
+      - name: CLI integration tests
+        run: |
+          cd cli
+          go test ./tests/integration/... -count=1 -v -timeout 300s
 
       - name: Install E2E dependencies
         run: |
