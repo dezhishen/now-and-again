@@ -96,14 +96,20 @@ jobs:
       - name: CLI integration tests
         run: cd cli && go test ./tests/integration/... -count=1 -v -timeout 300s
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('test/package.json') }}
+          restore-keys: playwright-${{ runner.os }}-
+
       - name: E2E setup
         run: |
           cd test && npm install
-          npx playwright install chromium --with-deps
-          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
+          npx playwright install chromium
 
       - name: Run E2E tests
-        run: cd test && xvfb-run -a npx playwright test --project=chromium --headed --reporter=list
+        run: cd test && npx playwright test --project=chromium
         env: { CI: true }
 
       - uses: actions/upload-artifact@v5

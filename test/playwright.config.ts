@@ -10,7 +10,8 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   fullyParallel: false,
   retries: 0,
-  workers: 1,
+  // CI 使用 4 个 worker 并行执行不同 spec 文件；本地可减少
+  workers: IS_CI ? 4 : 1,
   reporter: [['list'], ['html', { open: 'never' }]],
 
   use: {
