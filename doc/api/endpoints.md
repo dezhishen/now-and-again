@@ -1,12 +1,18 @@
 # API 文档
 
-> 共 69 个端点。公开路由无鉴权，家庭级路由通过 `X-Family-Id` 请求头传递家庭 ID。
+> 共 73 个端点。公开路由无鉴权，家庭级路由通过 `X-Family-Id` 请求头传递家庭 ID。
 
 ## 系统状态
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
 | GET | `/api/system/status` | 无 | 返回 `{"status": "ok"}` |
+
+## 公开设置
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/public/settings` | 无 | 获取公开系统设置 |
 
 ## 认证
 
@@ -29,6 +35,7 @@
 | POST | `/api/auth/logout` | Cookie | 登出 |
 | GET | `/api/users/me` | JWT/APIKey | 获取当前用户 |
 | PUT | `/api/users/me` | JWT/APIKey | 更新当前用户 |
+| PUT | `/api/users/me/password` | JWT/APIKey | 修改密码 |
 | GET | `/api/users/me/families` | JWT/APIKey | 我的家庭列表 |
 
 ## 管理面板
@@ -36,6 +43,7 @@
 | 方法 | 路径 | 鉴权 | 说明 |
 |------|------|------|------|
 | GET | `/api/admin/users` | JWT(admin) | 管理员查看所有用户 |
+| POST | `/api/admin/users/reset-password` | JWT(admin) | 管理员重置用户密码 |
 | GET | `/api/admin/settings` | JWT | 获取系统设置 |
 | PUT | `/api/admin/settings` | JWT | 更新设置 |
 
@@ -186,6 +194,7 @@
 | PUT | `/api/ics-feeds/:feed_id` | JWT/APIKey | 更新订阅 |
 | DELETE | `/api/ics-feeds/:feed_id` | JWT/APIKey | 删除订阅 |
 | GET | `/api/ics/:token` | 无 | ICS 日历端点（支持 API Key / Basic Auth） |
+| GET | `/api/ics/:token/:slug` | 无 | ICS 友好 URL 端点 |
 
 ## 任务模板
 

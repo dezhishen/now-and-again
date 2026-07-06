@@ -37,6 +37,43 @@
 
 ---
 
+## 🎯 项目场景
+
+### 汇聚家庭任务，推进待办，提供统一视角
+
+家庭事务分散在各个角落：手机提醒、冰箱贴纸条、微信群里的"别忘了"……Now & Again 把它们全部收拢到一个平台：
+
+- **Web UI** — 家庭成员在手机/电脑上查看任务大屏，一目了然
+- **CLI (`na`)** — 极简命令行，一条 `na todo done` 就能完成待办，轻松融入终端工作流
+- **Go SDK** — 外部工具（脚本、CI、定时任务）直接调用，无需手写 HTTP 请求
+
+最重要的是 **易于融入现有场景**。例如搭配 [OpenClaw](https://github.com/nicholasgriffintn/openclaw) 等 AI 助手，通过自然语言即可管理家庭事务，不必打开任何界面。
+
+### 可扩展性强 — 项目无法覆盖全部需求，但让你轻松上手扩展
+
+每个家庭的需求都不同，Now & Again 不可能面面俱到。因此从第一天起就设计了插件化架构，确保**新增能力零侵入**：
+
+| 插件系统 | 说明 | 扩展方式 |
+|---------|------|---------|
+| `taskkind` | 任务类型（simple / inspection / chain） | 实现 `Handler` 接口 + `init()` 注册 |
+| `scheduler` | 调度类型（once / daily / weekly …） | 实现调度 `Handler` + 注册 |
+| `tasktemplate` | 任务模板 Provider（YAML / HTTP 订阅） | 实现 `Provider` 接口 |
+| `locationkind` | 地点类型（indoor …） | 同 taskkind 模式 |
+
+> 插件隔离规则：主流程只依赖公共语义（如 `OwnerKind` 分发），不依赖插件内部的 kind 值与子表结构。新增插件不会破坏已有功能。
+
+同时，项目有**大量自动化测试**覆盖主流程，核心业务逻辑代码清晰分层（Handler → Service → Repository），方便 AI 辅助快速完成你想要的功能。
+
+此外，系统在设计层面就考虑了开放与互通：
+
+- **RESTful API 设计** — 73 个端点，统一 JSON 契约（请求/响应对称结构），JWT + API Key 双认证，Scope 细粒度权限控制。详情见 [API 文档](doc/api/endpoints.md)。
+- **ICS 标准日历接口** — 原生支持 [iCalendar (RFC 5545)](https://datatracker.ietf.org/doc/html/rfc5545) 标准，任何日历应用（Apple Calendar、Google Calendar、Outlook）均可通过一个 URL 订阅家庭待办，无需安装任何插件。
+- **Go SDK 独立模块** — `sdk/` 为独立 Go module，CLI 和外部工具共用同一套 SDK，无循环依赖，可直接 `go get` 引入。
+
+这意味着无论你要对接的是 AI 助手、智能家居、日历应用、还是自建的自动化脚本，Now & Again 都已经准备好了标准的接入方式。
+
+---
+
 ## 🧩 数据模型一览
 
 ```mermaid
@@ -56,7 +93,7 @@ erDiagram
     TaskKindExtra ||--o{ TaskKindExtraNode : "插件子结构"
 ```
 
-> 共 23 张表，涵盖任务调度、巡检、地点管理、ICS 日历订阅、任务模板、API Key 权限体系。
+> 共 24 张表，涵盖任务调度、巡检、地点管理、ICS 日历订阅、任务模板、API Key 权限体系。
 >
 > 说明：任务相关的插件子表（如 inspection/chain 的扩展表）在该图中已抽象为 `TaskKindExtra*`，避免主 README 绑定具体插件实现。具体结构请查看：
 > - [simple README](backend/pkg/taskkind/simple/README.md)
@@ -78,7 +115,7 @@ erDiagram
 | 👥 小组管理 | ✅ 完成 | 创建/加入/审核/成员管理 |
 | 📍 地点管理 | ✅ 完成 | 一级实体 + locationkind 插件系统(indoor)，可选关联户型图 |
 | 🏠 户型图 | ✅ 完成 | 多楼层上传/Canvas绘制/地点关联 |
-| 🔧 任务调度 | ✅ 完成 | Gocron 引擎，once/daily/weekly/monthly/interval |
+| 🔧 任务调度 | ✅ 完成 | Gocron 引擎，once/daily/weekly/monthly/yearly/interval |
 | 📋 任务系统 | ✅ 完成 | taskkind 插件系统(simple/inspection/chain)，支持复合任务编排与巡检异常跟进 |
 | ✅ 待办管理 | ✅ 完成 | 快速完成/备注完成/跳过，巡检分支选择 |
 | 📅 ICS 订阅 | ✅ 完成 | 标准 iCalendar，API Key/Basic Auth，可导入日历 App |
@@ -90,7 +127,51 @@ erDiagram
 | 🧩 Go SDK | ✅ 完成 | 独立模块，高层封装（模板建任务/待办备注/短ID解析），CLI 与外部工具共用 |
 | 🤖 AI 助手集成 | ✅ 完成 | OpenClaw 接入，自然语言管理家庭事务 |
 | 🐳 Docker | ✅ 完成 | 多阶段构建 + UPX 压缩 (2.9MB)，推送到 GHCR |
-| 📱 移动端 | ❌ 未开始 | — |
+| 📱 移动端适配 | ✅ 响应式 / ❌ PWA | 自适应布局已完成，PWA 离线支持待开发 |
+
+---
+
+## 🗺️ 路线图
+
+当前版本 **v1.0.x**，正在开发 **v1.1.0 — 外部交互与通知**。
+
+| 版本 | 类比 | 目标 | 说明 |
+|------|------|------|------|
+| v1.0.x | 有什么干什么 | 任务说做什么，人就做什么 | 数据模型、认证、家庭/小组、任务调度、taskkind 插件、待办、ICS、模板、Web/CLI/SDK、自动化测试、接口契约约束(SDK↔Backend) |
+| v1.1.0 | 🚧 想想能干什么 | 开放能力，让外部系统驱动待办，减少操心 | fulfill API、Hook 插件体系、任务级 Hook 配置；基于 Hook 逐步扩展通知渠道（邮件、企业微信、钉钉、Push）；前置基础：CLI / SDK / API Key（v1.0.x 已就绪） |
+| v1.2.0 | 系统知道你要干什么 | 理解习惯，辅助决策 | 家庭事务统计、耗时趋势、自动化建议 |
+
+→ 详见 [完整路线图](doc/roadmap.md)
+
+---
+
+## 🔮 未来场景：给 AI 一个状态机
+
+Now & Again 不是另一个待办 App，而是 **给 AI 的家庭事务状态机**。
+
+AI 理解自然语言、感知上下文，但家务需要状态管理——什么该做、谁来做、做了没有。Now & Again 提供**确定性的状态管理**，让 AI 不需要自己维护复杂的任务拓扑和进度，只需调用简单的 API 就能查询状态、推进流程。
+
+这里面"智能"的部分不在状态机本身，而在 AI 对上下文的理解——它知道你是谁、在哪、什么时间、有什么设备、过去的行为偏好，然后把这些信息和状态机的数据结合起来，主动提建议、自动推进程、只在需要决策时开口问你。
+
+---
+
+### 洗衣→晾晒→收纳 全自动衔接 🧺
+
+> 你早上把衣服丢进洗衣机就走了。
+
+洗衣机完成洗涤 → 检测器调用 `fulfill` API → "洗衣"待办自动完成 → chain 插件自动推进到"晾晒"。
+
+你在办公室收到提醒："衣服洗好了，回家记得晾。"你回复"已经在烘干了"→ AI 跳过晾晒步骤 → chain 推进到"收纳"。
+
+整个流程中，你只说了两句话。任务链的推进、状态的流转、提醒的分发全部由中枢 + AI 自动完成。
+
+- **智能家居 → fulﬁll API**：设备状态变化触发待办完成
+- **chain 插件**：自动推进任务链，洗衣→晾晒→收纳
+- **人只需决策**：AI 呈现场景，人做选择题而非填空题
+
+---
+
+这个场景的核心逻辑：**人驱动 AI → AI 驱动状态机 → 设备反馈结果**。Now & Again 是其中"状态机"这一环——它负责"什么该做、谁来做、做了没有"这一整套确定性的状态管理，让 AI 不必自己维护任务拓扑，只需关注理解和决策。
 
 ---
 
@@ -249,7 +330,8 @@ cd frontend; pnpm install; pnpm run dev
 | [📋 教程索引](doc/tutorial/README.md) | 全部图文教程：模板建任务 | 任务链 | 巡检 | 家庭 | 日历 |
 | [Docker 部署](doc/deployment/docker.md) | Docker 一键部署、数据持久化 |
 | [架构设计](doc/architecture/overview.md) | 系统架构、插件系统、分层设计 |
-| [API 文档](doc/api/endpoints.md) | 完整 RESTful API 路由表（69 个端点） |
+| [API 文档](doc/api/endpoints.md) | 完整 RESTful API 路由表（73 个端点） |
+| [路线图](doc/roadmap.md) | 版本规划与里程碑 |
 | [数据库 Schema](doc/database/schema.md) | 23 张表结构、索引策略 |
 | [CLI 使用](cli/README.md) | 命令行工具安装、命令参考 |
 | [前端约束](doc/frontend-conventions.md) | 前端开发规范（按钮/输入框/页签/弹窗） |
