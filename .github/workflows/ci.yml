@@ -49,6 +49,8 @@ jobs:
 
       - name: Go vet
         run: |
+          mkdir -p backend/internal/webui/dist
+          cp -r frontend/dist backend/internal/webui/
           cd backend && go vet ./...
           cd ../cli && go vet ./...
 
