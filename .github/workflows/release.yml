@@ -329,6 +329,21 @@ jobs:
           fi
 
           echo "---" >> /tmp/release-notes.md
+          echo "## 🐳 Docker 镜像" >> /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+          echo "| 镜像 | 标签 |" >> /tmp/release-notes.md
+          echo "|------|------|" >> /tmp/release-notes.md
+          echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again\` | \`${{ github.ref_name }}\`, \`latest\` |" >> /tmp/release-notes.md
+          echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again-cli\` | \`${{ github.ref_name }}\`, \`latest\` |" >> /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+          echo '```bash' >> /tmp/release-notes.md
+          echo "# 服务端" >> /tmp/release-notes.md
+          echo "docker pull ghcr.io/${{ github.repository_owner }}/now-and-again:${{ github.ref_name }}" >> /tmp/release-notes.md
+          echo "# CLI" >> /tmp/release-notes.md
+          echo "docker pull ghcr.io/${{ github.repository_owner }}/now-and-again-cli:${{ github.ref_name }}" >> /tmp/release-notes.md
+          echo '```' >> /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+          echo "---" >> /tmp/release-notes.md
           echo "**完整对比**: [${PREV_TAG}...${{ github.ref_name }}](https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${{ github.ref_name }})" >> /tmp/release-notes.md
 
           echo "=== 生成的发布说明 ==="
