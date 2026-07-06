@@ -10,6 +10,7 @@ import (
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"github.com/dezhishen/now-and-again/cli/internal/action"
 	"github.com/dezhishen/now-and-again/cli/internal/resolver"
+	"github.com/dezhishen/now-and-again/cli/internal/state"
 	"github.com/spf13/cobra"
 )
 
@@ -46,12 +47,15 @@ var taskCreateCmd = &cobra.Command{
 			return err
 		}
 		ctx := context.Background()
+		actID := string(action.CurrentID())
 
 		name, _ := cmd.Flags().GetString("name")
 		schedule, _ := cmd.Flags().GetString("schedule")
 		dataStr, _ := cmd.Flags().GetString("data")
 		groupName, _ := cmd.Flags().GetString("group")
 		locationName, _ := cmd.Flags().GetString("location")
+		groupID, _ := cmd.Flags().GetString("group-id")
+		locationID, _ := cmd.Flags().GetString("location-id")
 		kind, _ := cmd.Flags().GetString("kind")
 
 		if name == "" || schedule == "" || dataStr == "" {
@@ -72,19 +76,30 @@ var taskCreateCmd = &cobra.Command{
 			},
 		}
 
-		// Resolve group name → ID
+		// Build args snapshot for state persistence (exclude sensitive values).
+		stateArgs := map[string]string{
+			"name": name, "schedule": schedule, "data": dataStr, "kind": kind,
+			"group": groupName, "location": locationName,
+			"group-id": groupID, "location-id": locationID,
+		}
+
+		// Resolve group: --group-id takes priority, then interactive --group by name
 		cache := resolver.NewCache()
-		if groupName != "" {
-			gid, err := cache.ResolveGroupID(ctx, na, groupName)
+		if groupID != "" {
+			req.Task.GroupID = groupID
+		} else if groupName != "" {
+			gid, err := cache.ResolveGroupIDInteractive(ctx, na, groupName, actID, "task create", stateArgs)
 			if err != nil {
 				return fmt.Errorf("--group: %w", err)
 			}
 			req.Task.GroupID = gid
 		}
 
-		// Resolve location name → ID
-		if locationName != "" {
-			lid, err := cache.ResolveLocationID(ctx, na, locationName)
+		// Resolve location: --location-id takes priority, then interactive --location by name
+		if locationID != "" {
+			req.Task.LocationID = locationID
+		} else if locationName != "" {
+			lid, err := cache.ResolveLocationIDInteractive(ctx, na, locationName, actID, "task create", stateArgs)
 			if err != nil {
 				return fmt.Errorf("--location: %w", err)
 			}
@@ -96,14 +111,21 @@ var taskCreateCmd = &cobra.Command{
 			return err
 		}
 
+		// Clean up state file on success.
+		state.Delete(actID)
+
 		// Show friendly names in output
 		groupLabel := ""
 		if groupName != "" {
 			groupLabel = fmt.Sprintf(" 小组: %s", groupName)
+		} else if groupID != "" {
+			groupLabel = fmt.Sprintf(" 小组: %s", groupID[:8])
 		}
 		locLabel := ""
 		if locationName != "" {
 			locLabel = fmt.Sprintf(" 地址: %s", locationName)
+		} else if locationID != "" {
+			locLabel = fmt.Sprintf(" 地址: %s", locationID[:8])
 		}
 		action.Printf("✅ 任务已创建: %s (%s)%s%s", t.Name, t.ScheduleType, groupLabel, locLabel)
 		return nil
@@ -280,6 +302,7 @@ var taskUpdateCmd = &cobra.Command{
 			return err
 		}
 		ctx := context.Background()
+		actID := string(action.CurrentID())
 		cache := resolver.NewCache()
 
 		input, err := resolveTaskInput(cmd)
@@ -290,6 +313,33 @@ var taskUpdateCmd = &cobra.Command{
 		task, err := cache.ResolveTask(ctx, na, input)
 		if err != nil {
 			return err
+		}
+
+		// Build args snapshot for state persistence.
+		stateArgs := map[string]string{"name": input}
+		if cmd.Flags().Changed("new-name") {
+			n, _ := cmd.Flags().GetString("new-name")
+			stateArgs["new-name"] = n
+		}
+		if cmd.Flags().Changed("schedule") {
+			s, _ := cmd.Flags().GetString("schedule")
+			stateArgs["schedule"] = s
+		}
+		if cmd.Flags().Changed("data") {
+			d, _ := cmd.Flags().GetString("data")
+			stateArgs["data"] = d
+		}
+		if cmd.Flags().Changed("group") {
+			stateArgs["group"], _ = cmd.Flags().GetString("group")
+		}
+		if cmd.Flags().Changed("group-id") {
+			stateArgs["group-id"], _ = cmd.Flags().GetString("group-id")
+		}
+		if cmd.Flags().Changed("location") {
+			stateArgs["location"], _ = cmd.Flags().GetString("location")
+		}
+		if cmd.Flags().Changed("location-id") {
+			stateArgs["location-id"], _ = cmd.Flags().GetString("location-id")
 		}
 
 		// Build update request from flags that are explicitly set
@@ -315,29 +365,47 @@ var taskUpdateCmd = &cobra.Command{
 			updateTask.ScheduleData = sd
 			hasUpdate = true
 		}
-		if cmd.Flags().Changed("group") {
-			gn, _ := cmd.Flags().GetString("group")
-			if gn == "" {
-				updateTask.GroupID = "" // clear group
-			} else {
-				gid, err := cache.ResolveGroupID(ctx, na, gn)
-				if err != nil {
-					return fmt.Errorf("--group: %w", err)
+		if cmd.Flags().Changed("group") || cmd.Flags().Changed("group-id") {
+			if cmd.Flags().Changed("group-id") {
+				gid, _ := cmd.Flags().GetString("group-id")
+				if gid == "" {
+					updateTask.GroupID = "" // clear group
+				} else {
+					updateTask.GroupID = gid
 				}
-				updateTask.GroupID = gid
+			} else {
+				gn, _ := cmd.Flags().GetString("group")
+				if gn == "" {
+					updateTask.GroupID = "" // clear group
+				} else {
+					gid, err := cache.ResolveGroupIDInteractive(ctx, na, gn, actID, "task update", stateArgs)
+					if err != nil {
+						return fmt.Errorf("--group: %w", err)
+					}
+					updateTask.GroupID = gid
+				}
 			}
 			hasUpdate = true
 		}
-		if cmd.Flags().Changed("location") {
-			ln, _ := cmd.Flags().GetString("location")
-			if ln == "" {
-				updateTask.LocationID = "" // clear location
-			} else {
-				lid, err := cache.ResolveLocationID(ctx, na, ln)
-				if err != nil {
-					return fmt.Errorf("--location: %w", err)
+		if cmd.Flags().Changed("location") || cmd.Flags().Changed("location-id") {
+			if cmd.Flags().Changed("location-id") {
+				lid, _ := cmd.Flags().GetString("location-id")
+				if lid == "" {
+					updateTask.LocationID = "" // clear location
+				} else {
+					updateTask.LocationID = lid
 				}
-				updateTask.LocationID = lid
+			} else {
+				ln, _ := cmd.Flags().GetString("location")
+				if ln == "" {
+					updateTask.LocationID = "" // clear location
+				} else {
+					lid, err := cache.ResolveLocationIDInteractive(ctx, na, ln, actID, "task update", stateArgs)
+					if err != nil {
+						return fmt.Errorf("--location: %w", err)
+					}
+					updateTask.LocationID = lid
+				}
 			}
 			hasUpdate = true
 		}
@@ -350,6 +418,8 @@ var taskUpdateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		// Clean up state file on success.
+		state.Delete(actID)
 		action.Printf("✅ 已更新任务: %s", task.Name)
 		return nil
 	},
@@ -443,7 +513,9 @@ func init() {
 	taskCreateCmd.Flags().String("schedule", "", "调度类型: daily|weekly|monthly|yearly|interval|once")
 	taskCreateCmd.Flags().String("data", "", "调度数据 JSON（见 --help 示例）")
 	taskCreateCmd.Flags().String("group", "", "分配小组名称")
+	taskCreateCmd.Flags().String("group-id", "", "分配小组ID（精确UUID，跳过名称解析）")
 	taskCreateCmd.Flags().String("location", "", "分配地址名称")
+	taskCreateCmd.Flags().String("location-id", "", "分配地址ID（精确UUID，跳过名称解析）")
 	taskCreateCmd.Flags().String("kind", "simple", "任务类型: simple|inspection|chain")
 
 	// task list

@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/dezhishen/now-and-again/backend/pkg/types"
+	"github.com/dezhishen/now-and-again/cli/internal/state"
 	"github.com/dezhishen/now-and-again/sdk"
 )
 
@@ -252,4 +253,88 @@ func joinLocationNames(locations []types.Location) string {
 		names[i] = l.Name
 	}
 	return strings.Join(names, ", ")
+}
+
+// ─── Interactive resolution (with action-id state) ───────────────
+
+// ResolveGroupIDInteractive tries name→ID resolution. On ambiguity,
+// it saves the candidates to a state file keyed by actionID and returns
+// a user-friendly error with retry instructions.
+func (c *Cache) ResolveGroupIDInteractive(ctx context.Context, na *sdk.NA, input, actionID, cmd string, args map[string]string) (string, error) {
+	// Try standard resolution first.
+	g, err := c.ResolveGroup(ctx, na, input)
+	if err == nil {
+		return g.ID, nil
+	}
+
+	// Check if this is an ambiguity error (multiple substring matches).
+	groups, listErr := na.ListGroups(ctx, input)
+	if listErr != nil {
+		return "", err // return original error
+	}
+
+	inputLower := strings.ToLower(input)
+	var candidates []types.FamilyGroup
+	for _, g := range groups {
+		if strings.Contains(strings.ToLower(g.Name), inputLower) {
+			candidates = append(candidates, g)
+		}
+	}
+
+	if len(candidates) > 1 {
+		// Save state and return actionable error.
+		opts := make([]state.EntityOption, len(candidates))
+		for i, g := range candidates {
+			opts[i] = state.EntityOption{ID: g.ID, Name: g.Name}
+		}
+		return "", state.ResolveAmbiguousGroup(actionID, cmd, args, input, opts)
+	}
+
+	// Not found — store the context so user can list and retry.
+	s := &state.ActionState{
+		ActionID: actionID,
+		Step:     "resolve_group",
+		Command:  cmd,
+		Args:     args,
+	}
+	_ = state.Save(s)
+	return "", fmt.Errorf("未找到匹配的小组 %q。\n→ 使用 na family status 查看所有小组", input)
+}
+
+// ResolveLocationIDInteractive is the interactive variant for location resolution.
+func (c *Cache) ResolveLocationIDInteractive(ctx context.Context, na *sdk.NA, input, actionID, cmd string, args map[string]string) (string, error) {
+	l, err := c.ResolveLocation(ctx, na, input)
+	if err == nil {
+		return l.ID, nil
+	}
+
+	locations, listErr := na.ListLocations(ctx, input)
+	if listErr != nil {
+		return "", err
+	}
+
+	inputLower := strings.ToLower(input)
+	var candidates []types.Location
+	for _, l := range locations {
+		if strings.Contains(strings.ToLower(l.Name), inputLower) {
+			candidates = append(candidates, l)
+		}
+	}
+
+	if len(candidates) > 1 {
+		opts := make([]state.EntityOption, len(candidates))
+		for i, l := range candidates {
+			opts[i] = state.EntityOption{ID: l.ID, Name: l.Name}
+		}
+		return "", state.ResolveAmbiguousLocation(actionID, cmd, args, input, opts)
+	}
+
+	s := &state.ActionState{
+		ActionID: actionID,
+		Step:     "resolve_location",
+		Command:  cmd,
+		Args:     args,
+	}
+	_ = state.Save(s)
+	return "", fmt.Errorf("未找到匹配的地址 %q。\n→ 使用 na family status 查看所有地址", input)
 }

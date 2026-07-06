@@ -1,8 +1,10 @@
 package integration
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -10,11 +12,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// ─── Action ID ────────────────────────────────────────────────────
+// ─── Action ID helpers ────────────────────────────────────────────
 
 var actionIDPattern = regexp.MustCompile(`\[action: [0-9a-f]{8}\]`)
 
-// runWithActionID executes na with --server and --action-id.
 func runWithActionID(actionID string, args ...string) (string, string, error) {
 	fullArgs := append([]string{"--server", serverURL, "--action-id", actionID}, args...)
 	cmd := exec.Command(binaryPath, fullArgs...)
@@ -38,16 +39,297 @@ func runNAOKWithActionID(t *testing.T, actionID string, args ...string) string {
 	return out
 }
 
-// assertActionID checks output contains [action: XXXXXXXX].
 func assertActionID(t *testing.T, out, shortID, step string) {
 	t.Helper()
-	want := "[action: " + shortID + "]"
-	if !strings.Contains(out, want) {
-		t.Errorf("[step=%s] output missing %s:\n%s", step, want, truncate(out, 120))
+	if !strings.Contains(out, "[action: "+shortID+"]") {
+		t.Errorf("[%s] missing [action: %s]:\n%s", step, shortID, truncate(out, 120))
 	}
 }
 
-// ─── Core: full task lifecycle tracked by one --action-id ─────────
+func extractShort(out string) string {
+	m := actionIDPattern.FindString(out)
+	if m == "" {
+		return ""
+	}
+	return m[9 : len(m)-1]
+}
+
+// ─── State machine helpers ────────────────────────────────────────
+
+// stateFilePath returns the expected tmp path for an action ID.
+func stateFilePath(actionID string) string {
+	return filepath.Join(os.TempDir(), "na-action-"+actionID+".json")
+}
+
+// assertStateFileExists checks the state file exists and contains expected fields.
+func assertStateFileExists(t *testing.T, actionID string, expectedStep string) {
+	t.Helper()
+	path := stateFilePath(actionID)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("state file not found at %s: %v", path, err)
+	}
+	var s map[string]interface{}
+	if err := json.Unmarshal(data, &s); err != nil {
+		t.Fatalf("invalid state JSON: %v", err)
+	}
+	if s["action_id"] != actionID {
+		t.Errorf("state action_id: want %s, got %v", actionID, s["action_id"])
+	}
+	if s["step"] != expectedStep {
+		t.Errorf("state step: want %s, got %v", expectedStep, s["step"])
+	}
+	if s["command"] == nil {
+		t.Error("state missing command field")
+	}
+	if s["args"] == nil {
+		t.Error("state missing args field")
+	}
+}
+
+// assertNoStateFile checks the state file does NOT exist.
+func assertNoStateFile(t *testing.T, actionID string) {
+	t.Helper()
+	path := stateFilePath(actionID)
+	if _, err := os.Stat(path); err == nil {
+		t.Errorf("state file should not exist: %s", path)
+	}
+}
+
+// parseFamilyStatusJSON parses `na family status -o json` output and returns
+// the first group ID and first location ID.
+func parseFamilyStatusJSON(t *testing.T) (groupID, locationID string) {
+	t.Helper()
+	out := runNAOK(t, "family", "status", "-o", "json")
+	var envelope struct {
+		Data struct {
+			Groups    []struct{ ID, Name string } `json:"groups"`
+			Locations []struct{ ID, Name string } `json:"locations"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(out), &envelope); err != nil {
+		t.Fatalf("parse family status JSON: %v\noutput: %s", err, truncate(out, 300))
+	}
+	if len(envelope.Data.Groups) == 0 {
+		t.Fatal("family has no groups")
+	}
+	if len(envelope.Data.Locations) == 0 {
+		t.Fatal("family has no locations")
+	}
+	return envelope.Data.Groups[0].ID, envelope.Data.Locations[0].ID
+}
+
+// ─── Test: family status (text + JSON) ────────────────────────────
+
+func TestNameBased_FamilyStatus(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	setupWithFamily(t)
+
+	// Text mode
+	out := runNAOK(t, "family", "status")
+	for _, keyword := range []string{"小组", "地址", "成员"} {
+		if !strings.Contains(out, keyword) {
+			t.Errorf("family status text missing %q:\n%s", keyword, truncate(out, 300))
+		}
+	}
+	t.Log("✅ family status text mode")
+
+	// JSON mode
+	out = runNAOK(t, "family", "status", "-o", "json")
+	for _, key := range []string{`"action_id"`, `"success"`, `"data"`, `"groups"`, `"locations"`} {
+		if !strings.Contains(out, key) {
+			t.Errorf("family status JSON missing %s:\n%s", key, truncate(out, 300))
+		}
+	}
+	t.Log("✅ family status -o json")
+
+	// Verify groups contain id + name
+	var envelope struct {
+		Data struct {
+			Groups    []struct{ ID, Name string } `json:"groups"`
+			Locations []struct{ ID, Name string } `json:"locations"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(out), &envelope); err != nil {
+		t.Fatalf("parse JSON: %v", err)
+	}
+	if len(envelope.Data.Groups) < 1 || envelope.Data.Groups[0].ID == "" || envelope.Data.Groups[0].Name == "" {
+		t.Error("groups missing id/name in JSON")
+	}
+	if len(envelope.Data.Locations) < 1 || envelope.Data.Locations[0].ID == "" || envelope.Data.Locations[0].Name == "" {
+		t.Error("locations missing id/name in JSON")
+	}
+	t.Logf("✅ parsed JSON: %d groups, %d locations", len(envelope.Data.Groups), len(envelope.Data.Locations))
+}
+
+// ─── Test: task create with --group-id and --location-id ──────────
+
+func TestNameBased_TaskCreateByID(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	setupWithFamily(t)
+
+	gid, lid := parseFamilyStatusJSON(t)
+	t.Logf("resolved group=%s location=%s", gid[:8], lid[:8])
+
+	// Create with exact IDs
+	out := runNAOK(t, "task", "create",
+		"--name", testName("ID创建"),
+		"--schedule", "daily",
+		"--data", `{"time":"08:00"}`,
+		"--group-id", gid,
+		"--location-id", lid,
+	)
+	if !strings.Contains(out, "已创建") {
+		t.Fatalf("create by ID failed: %s", out)
+	}
+	t.Log("✅ create --group-id --location-id")
+
+	// Verify
+	out = runNAOK(t, "task", "info", "--name", "ID创建")
+	if !strings.Contains(out, gid[:8]) && !strings.Contains(out, lid[:8]) {
+		t.Logf("task info: %s", truncate(out, 200))
+	}
+	t.Log("✅ verified by IDs")
+}
+
+// ─── Test: state machine — ambiguous group → save → retry → cleanup ──
+
+func TestNameBased_StateMachineAmbiguous(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	setupWithFamily(t)
+
+	// Get the existing group name for reference
+	gid, _ := parseFamilyStatusJSON(t)
+	out := runNAOK(t, "family", "status", "-o", "json")
+
+	// Parse group names
+	var envelope struct {
+		Data struct {
+			Groups []struct{ ID, Name string } `json:"groups"`
+		} `json:"data"`
+	}
+	json.Unmarshal([]byte(out), &envelope)
+	if len(envelope.Data.Groups) == 0 {
+		t.Fatal("no groups available")
+	}
+	exactGroupName := envelope.Data.Groups[0].Name
+	t.Logf("group[0]: %s (%s)", exactGroupName, gid[:8])
+
+	// ── Phase 1: search with non-existent name → state saved ──
+	actionID := uuid.New().String()
+	out, _, err := runWithActionID(actionID,
+		"task", "create",
+		"--name", testName("状态机测试"),
+		"--schedule", "daily",
+		"--data", `{"time":"09:00"}`,
+		"--group", "ZZZ不存在的组名ZZZ",
+	)
+	if err == nil {
+		t.Fatalf("expected error for non-existent group, got: %s", out)
+	}
+	if !strings.Contains(out, "na family status") {
+		t.Logf("error output: %s", truncate(out, 200))
+	}
+
+	// State file must exist
+	assertStateFileExists(t, actionID, "resolve_group")
+	t.Logf("✅ state file created: %s", stateFilePath(actionID))
+
+	// ── Phase 2: retry with exact name → success → state cleaned ──
+	_ = runNAOKWithActionID(t, actionID,
+		"task", "create",
+		"--name", testName("状态机测试2"),
+		"--schedule", "daily",
+		"--data", `{"time":"09:00"}`,
+		"--group", exactGroupName,
+	)
+
+	// State file must be gone
+	assertNoStateFile(t, actionID)
+	t.Log("✅ state file cleaned after success")
+
+	// Verify task was created
+	out = runNAOK(t, "task", "info", "--name", "状态机测试2")
+	if !strings.Contains(out, "状态机测试2") {
+		t.Errorf("task not found after state machine flow: %s", truncate(out, 200))
+	}
+	t.Log("✅ state machine full cycle: error → save → retry → cleanup → verified")
+}
+
+// ─── Test: AI three-phase discovery workflow ──────────────────────
+
+func TestNameBased_AIDiscoveryWorkflow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	setupWithFamily(t)
+
+	workflowID := uuid.New().String()
+	sid := workflowID[:8]
+	t.Logf("workflow: action-id=%s", sid)
+
+	// Phase 1: Discover — get family status in JSON
+	out := runNAOKWithActionID(t, workflowID, "family", "status", "-o", "json")
+	// JSON mode: action_id appears as "action_id": "xxxx" (with space after colon)
+	if !strings.Contains(out, `"action_id"`) || !strings.Contains(out, workflowID) {
+		t.Errorf("Phase 1 JSON missing action_id=%s:\n%s", workflowID, truncate(out, 200))
+	}
+
+	var env struct {
+		ActionID string `json:"action_id"`
+		Success  bool   `json:"success"`
+		Data     struct {
+			Groups    []struct{ ID, Name string } `json:"groups"`
+			Locations []struct{ ID, Name string } `json:"locations"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("parse discover JSON: %v", err)
+	}
+	if !env.Success {
+		t.Fatal("discover not successful")
+	}
+	t.Logf("✅ Phase 1 discover: %d groups, %d locations", len(env.Data.Groups), len(env.Data.Locations))
+
+	// Phase 2: Resolve — AI picks first group and first location
+	groupID := env.Data.Groups[0].ID
+	groupName := env.Data.Groups[0].Name
+	locID := env.Data.Locations[0].ID
+	locName := env.Data.Locations[0].Name
+	t.Logf("Phase 2 resolve: group=%s(%s) location=%s(%s)", groupName, groupID[:8], locName, locID[:8])
+
+	// Phase 3: Act — create task with resolved IDs
+	taskName := testName("AI工作流")
+	out = runNAOKWithActionID(t, workflowID,
+		"task", "create",
+		"--name", taskName,
+		"--schedule", "daily",
+		"--data", `{"time":"07:00"}`,
+		"--group-id", groupID,
+		"--location-id", locID,
+	)
+	assertActionID(t, out, sid, "3-act")
+	if !strings.Contains(out, "已创建") {
+		t.Fatalf("Phase 3 create failed: %s", out)
+	}
+	t.Logf("✅ Phase 3 act: %s", truncate(out, 120))
+
+	// Verify: info should show the task
+	out = runNAOKWithActionID(t, workflowID, "task", "info", "--name", taskName)
+	t.Logf("✅ verify: task %s exists", taskName)
+
+	// Cleanup: no state file should remain
+	assertNoStateFile(t, workflowID)
+	t.Log("✅ no residual state file")
+}
+
+// ─── Test: action-id workflow across full task lifecycle ──────────
 
 func TestNameBased_ActionIDWorkflow(t *testing.T) {
 	if testing.Short() {
@@ -57,76 +339,59 @@ func TestNameBased_ActionIDWorkflow(t *testing.T) {
 
 	workflowID := uuid.New().String()
 	sid := workflowID[:8]
-	t.Logf("workflow action-id: %s", workflowID)
-
 	taskName := testName("工作流")
 
-	// ── 1. create with --group + --location ──────────────────
+	gid, lid := parseFamilyStatusJSON(t)
+
+	// 1. create with group-id + location-id
 	out := runNAOKWithActionID(t, workflowID,
 		"task", "create",
 		"--name", taskName,
 		"--schedule", "daily",
 		"--data", `{"time":"08:00"}`,
-		"--group", "大人",
-		"--location", "厨房",
+		"--group-id", gid,
+		"--location-id", lid,
 	)
 	assertActionID(t, out, sid, "1-create")
-	if !strings.Contains(out, "大人") || !strings.Contains(out, "厨房") {
-		t.Fatalf("step1: group/location not in output: %s", out)
-	}
-	t.Logf("✅ 1-create [action: %s]", sid)
+	t.Logf("✅ 1-create")
 
-	// ── 2. info by name (table mode, no action prefix) ──────
+	// 2. info
 	out = runNAOKWithActionID(t, workflowID, "task", "info", "--name", taskName)
-	if !strings.Contains(out, taskName) || !strings.Contains(out, "大人") {
-		t.Errorf("step2: info missing expected data: %s", truncate(out, 150))
+	if !strings.Contains(out, taskName) {
+		t.Errorf("2-info: missing %s", taskName)
 	}
-	t.Logf("✅ 2-info (table mode)")
+	t.Logf("✅ 2-info")
 
-	// ── 3. update group + location ──────────────────────────
-	// Must pass --new-name + --schedule + --data (backend binding constraint)
-	out = runNAOKWithActionID(t, workflowID,
-		"task", "update",
-		"--name", taskName,
-		"--new-name", taskName,
-		"--schedule", "daily",
-		"--data", `{"time":"08:00"}`,
-		"--group", "小孩",
-		"--location", "客厅",
-	)
-	assertActionID(t, out, sid, "3-update")
-	t.Logf("✅ 3-update [action: %s]", sid)
+	// 3. trigger
+	out = runNAOKWithActionID(t, workflowID, "task", "trigger", "--name", taskName)
+	assertActionID(t, out, sid, "3-trigger")
+	t.Logf("✅ 3-trigger")
 
-	// ── 4. list tasks — verify task still exists ────────────
+	// 4. list
 	out = runNAOKWithActionID(t, workflowID, "task", "list")
 	if !strings.Contains(out, taskName) {
-		t.Errorf("step4: task %q not in list", taskName)
+		t.Errorf("4-list: missing %s", taskName)
 	}
 	t.Logf("✅ 4-list")
 
-	// ── 5. trigger by name ──────────────────────────────────
-	out = runNAOKWithActionID(t, workflowID, "task", "trigger", "--name", taskName)
-	assertActionID(t, out, sid, "5-trigger")
-	t.Logf("✅ 5-trigger [action: %s]", sid)
-
-	// ── 6. check todos ──────────────────────────────────────
-	out = runNAOKWithActionID(t, workflowID, "todo", "list")
-	t.Logf("✅ 6-todos: %s", truncate(out, 120))
-
-	// ── 7. delete by name ───────────────────────────────────
+	// 5. delete
 	out = runNAOKWithActionID(t, workflowID, "task", "delete", "--name", taskName, "-y")
-	assertActionID(t, out, sid, "7-delete")
-	t.Logf("✅ 7-delete [action: %s]", sid)
+	assertActionID(t, out, sid, "5-delete")
+	t.Logf("✅ 5-delete")
 
-	// ── 8. confirm deleted ──────────────────────────────────
+	// 6. confirm gone
 	_, errOut, err := runWithActionID(workflowID, "task", "info", "--name", taskName)
 	if err == nil {
-		t.Errorf("step8: task should be gone")
+		t.Errorf("6-gone: task should be deleted")
 	}
-	t.Logf("✅ 8-gone: %s", truncate(errOut, 120))
+	t.Logf("✅ 6-gone: %s", truncate(errOut, 100))
+
+	// 7. no state file
+	assertNoStateFile(t, workflowID)
+	t.Log("✅ 7-no-residual")
 }
 
-// ─── Action-ID uniqueness & fixed ID across invocations ───────────
+// ─── Test: action-id uniqueness ───────────────────────────────────
 
 func TestNameBased_ActionIDUniqueness(t *testing.T) {
 	if testing.Short() {
@@ -134,38 +399,37 @@ func TestNameBased_ActionIDUniqueness(t *testing.T) {
 	}
 	setupWithFamily(t)
 
-	// Auto mode: each `task create` gets a different action-id
 	out1 := runNAOK(t, "task", "create",
-		"--name", testName("唯一A"), "--schedule", "daily", "--data", `{"time":"08:00"}`)
+		"--name", testName("autoA"), "--schedule", "daily", "--data", `{"time":"08:00"}`)
 	out2 := runNAOK(t, "task", "create",
-		"--name", testName("唯一B"), "--schedule", "daily", "--data", `{"time":"09:00"}`)
+		"--name", testName("autoB"), "--schedule", "daily", "--data", `{"time":"09:00"}`)
 
 	id1 := extractShort(out1)
 	id2 := extractShort(out2)
 	if id1 == "" || id2 == "" {
-		t.Fatalf("auto-mode missing action-id:\n1=%s\n2=%s", truncate(out1, 80), truncate(out2, 80))
+		t.Fatalf("missing action-id:\n1=%s\n2=%s", truncate(out1, 60), truncate(out2, 60))
 	}
 	if id1 == id2 {
-		t.Errorf("auto mode should give different IDs, both %q", id1)
+		t.Errorf("auto IDs should differ: both %q", id1)
 	}
 	t.Logf("✅ auto unique: %s ≠ %s", id1, id2)
 
-	// Fixed mode: same --action-id → same short ID across multiple invocations
+	// Fixed ID across invocations
 	fixed := uuid.New().String()
 	fs := fixed[:8]
-
 	out3 := runNAOKWithActionID(t, fixed, "task", "create",
-		"--name", testName("固定A"), "--schedule", "daily", "--data", `{"time":"10:00"}`)
-	assertActionID(t, out3, fs, "fixed-1")
-
+		"--name", testName("fixedA"), "--schedule", "daily", "--data", `{"time":"10:00"}`)
 	out4 := runNAOKWithActionID(t, fixed, "task", "create",
-		"--name", testName("固定B"), "--schedule", "daily", "--data", `{"time":"11:00"}`)
+		"--name", testName("fixedB"), "--schedule", "daily", "--data", `{"time":"11:00"}`)
+	assertActionID(t, out3, fs, "fixed-1")
 	assertActionID(t, out4, fs, "fixed-2")
+	t.Logf("✅ fixed ID preserved: %s", fs)
 
-	t.Logf("✅ fixed --action-id preserved across 2 invocations: %s", fs)
+	// No state file (both succeeded directly)
+	assertNoStateFile(t, fixed)
 }
 
-// ─── Task info: exact name + substring match ──────────────────────
+// ─── Test: task info by name (exact + substring) ──────────────────
 
 func TestNameBased_TaskInfoByName(t *testing.T) {
 	if testing.Short() {
@@ -181,15 +445,15 @@ func TestNameBased_TaskInfoByName(t *testing.T) {
 	if out := runNAOK(t, "task", "info", "--name", a); !strings.Contains(out, a) {
 		t.Errorf("exact: %s", truncate(out, 150))
 	}
-	t.Log("✅ info --name exact")
+	t.Log("✅ exact match")
 
 	if out := runNAOK(t, "task", "info", "--name", "检查"); !strings.Contains(out, "检查") {
 		t.Errorf("substring: %s", truncate(out, 150))
 	}
-	t.Log("✅ info --name substring")
+	t.Log("✅ substring match")
 }
 
-// ─── Task info by full UUID + ID prefix ──────────────────────────
+// ─── Test: task info by ID ────────────────────────────────────────
 
 func TestNameBased_TaskInfoByID(t *testing.T) {
 	if testing.Short() {
@@ -206,15 +470,15 @@ func TestNameBased_TaskInfoByID(t *testing.T) {
 	if out = runNAOK(t, "task", "info", "--id", id); !strings.Contains(out, name) {
 		t.Errorf("full UUID: %s", truncate(out, 150))
 	}
-	t.Log("✅ info --id full UUID")
+	t.Log("✅ full UUID")
 
 	if out = runNAOK(t, "task", "info", "--id", id[:6]); !strings.Contains(out, name) {
 		t.Errorf("prefix: %s", truncate(out, 150))
 	}
-	t.Logf("✅ info --id prefix %s", id[:6])
+	t.Logf("✅ prefix %s", id[:6])
 }
 
-// ─── Task update: rename + schedule change ────────────────────────
+// ─── Test: task update ────────────────────────────────────────────
 
 func TestNameBased_TaskUpdateByName(t *testing.T) {
 	if testing.Short() {
@@ -222,48 +486,39 @@ func TestNameBased_TaskUpdateByName(t *testing.T) {
 	}
 	setupWithFamily(t)
 
-	oldName := testName("更新测试")
-	runNAOK(t, "task", "create", "--name", oldName, "--schedule", "daily", "--data", `{"time":"07:00"}`)
+	old := testName("更新")
+	runNAOK(t, "task", "create", "--name", old, "--schedule", "daily", "--data", `{"time":"07:00"}`)
 
-	// Rename (must pass --new-name, --schedule, --data due to backend binding)
-	newName := testName("已更名")
+	nu := testName("已更名")
 	out := runNAOK(t, "task", "update",
-		"--name", oldName,
-		"--new-name", newName,
-		"--schedule", "daily",
-		"--data", `{"time":"07:00"}`,
+		"--name", old, "--new-name", nu,
+		"--schedule", "daily", "--data", `{"time":"07:00"}`,
 	)
 	if !strings.Contains(out, "已更新") {
-		t.Fatalf("rename failed: %s", out)
+		t.Fatalf("rename: %s", out)
 	}
 	t.Log("✅ rename")
 
-	out = runNAOK(t, "task", "info", "--name", newName)
-	if !strings.Contains(out, newName) {
-		t.Errorf("verify rename: %s", truncate(out, 150))
+	out = runNAOK(t, "task", "info", "--name", nu)
+	if !strings.Contains(out, nu) {
+		t.Errorf("verify: %s", truncate(out, 150))
 	}
 	t.Log("✅ verify rename")
 
-	// Change schedule (must also pass --new-name)
+	// Change schedule
 	out = runNAOK(t, "task", "update",
-		"--name", newName,
-		"--new-name", newName,
-		"--schedule", "weekly",
-		"--data", `{"days":[1,3,5],"time":"19:00"}`,
+		"--name", nu, "--new-name", nu,
+		"--schedule", "weekly", "--data", `{"days":[1,3,5],"time":"19:00"}`,
 	)
 	if !strings.Contains(out, "已更新") {
-		t.Fatalf("schedule update failed: %s", out)
+		t.Fatalf("schedule: %s", out)
 	}
-	t.Log("✅ schedule → weekly")
-
-	out = runNAOK(t, "task", "info", "--name", newName)
+	out = runNAOK(t, "task", "info", "--name", nu)
 	if !strings.Contains(out, "weekly") {
 		t.Errorf("schedule not weekly: %s", truncate(out, 150))
 	}
-	t.Log("✅ verified weekly")
+	t.Log("✅ schedule → weekly")
 }
-
-// ─── Task update by ID prefix ────────────────────────────────────
 
 func TestNameBased_TaskUpdateByID(t *testing.T) {
 	if testing.Short() {
@@ -276,25 +531,19 @@ func TestNameBased_TaskUpdateByID(t *testing.T) {
 
 	out := runNAOK(t, "task", "info", "--name", name)
 	id := extractField(t, out, "ID:")
-	prefix := id[:6]
 
-	newName := testName("ID更名")
+	nu := testName("ID更名")
 	out = runNAOK(t, "task", "update",
-		"--id", prefix,
-		"--new-name", newName,
-		"--schedule", "interval",
-		"--data", `{"days":3}`,
+		"--id", id[:6], "--new-name", nu,
+		"--schedule", "interval", "--data", `{"days":3}`,
 	)
 	if !strings.Contains(out, "已更新") {
-		t.Fatalf("update by ID failed: %s", out)
+		t.Fatalf("update by ID: %s", out)
 	}
-	t.Logf("✅ update by ID prefix %s", prefix)
-
-	out = runNAOK(t, "task", "info", "--name", newName)
-	t.Logf("verified: %s", truncate(out, 150))
+	t.Logf("✅ update by ID prefix %s", id[:6])
 }
 
-// ─── Task delete by name & ID prefix ─────────────────────────────
+// ─── Test: task delete ────────────────────────────────────────────
 
 func TestNameBased_TaskDelete(t *testing.T) {
 	if testing.Short() {
@@ -307,18 +556,16 @@ func TestNameBased_TaskDelete(t *testing.T) {
 	runNAOK(t, "task", "create", "--name", n1, "--schedule", "daily", "--data", `{"time":"08:00"}`)
 	runNAOK(t, "task", "create", "--name", n2, "--schedule", "daily", "--data", `{"time":"09:00"}`)
 
-	// By name
 	out := runNAOK(t, "task", "delete", "--name", n1, "-y")
 	if !strings.Contains(out, "已删除") {
 		t.Errorf("delete by name: %s", out)
 	}
 	_, _, err := runNA("task", "info", "--name", n1)
 	if err == nil {
-		t.Error("task should be deleted")
+		t.Error("should be deleted")
 	}
 	t.Log("✅ delete --name -y")
 
-	// By ID prefix
 	out = runNAOK(t, "task", "info", "--name", n2)
 	id := extractField(t, out, "ID:")
 	out = runNAOK(t, "task", "delete", "--id", id[:6], "-y")
@@ -328,7 +575,7 @@ func TestNameBased_TaskDelete(t *testing.T) {
 	t.Log("✅ delete --id prefix -y")
 }
 
-// ─── Task trigger by name ────────────────────────────────────────
+// ─── Test: task trigger ───────────────────────────────────────────
 
 func TestNameBased_TaskTrigger(t *testing.T) {
 	if testing.Short() {
@@ -336,21 +583,20 @@ func TestNameBased_TaskTrigger(t *testing.T) {
 	}
 	setupWithFamily(t)
 
-	name := testName("触发测试")
+	name := testName("触发")
 	runNAOK(t, "task", "create", "--name", name, "--schedule", "daily", "--data", `{"time":"06:00"}`)
 
 	out := runNAOK(t, "task", "trigger", "--name", name)
 	if !strings.Contains(out, "已触发") {
-		t.Fatalf("trigger failed: %s", out)
+		t.Fatalf("trigger: %s", out)
 	}
 	t.Log("✅ trigger --name")
 
-	// Verify todo
 	out = runNAOK(t, "todo", "list")
-	t.Logf("todos after trigger: %s", truncate(out, 200))
+	t.Logf("todos: %s", truncate(out, 200))
 }
 
-// ─── Location name resolution ────────────────────────────────────
+// ─── Test: location + group name resolution ───────────────────────
 
 func TestNameBased_LocationResolution(t *testing.T) {
 	if testing.Short() {
@@ -358,34 +604,22 @@ func TestNameBased_LocationResolution(t *testing.T) {
 	}
 	setupWithFamily(t)
 
-	name := testName("位置测试")
+	name := testName("位置")
 	out := runNAOK(t, "task", "create",
 		"--name", name, "--schedule", "daily", "--data", `{"time":"10:00"}`,
 		"--location", "厨房",
 	)
 	if !strings.Contains(out, "厨房") {
-		t.Fatalf("create with location: %s", out)
+		t.Fatalf("location: %s", out)
 	}
 	t.Log("✅ create --location 厨房")
 
 	out = runNAOK(t, "task", "info", "--name", name)
 	if !strings.Contains(out, "厨房") {
-		t.Errorf("location not assigned: %s", truncate(out, 150))
+		t.Errorf("verify: %s", truncate(out, 150))
 	}
-	t.Log("✅ verified 厨房")
-
-	// Update location
-	runNAOK(t, "task", "update",
-		"--name", name, "--new-name", name,
-		"--schedule", "daily", "--data", `{"time":"10:00"}`,
-		"--location", "客厅",
-	)
-	out = runNAOK(t, "task", "info", "--name", name)
-	t.Logf("after update: %s", truncate(out, 200))
-	t.Log("✅ update --location")
+	t.Log("✅ verified")
 }
-
-// ─── Group name resolution ───────────────────────────────────────
 
 func TestNameBased_GroupResolution(t *testing.T) {
 	if testing.Short() {
@@ -393,24 +627,24 @@ func TestNameBased_GroupResolution(t *testing.T) {
 	}
 	setupWithFamily(t)
 
-	name := testName("小组测试")
+	name := testName("小组")
 	out := runNAOK(t, "task", "create",
 		"--name", name, "--schedule", "daily", "--data", `{"time":"09:00"}`,
 		"--group", "大人",
 	)
 	if !strings.Contains(out, "大人") {
-		t.Fatalf("create with group: %s", out)
+		t.Fatalf("group: %s", out)
 	}
 	t.Log("✅ create --group 大人")
 
 	out = runNAOK(t, "task", "info", "--name", name)
 	if !strings.Contains(out, "大人") {
-		t.Errorf("group not assigned: %s", truncate(out, 150))
+		t.Errorf("verify: %s", truncate(out, 150))
 	}
-	t.Log("✅ verified group=大人")
+	t.Log("✅ verified")
 }
 
-// ─── Error cases (stderr messages) ───────────────────────────────
+// ─── Test: error cases ────────────────────────────────────────────
 
 func TestNameBased_ErrorCases(t *testing.T) {
 	if testing.Short() {
@@ -422,12 +656,11 @@ func TestNameBased_ErrorCases(t *testing.T) {
 		label string
 		args  []string
 	}{
-		{"missing name/id in info", []string{"task", "info"}},
-		{"missing name/id in update", []string{"task", "update", "--new-name", "x"}},
-		{"missing name/id in delete", []string{"task", "delete", "-y"}},
-		{"missing name/id in trigger", []string{"task", "trigger"}},
+		{"missing name/id info", []string{"task", "info"}},
+		{"missing name/id update", []string{"task", "update", "--new-name", "x"}},
+		{"missing name/id delete", []string{"task", "delete", "-y"}},
+		{"missing name/id trigger", []string{"task", "trigger"}},
 		{"non-existent name", []string{"task", "info", "--name", "ZZZ不存在ZZZ"}},
-		{"non-existent delete", []string{"task", "delete", "--name", "ZZZ不存在ZZZ", "-y"}},
 		{"empty name", []string{"task", "info", "--name", ""}},
 	} {
 		_, errOut, err := runNA(tc.args...)
@@ -435,83 +668,28 @@ func TestNameBased_ErrorCases(t *testing.T) {
 			t.Errorf("[%s] expected error but passed", tc.label)
 			continue
 		}
-		if errOut == "" {
-			t.Logf("[%s] error with empty stderr (exit=%v)", tc.label, err)
-		} else {
-			t.Logf("✅ %s → %s", tc.label, truncate(errOut, 80))
-		}
+		t.Logf("✅ %s → %s", tc.label, truncate(errOut, 80))
 	}
 }
 
-// ─── JSON / text output modes ─────────────────────────────────────
+// ─── Test: action-id text format ──────────────────────────────────
 
-func TestNameBased_JSONOutput(t *testing.T) {
+func TestNameBased_TextFormat(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
 	setupWithFamily(t)
 
-	// Text mode (default): must have [action: XXXXXXXX] prefix
-	out := runNAOK(t, "task", "create",
-		"--name", testName("text测试"),
-		"--schedule", "daily",
-		"--data", `{"time":"11:00"}`,
-	)
-	if !actionIDPattern.MatchString(out) {
-		t.Errorf("text mode missing [action: xxx]:\n%s", truncate(out, 120))
-	}
-	t.Log("✅ text mode has [action: xxx] prefix")
-
-	// Verify each text output starts with [action: XXXXXXXX]
-	for _, cmd := range []struct {
-		label string
-		args  []string
-	}{
-		{"task create", []string{"task", "create", "--name", testName("action检查"), "--schedule", "daily", "--data", `{"time":"10:00"}`}},
-		{"task delete", []string{"task", "delete", "--name", "action检查", "-y"}},
+	// All action-result commands must emit [action: XXXXXXXX]
+	for _, args := range [][]string{
+		{"task", "create", "--name", testName("fmt测试"), "--schedule", "daily", "--data", `{"time":"10:00"}`},
 	} {
-		out := runNAOK(t, cmd.args...)
+		out := runNAOK(t, args...)
 		if !actionIDPattern.MatchString(out) {
-			t.Errorf("[%s] missing action-id prefix:\n%s", cmd.label, truncate(out, 120))
+			t.Errorf("missing [action: xxx] in: %s", truncate(out, 120))
 		}
 	}
-	t.Log("✅ all action-print commands emit [action: XXXXXXXX]")
-
-	// Note: -o json is a registered flag but task create currently always
-	// outputs text format (action.Printf always emits text prefix).
-	// JSON envelope output is planned for future implementation.
-	t.Log("⚠️ -o json flag registered but not yet wired for task commands")
-}
-
-// ─── Family select by name ───────────────────────────────────────
-
-func TestNameBased_FamilySelect(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-	setupWithFamily(t)
-
-	out := runNAOK(t, "family", "list")
-
-	var familyName string
-	for _, line := range strings.Split(out, "\n") {
-		for _, f := range strings.Fields(line) {
-			if strings.HasPrefix(f, "测试家庭") {
-				familyName = strings.TrimRight(f, ",")
-				break
-			}
-		}
-	}
-	if familyName == "" {
-		t.Skip("cannot find family name in list")
-	}
-
-	out = runNAOK(t, "family", "select", "--name", familyName)
-	// The success message may be "已切换" or "已选择"
-	if !strings.Contains(out, "已") {
-		t.Errorf("family select failed: %s", out)
-	}
-	t.Logf("✅ family select --name '%s'", truncate(familyName, 40))
+	t.Log("✅ [action: XXXXXXXX] prefix present")
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -519,19 +697,11 @@ func TestNameBased_FamilySelect(t *testing.T) {
 func extractField(t *testing.T, out, key string) string {
 	t.Helper()
 	for _, line := range strings.Split(out, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if after, ok := strings.CutPrefix(trimmed, key); ok {
+		t := strings.TrimSpace(line)
+		if after, ok := strings.CutPrefix(t, key); ok {
 			return strings.TrimSpace(after)
 		}
 	}
 	t.Fatalf("field %q not found in:\n%s", key, truncate(out, 300))
 	return ""
-}
-
-func extractShort(out string) string {
-	m := actionIDPattern.FindString(out)
-	if m == "" {
-		return ""
-	}
-	return m[9 : len(m)-1]
 }

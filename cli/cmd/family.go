@@ -135,6 +135,105 @@ var familySelectCmd = &cobra.Command{
 	},
 }
 
+// ─── family status ────────────────────────────────────────────────
+
+var familyStatusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "查看当前家庭状态（小组、地址、成员）",
+	Long: `列出活跃家庭中的所有小组、地址和成员，含 ID 和名称。
+
+JSON 模式返回结构化数据，可供 AI/脚本解析后用于后续 --group-id / --location-id 调用。
+
+示例:
+  na family status                  # 表格展示
+  na family status -o json          # JSON 输出，含完整 ID`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := autoEnsureFamily(); err != nil {
+			return err
+		}
+		ctx := context.Background()
+
+		groups, _ := na.ListGroups(ctx, "")
+		locations, _ := na.ListLocations(ctx, "")
+		members, _ := na.ListMembers(ctx)
+
+		if action.OutputFormat() != "text" {
+			// Structured output: return everything in one envelope
+			type statusData struct {
+				FamilyName string               `json:"family_name"`
+				FamilyID   string               `json:"family_id"`
+				Groups     []groupStatusItem    `json:"groups"`
+				Locations  []locationStatusItem `json:"locations"`
+				Members    []memberStatusItem   `json:"members"`
+			}
+			data := statusData{
+				FamilyName: na.Config().ActiveFamilyName,
+				FamilyID:   na.ActiveFamilyID(),
+			}
+			for _, g := range groups {
+				data.Groups = append(data.Groups, groupStatusItem{ID: g.ID, Name: g.Name, Description: g.Description})
+			}
+			for _, l := range locations {
+				data.Locations = append(data.Locations, locationStatusItem{ID: l.ID, Name: l.Name, Kind: l.Kind})
+			}
+			for _, m := range members {
+				displayName := ""
+				if m.User != nil {
+					displayName = m.User.DisplayName
+				}
+				data.Members = append(data.Members, memberStatusItem{ID: m.UserID, Name: displayName, Role: string(m.Role)})
+			}
+			action.PrintSuccess(data, "")
+			return nil
+		}
+
+		// Text mode: print tables
+		fmt.Printf("\n🏠 %s\n", na.Config().ActiveFamilyName)
+
+		if len(groups) > 0 {
+			fmt.Printf("\n👥 小组 (%d):\n", len(groups))
+			for _, g := range groups {
+				fmt.Printf("  %-12s  %s\n", g.Name, g.ID[:8])
+			}
+		}
+		if len(locations) > 0 {
+			fmt.Printf("\n📍 地址 (%d):\n", len(locations))
+			for _, l := range locations {
+				fmt.Printf("  %-12s  %-8s  %s\n", l.Name, l.Kind, l.ID[:8])
+			}
+		}
+		if len(members) > 0 {
+			fmt.Printf("\n👤 成员 (%d):\n", len(members))
+			for _, m := range members {
+				displayName := ""
+				if m.User != nil {
+					displayName = m.User.DisplayName
+				}
+				fmt.Printf("  %-12s  %-8s  %s\n", displayName, m.Role, m.UserID[:8])
+			}
+		}
+		fmt.Println()
+		return nil
+	},
+}
+
+// structured output item types
+type groupStatusItem struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+type locationStatusItem struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Kind string `json:"kind,omitempty"`
+}
+type memberStatusItem struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
 func init() {
 	familyCreateCmd.Flags().String("name", "", "家庭名称")
 	familyJoinCmd.Flags().String("code", "", "邀请码")
@@ -144,4 +243,5 @@ func init() {
 	familyCmd.AddCommand(familyJoinCmd)
 	familyCmd.AddCommand(familyListCmd)
 	familyCmd.AddCommand(familySelectCmd)
+	familyCmd.AddCommand(familyStatusCmd)
 }
