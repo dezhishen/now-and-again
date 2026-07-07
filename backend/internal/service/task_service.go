@@ -207,6 +207,14 @@ func (s *TaskService) registerToScheduler(task *repository.TaskModel) {
 		scheduler.Unschedule(task.ID)
 		return
 	}
+	// 非根任务由插件自行管理，不进入全局调度器
+	if !task.IsRoot {
+		return
+	}
+	// 已过期的 one-shot 任务不调度
+	if task.ScheduleType == "once" && task.Archived {
+		return
+	}
 	if err := scheduler.Schedule(scheduler.TaskInfo{
 		TaskID:       task.ID,
 		ScheduleType: task.ScheduleType,

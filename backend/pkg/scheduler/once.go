@@ -64,8 +64,10 @@ func (onceHandler) buildJob(data map[string]any) gocron.JobDefinition {
 	if err != nil {
 		t = timeutil.Now().Add(time.Minute)
 	}
+	// 已过期的 one-shot 任务不再重调度（避免重启时重复生成待办）
+	// 调用方（registerToScheduler）应在注册前自行过滤此类任务
 	if !t.After(timeutil.Now()) {
-		t = timeutil.Now().Add(10 * time.Second)
+		t = timeutil.Now().Add(100 * 365 * 24 * time.Hour) // 推到遥远的未来，永不触发
 	}
 	return engine.OneTimeJobDef(t)
 }

@@ -83,7 +83,8 @@ func (r *TaskRepo) ListTasksByFamilyFiltered(familyID string, includeArchived, i
 
 func (r *TaskRepo) ListEnabledTasks() ([]TaskModel, error) {
 	var tasks []TaskModel
-	err := r.db.Where("enabled = ? AND archived = ?", true, false).Find(&tasks).Error
+	// 仅加载已启用、未归档、且为根任务（调度器只管理顶层任务，子任务由插件自行触发）
+	err := r.db.Where("enabled = ? AND archived = ? AND is_root = ?", true, false, true).Find(&tasks).Error
 	return tasks, err
 }
 
