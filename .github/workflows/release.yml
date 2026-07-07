@@ -279,6 +279,10 @@ jobs:
             RANGE="${PREV_TAG}..HEAD"
           fi
 
+          # Docker tag 去掉 v 前缀（semver 约定，与 docker/metadata-action 一致）
+          REF_NAME="${{ github.ref_name }}"
+          DOCKER_TAG="${REF_NAME#v}"
+
           echo "## 📦 变更内容" > /tmp/release-notes.md
           echo "" >> /tmp/release-notes.md
 
@@ -338,18 +342,18 @@ jobs:
           # 正式版才显示 latest，预发布版（含 -beta/-alpha/-rc/-pre/-preview）不显示
           IS_STABLE="${{ !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha') && !contains(github.ref_name, '-rc') && !contains(github.ref_name, '-pre') && !contains(github.ref_name, '-preview') }}"
           if [ "$IS_STABLE" = "true" ]; then
-            echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again\` | \`${{ github.ref_name }}\`, \`latest\` |" >> /tmp/release-notes.md
-            echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again-cli\` | \`${{ github.ref_name }}\`, \`latest\` |" >> /tmp/release-notes.md
+            echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again\` | \`${DOCKER_TAG}\`, \`latest\` |" >> /tmp/release-notes.md
+            echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again-cli\` | \`${DOCKER_TAG}\`, \`latest\` |" >> /tmp/release-notes.md
           else
-            echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again\` | \`${{ github.ref_name }}\` |" >> /tmp/release-notes.md
-            echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again-cli\` | \`${{ github.ref_name }}\` |" >> /tmp/release-notes.md
+            echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again\` | \`${DOCKER_TAG}\` |" >> /tmp/release-notes.md
+            echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again-cli\` | \`${DOCKER_TAG}\` |" >> /tmp/release-notes.md
           fi
           echo "" >> /tmp/release-notes.md
           echo '```bash' >> /tmp/release-notes.md
           echo "# 服务端" >> /tmp/release-notes.md
-          echo "docker pull ghcr.io/${{ github.repository_owner }}/now-and-again:${{ github.ref_name }}" >> /tmp/release-notes.md
+          echo "docker pull ghcr.io/${{ github.repository_owner }}/now-and-again:${DOCKER_TAG}" >> /tmp/release-notes.md
           echo "# CLI" >> /tmp/release-notes.md
-          echo "docker pull ghcr.io/${{ github.repository_owner }}/now-and-again-cli:${{ github.ref_name }}" >> /tmp/release-notes.md
+          echo "docker pull ghcr.io/${{ github.repository_owner }}/now-and-again-cli:${DOCKER_TAG}" >> /tmp/release-notes.md
           echo '```' >> /tmp/release-notes.md
           echo "" >> /tmp/release-notes.md
           echo "---" >> /tmp/release-notes.md
