@@ -215,8 +215,8 @@ jobs:
             type=semver,pattern={{major}}
             type=sha,format=short
           flavor: |
-            # latest 仅正式版 (v1.0.0)；beta/alpha/rc/pre 不发 latest
-            latest=${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') && !contains(github.ref, '-pre') }}
+            # latest 仅正式版 (v1.0.0)；beta/alpha/rc/pre/preview 不发 latest
+            latest=${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') && !contains(github.ref, '-pre') && !contains(github.ref, '-preview') }}
 
       - id: meta-cli
         uses: docker/metadata-action@v5
@@ -228,8 +228,8 @@ jobs:
             type=semver,pattern={{major}}
             type=sha,format=short
           flavor: |
-            # latest 仅正式版 (v1.0.0)；beta/alpha/rc/pre 不发 latest
-            latest=${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') && !contains(github.ref, '-pre') }}
+            # latest 仅正式版 (v1.0.0)；beta/alpha/rc/pre/preview 不发 latest
+            latest=${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') && !contains(github.ref, '-pre') && !contains(github.ref, '-preview') }}
 
       - uses: docker/build-push-action@v6
         with:
@@ -335,8 +335,15 @@ jobs:
           echo "" >> /tmp/release-notes.md
           echo "| 镜像 | 标签 |" >> /tmp/release-notes.md
           echo "|------|------|" >> /tmp/release-notes.md
-          echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again\` | \`${{ github.ref_name }}\`, \`latest\` |" >> /tmp/release-notes.md
-          echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again-cli\` | \`${{ github.ref_name }}\`, \`latest\` |" >> /tmp/release-notes.md
+          # 正式版才显示 latest，预发布版（含 -beta/-alpha/-rc/-pre/-preview）不显示
+          IS_STABLE="${{ !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha') && !contains(github.ref_name, '-rc') && !contains(github.ref_name, '-pre') && !contains(github.ref_name, '-preview') }}"
+          if [ "$IS_STABLE" = "true" ]; then
+            echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again\` | \`${{ github.ref_name }}\`, \`latest\` |" >> /tmp/release-notes.md
+            echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again-cli\` | \`${{ github.ref_name }}\`, \`latest\` |" >> /tmp/release-notes.md
+          else
+            echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again\` | \`${{ github.ref_name }}\` |" >> /tmp/release-notes.md
+            echo "| \`ghcr.io/${{ github.repository_owner }}/now-and-again-cli\` | \`${{ github.ref_name }}\` |" >> /tmp/release-notes.md
+          fi
           echo "" >> /tmp/release-notes.md
           echo '```bash' >> /tmp/release-notes.md
           echo "# 服务端" >> /tmp/release-notes.md
@@ -384,4 +391,4 @@ jobs:
             dist/*.tar.gz
             dist/sha256sum.txt
           body_path: /tmp/release-notes.md
-          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') || contains(github.ref_name, '-pre') }}
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') || contains(github.ref_name, '-pre') || contains(github.ref_name, '-preview') }}
