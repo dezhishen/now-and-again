@@ -242,27 +242,28 @@ jobs:
             # latest 仅正式版 (v1.0.0)；beta/alpha/rc/pre/preview 不发 latest
             latest=${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') && !contains(github.ref, '-rc') && !contains(github.ref, '-pre') && !contains(github.ref, '-preview') }}
 
-      # ── 计算额外 Docker tag ──────────────────────────────
-      # Preview v1.0.7-preview-004 → 额外打 1.0.7-preview (浮动 latest-preview)
-      # Patch   v1.0.7-1           → 额外打 1.0.7        (更新主版本镜像)
+      # ── 计算额外 Docker tag（含完整 ghcr.io 前缀）────────
+      # Preview v1.0.7-preview-004 → 浮动 1.0.7-preview
+      # Patch   v1.0.7-1           → 更新主版本 1.0.7
       - name: Compute extra Docker tags
         id: extra-tags
         run: |
           REF="${{ github.ref_name }}"
-          BASE="${REF#v}"  # 去掉 v 前缀
+          BASE="${REF#v}"
           EXTRA=""
           if [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-preview-[0-9]+$ ]]; then
-            # 提取 1.0.7-preview (去掉 -NNN)
             EXTRA="${BASE%-preview-*}-preview"
-            echo "preview: extra tag = ${EXTRA}"
+            echo "preview floating tag: ${EXTRA}"
           elif [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]]; then
-            # 提取 1.0.7 (去掉 -N)
             EXTRA="${BASE%-*}"
-            echo "patch:   extra tag = ${EXTRA}"
+            echo "patch floating tag: ${EXTRA}"
           else
-            echo "stable:  no extra tag"
+            echo "stable: no extra tag"
           fi
-          echo "extra=${EXTRA}" >> $GITHUB_OUTPUT
+          if [ -n "$EXTRA" ]; then
+            echo "server=${{ env.SERVER_IMAGE }}:${EXTRA}" >> $GITHUB_OUTPUT
+            echo "cli=${{ env.CLI_IMAGE }}:${EXTRA}" >> $GITHUB_OUTPUT
+          fi
 
       - uses: docker/build-push-action@v6
         with:
@@ -272,7 +273,7 @@ jobs:
           push: true
           tags: |
             ${{ steps.meta-server.outputs.tags }}
-            ${{ steps.extra-tags.outputs.extra }}
+            ${{ steps.extra-tags.outputs.server }}
           labels: ${{ steps.meta-server.outputs.labels }}
 
       - uses: docker/build-push-action@v6
@@ -283,7 +284,7 @@ jobs:
           push: true
           tags: |
             ${{ steps.meta-cli.outputs.tags }}
-            ${{ steps.extra-tags.outputs.extra }}
+            ${{ steps.extra-tags.outputs.cli }}
           labels: ${{ steps.meta-cli.outputs.labels }}
 
   # ── 创建 GitHub Release ──────────────────────────────────
