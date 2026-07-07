@@ -29,6 +29,8 @@ func Load() (*Config, error) {
 	os.MkdirAll(abs, 0755)
 
 	dbDSN := filepath.Join(abs, "now-and-again.db")
+	// SQLite 并发优化：WAL 模式允许读写并发，busy_timeout 等待而非立即报 BUSY
+	dbDSN += "?_journal_mode=WAL&_busy_timeout=5000"
 	uploadDir := filepath.Join(abs, "uploads")
 
 	jwtSecret, err := resolveJWTSecret(abs)

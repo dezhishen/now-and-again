@@ -69,8 +69,10 @@ func NewDB(cfg config.DatabaseConfig) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get sql.DB: %w", err)
 	}
-	sqlDB.SetMaxOpenConns(25)
-	sqlDB.SetMaxIdleConns(5)
+	// SQLite 单写入者模型：MaxOpenConns=1 避免 BUSY 锁竞争
+	// 配合 WAL 模式 + busy_timeout，单连接可处理高并发读写
+	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetMaxIdleConns(1)
 
 	return db, nil
 }
