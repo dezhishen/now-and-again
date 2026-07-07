@@ -189,31 +189,78 @@ else
 fi
 echo "" >> "$NOTES_FILE"
 
-# 分类提取 commits
-collect_section() {
-    local title="$1"
-    local grep_pattern="$2"
+# ── 查找最近正式版 tag（用于 preview 累积变更对比）──
+find_last_stable() {
+    local current="$1"
+    local base
+    base=$(extract_base_version "$current")
+    # 将 base 插入正式版列表，sort -Vu 去重后取 base 的前一个
+    local prev
+    prev=$( (git tag -l 'v[0-9]*.[0-9]*.[0-9]' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$'; echo "$base") \
+        | sort -Vu \
+        | grep -B1 "^${base}$" \
+        | head -1 \
+        | grep -v "^${base}$" || echo "")
+    echo "$prev"
+}
+
+# ── 通用：将指定 range 的 commits 按分类写入文件 ──────────
+collect_commits() {
+    local range="$1"
+    local prefix="$2"  # "##" for main, "###" for sub
     local commits
-    commits=$(git log "${RANGE}" --pretty=format:"- %s" --grep="${grep_pattern}" 2>/dev/null | head -50)
+
+    collect_one() {
+        local title="$1"; local pattern="$2"
+        commits=$(git log "${range}" --pretty=format:"- %s" --grep="${pattern}" 2>/dev/null | head -50)
+        if [ -n "$commits" ]; then
+            echo "${prefix} ${title}" >> "$NOTES_FILE"
+            echo "$commits" >> "$NOTES_FILE"
+            echo "" >> "$NOTES_FILE"
+        fi
+    }
+
+    collect_one "🚀 新功能" "^feat"
+    collect_one "🐛 修复" "^fix"
+    collect_one "⚡ 性能优化" "^perf"
+    collect_one "♻️ 重构" "^refactor"
+    collect_one "🔧 杂项" "^chore\|^docs\|^style\|^ci\|^test\|^build"
+
+    # 未分类
+    commits=$(git log "${range}" --pretty=format:"- %s" --invert-grep --grep="^feat\|^fix\|^perf\|^refactor\|^chore\|^docs\|^style\|^ci\|^test\|^build\|^Merge" 2>/dev/null | head -50)
     if [ -n "$commits" ]; then
-        echo "### ${title}" >> "$NOTES_FILE"
+        echo "${prefix} 📋 其他" >> "$NOTES_FILE"
         echo "$commits" >> "$NOTES_FILE"
         echo "" >> "$NOTES_FILE"
     fi
 }
 
-collect_section "🚀 新功能" "^feat"
-collect_section "🐛 修复" "^fix"
-collect_section "⚡ 性能优化" "^perf"
-collect_section "♻️ 重构" "^refactor"
-collect_section "🔧 杂项" "^chore\|^docs\|^style\|^ci\|^test\|^build"
+# ── 生成 Release Notes 内容 ─────────────────────────────────
 
-# 未分类的
-OTHER=$(git log "${RANGE}" --pretty=format:"- %s" --invert-grep --grep="^feat\|^fix\|^perf\|^refactor\|^chore\|^docs\|^style\|^ci\|^test\|^build\|^Merge" 2>/dev/null | head -50)
-if [ -n "$OTHER" ]; then
-    echo "### 📋 其他" >> "$NOTES_FILE"
-    echo "$OTHER" >> "$NOTES_FILE"
-    echo "" >> "$NOTES_FILE"
+echo "## 📦 变更内容" > "$NOTES_FILE"
+echo "" >> "$NOTES_FILE"
+if [ -n "$PREV_TAG" ]; then
+    echo "> 对比: \`${PREV_TAG}\` → \`${CURRENT_REF}\`" >> "$NOTES_FILE"
+else
+    echo "> 首次发布" >> "$NOTES_FILE"
+fi
+echo "" >> "$NOTES_FILE"
+
+# 增量变更
+collect_commits "$RANGE" "###"
+
+# Preview 额外显示累积变更（自上一正式版以来的所有变更）
+if [ "$TTYPE" = "preview" ]; then
+    LAST_STABLE=$(find_last_stable "$CURRENT_REF")
+    if [ -n "$LAST_STABLE" ] && [ "$LAST_STABLE" != "$PREV_TAG" ]; then
+        ACCUM_RANGE="${LAST_STABLE}..HEAD"
+        # 统计 commit 数量
+        ACCUM_COUNT=$(git log "${ACCUM_RANGE}" --oneline 2>/dev/null | wc -l)
+        echo "---" >> "$NOTES_FILE"
+        echo "## 📊 自 ${LAST_STABLE} 以来的累积变更 (${ACCUM_COUNT} commits)" >> "$NOTES_FILE"
+        echo "" >> "$NOTES_FILE"
+        collect_commits "$ACCUM_RANGE" "###"
+    fi
 fi
 
 echo "---" >> "$NOTES_FILE"
@@ -277,9 +324,16 @@ echo "</details>" >> "$NOTES_FILE"
 echo "" >> "$NOTES_FILE"
 
 echo "---" >> "$NOTES_FILE"
+echo "## 🔗 对比" >> "$NOTES_FILE"
+echo "" >> "$NOTES_FILE"
 if [ -n "$PREV_TAG" ]; then
-    echo "**完整对比**: [${PREV_TAG}...${CURRENT_REF}](https://github.com/${REPO_FULL}/compare/${PREV_TAG}...${CURRENT_REF})" >> "$NOTES_FILE"
-else
+    echo "- **本版本**: [${PREV_TAG}...${CURRENT_REF}](https://github.com/${REPO_FULL}/compare/${PREV_TAG}...${CURRENT_REF})" >> "$NOTES_FILE"
+fi
+# Preview 额外显示与正式版的累积对比
+if [ "$TTYPE" = "preview" ] && [ -n "$LAST_STABLE" ] && [ "$LAST_STABLE" != "$PREV_TAG" ]; then
+    echo "- **累积**: [${LAST_STABLE}...${CURRENT_REF}](https://github.com/${REPO_FULL}/compare/${LAST_STABLE}...${CURRENT_REF})" >> "$NOTES_FILE"
+fi
+if [ -z "$PREV_TAG" ]; then
     echo "**首次发布**" >> "$NOTES_FILE"
 fi
 
