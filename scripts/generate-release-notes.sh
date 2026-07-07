@@ -166,6 +166,17 @@ if is_stable "$CURRENT_REF"; then
     IS_STABLE=true
 fi
 
+# 计算额外浮动 tag
+FLOATING_TAG=""
+TTYPE=$(tag_type "$CURRENT_REF")
+if [ "$TTYPE" = "preview" ]; then
+    # 1.0.7-preview-004 → 1.0.7-preview (浮动 latest-preview)
+    FLOATING_TAG="${DOCKER_TAG%-preview-*}-preview"
+elif [ "$TTYPE" = "patch" ]; then
+    # 1.0.7-1 → 1.0.7 (更新主版本镜像)
+    FLOATING_TAG="${DOCKER_TAG%-*}"
+fi
+
 # ── 生成 Release Notes ────────────────────────────────────────
 NOTES_FILE="/tmp/release-notes.md"
 
@@ -214,6 +225,9 @@ echo "|------|------|" >> "$NOTES_FILE"
 if [ "$IS_STABLE" = true ]; then
     echo "| \`ghcr.io/${REPO_FULL}\` | \`${DOCKER_TAG}\`, \`latest\` |" >> "$NOTES_FILE"
     echo "| \`ghcr.io/${REPO_FULL}-cli\` | \`${DOCKER_TAG}\`, \`latest\` |" >> "$NOTES_FILE"
+elif [ -n "$FLOATING_TAG" ]; then
+    echo "| \`ghcr.io/${REPO_FULL}\` | \`${DOCKER_TAG}\`, \`${FLOATING_TAG}\` |" >> "$NOTES_FILE"
+    echo "| \`ghcr.io/${REPO_FULL}-cli\` | \`${DOCKER_TAG}\`, \`${FLOATING_TAG}\` |" >> "$NOTES_FILE"
 else
     echo "| \`ghcr.io/${REPO_FULL}\` | \`${DOCKER_TAG}\` |" >> "$NOTES_FILE"
     echo "| \`ghcr.io/${REPO_FULL}-cli\` | \`${DOCKER_TAG}\` |" >> "$NOTES_FILE"
