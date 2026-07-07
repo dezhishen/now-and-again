@@ -277,9 +277,9 @@ func runTemplateUse(cmd *cobra.Command, args []string) error {
 
 func promptInput(label, defaultVal string) string {
 	if defaultVal != "" {
-		fmt.Printf("%s [%s]: ", label, defaultVal)
+		fmt.Printf("→ %s [default: %s]: ", label, defaultVal)
 	} else {
-		fmt.Printf("%s: ", label)
+		fmt.Printf("→ %s: ", label)
 	}
 	var input string
 	fmt.Scanln(&input)

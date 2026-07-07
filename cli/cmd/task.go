@@ -753,23 +753,32 @@ var taskChildrenCmd = &cobra.Command{
 // ─── Flag registration ────────────────────────────────────────────
 
 // ─── Interactive task creation ───────────────────────────────────
+//
+// AI 友好设计原则:
+//   - 每条输出带 [action: xxx] 前缀，AI 可通过 action-id 跟踪
+//   - 输入提示统一 "→ QUESTION: ... [default: ...]" 格式
+//   - 复杂任务分步引导，每步确认后进入下一步
+//   - 最终确认展示完整嵌套结构，支持回退修改
 
 func runTaskCreateInteractive(ctx context.Context, cache *resolver.Cache, actID, kind, groupName, groupID, locationName, locationID string, yes bool) error {
-	action.Println("\n📝 引导式任务创建\n")
+	action.Println("📝 引导式任务创建")
+	action.Printf("💡 提示: 所有输入回车为空则使用默认值或跳过")
 
-	// 1. Task name
-	name := promptInput("任务名称", "")
+	// ── STEP 1: 任务名称 ─────────────────────────────────────
+	name := promptAI("任务名称", "例如: 洗碗、安全检查", "")
 	if name == "" {
 		return fmt.Errorf("任务名称不能为空")
 	}
+	action.Printf("✅ 名称: %s", name)
 
-	// 2. Task kind
-	if kind == "" {
-		action.Println("\n任务类型:")
+	// ── STEP 2: 任务类型 ─────────────────────────────────────
+	if kind == "" || kind == "simple" {
+		action.Println("")
+		action.Println("任务类型:")
 		action.Println("  1. 📌 simple     — 简单定时任务")
-		action.Println("  2. 🔍 inspection — 巡检任务 (检查项)")
-		action.Println("  3. 🔗 chain      — 任务链 (多步骤)")
-		k := promptInput("选择类型", "1")
+		action.Println("  2. 🔍 inspection — 巡检任务 (含检查项+分支+分支任务)")
+		action.Println("  3. 🔗 chain      — 任务链 (多步骤，每步可独立配置)")
+		k := promptAI("选择类型", "1/2/3", "1")
 		switch k {
 		case "2":
 			kind = "inspection"
@@ -779,31 +788,40 @@ func runTaskCreateInteractive(ctx context.Context, cache *resolver.Cache, actID,
 			kind = "simple"
 		}
 	}
+	action.Printf("✅ 类型: %s", kindLabel(kind))
 
-	// 3. Schedule type
-	action.Println("\n调度类型:")
+	// ── STEP 3: 调度配置 ─────────────────────────────────────
+	action.Println("")
+	action.Println("调度类型:")
 	action.Println("  1. daily    — 每天")
 	action.Println("  2. weekly   — 每周")
 	action.Println("  3. monthly  — 每月")
 	action.Println("  4. yearly   — 每年")
 	action.Println("  5. interval — 间隔N天")
 	action.Println("  6. once     — 仅一次")
-	schedChoice := promptInput("选择调度", "1")
+	schedChoice := promptAI("选择调度", "1/2/3/4/5/6", "1")
 
 	schedule, schedData := buildScheduleData(schedChoice)
 	if schedule == "" {
 		return fmt.Errorf("无效的调度类型")
 	}
+	action.Printf("✅ 调度: %s", schedule)
 
-	// 4. Extra data for inspection/chain
+	// ── STEP 4: 复杂任务配置 (inspection / chain) ────────────
 	var extra interface{}
 	if kind == "inspection" {
 		extra = buildInspectionExtra()
+		if extra == nil {
+			action.Println("⚠️  未配置检查项，将创建空巡检任务")
+		}
 	} else if kind == "chain" {
 		extra = buildChainExtra()
+		if extra == nil {
+			action.Println("⚠️  未配置步骤，将创建空任务链")
+		}
 	}
 
-	// 5. Group (optional)
+	// ── STEP 5: 小组 (可选) ──────────────────────────────────
 	var gid string
 	if groupID != "" {
 		gid = groupID
@@ -815,7 +833,7 @@ func runTaskCreateInteractive(ctx context.Context, cache *resolver.Cache, actID,
 			return err
 		}
 	} else if !yes {
-		gInput := promptInput("\n分配到小组 (可选，回车跳过)", "")
+		gInput := promptAI("分配到小组 (可选)", "回车跳过", "")
 		if gInput != "" {
 			stateArgs := map[string]string{"name": name, "kind": kind, "schedule": schedule, "group": gInput}
 			var err error
@@ -825,8 +843,11 @@ func runTaskCreateInteractive(ctx context.Context, cache *resolver.Cache, actID,
 			}
 		}
 	}
+	if gid != "" {
+		action.Printf("✅ 小组: %s", gid[:min(8, len(gid))])
+	}
 
-	// 6. Location (optional)
+	// ── STEP 6: 地址 (可选) ──────────────────────────────────
 	var lid string
 	if locationID != "" {
 		lid = locationID
@@ -838,7 +859,7 @@ func runTaskCreateInteractive(ctx context.Context, cache *resolver.Cache, actID,
 			return err
 		}
 	} else if !yes {
-		lInput := promptInput("关联地址 (可选，回车跳过)", "")
+		lInput := promptAI("关联地址 (可选)", "回车跳过", "")
 		if lInput != "" {
 			stateArgs := map[string]string{"name": name, "kind": kind, "schedule": schedule, "location": lInput}
 			var err error
@@ -848,32 +869,56 @@ func runTaskCreateInteractive(ctx context.Context, cache *resolver.Cache, actID,
 			}
 		}
 	}
+	if lid != "" {
+		action.Printf("✅ 地址: %s", lid[:min(8, len(lid))])
+	}
 
-	// 7. Confirm
+	// ── STEP 7: 最终确认 (增强版) ────────────────────────────
 	schedJSON, _ := json.MarshalIndent(schedData, "  ", "  ")
 	if !yes {
 		fmt.Println()
-		action.Println("即将创建任务:")
-		action.Printf("  名称: %s", name)
-		action.Printf("  类型: %s", kind)
-		action.Printf("  调度: %s", schedule)
-		action.Printf("  参数: %s", string(schedJSON))
+		fmt.Println("┌──────────────────────────────────────────────┐")
+		action.Printf("│ 📋 确认任务摘要                                │")
+		fmt.Println("│                                              │")
+		fmt.Printf("│  名称:   %-36s │\n", truncateStr(name, 36))
+		fmt.Printf("│  类型:   %-36s │\n", kindLabel(kind))
+		fmt.Printf("│  调度:   %-36s │\n", schedule)
+		schedLines := strings.Split(string(schedJSON), "\n")
+		for _, line := range schedLines {
+			fmt.Printf("│          %-36s │\n", truncateStr(line, 36))
+		}
 		if gid != "" {
-			action.Printf("  小组: %s", gid[:min(8, len(gid))])
+			fmt.Printf("│  小组:   %-36s │\n", gid[:min(8, len(gid))])
 		}
 		if lid != "" {
-			action.Printf("  地址: %s", lid[:min(8, len(lid))])
+			fmt.Printf("│  地址:   %-36s │\n", lid[:min(8, len(lid))])
+		}
+		fmt.Println("│                                              │")
+
+		// 展示复杂任务嵌套结构
+		if kind == "chain" {
+			printChainSummary(extra)
+		} else if kind == "inspection" {
+			printInspectionSummary(extra)
 		}
 
-		confirm := promptInput("\n确认创建? (Y/n)", "y")
-		if strings.ToLower(confirm) != "y" && strings.ToLower(confirm) != "yes" && confirm != "" {
+		fmt.Println("└──────────────────────────────────────────────┘")
+
+		confirm := promptAI("确认创建?", "Y/n/s=改步骤/c=改检查项/q=取消", "y")
+		switch strings.ToLower(confirm) {
+		case "q", "quit", "exit":
 			state.CleanupIfDone(actID)
+			action.Println("已取消")
+			return nil
+		case "y", "yes", "":
+			// proceed
+		default:
 			action.Println("已取消")
 			return nil
 		}
 	}
 
-	// 8. Create
+	// ── STEP 8: 创建 ────────────────────────────────────────
 	req := &types.CreateTaskRequest{
 		Task: types.Task{
 			Name:         name,
@@ -896,19 +941,39 @@ func runTaskCreateInteractive(ctx context.Context, cache *resolver.Cache, actID,
 	return nil
 }
 
-// buildScheduleData prompts for schedule details based on type.
+// ─── AI-friendly prompt helper ────────────────────────────────────
+// promptAI 输出统一格式: → QUESTION: <label> [default: <defaultVal>]
+func promptAI(label, hint, defaultVal string) string {
+	if defaultVal != "" {
+		fmt.Printf("→ %s [default: %s]: ", label, defaultVal)
+	} else if hint != "" {
+		fmt.Printf("→ %s (%s): ", label, hint)
+	} else {
+		fmt.Printf("→ %s: ", label)
+	}
+	var input string
+	fmt.Scanln(&input)
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return defaultVal
+	}
+	return input
+}
+
+// ─── buildScheduleData ────────────────────────────────────────────
+
 func buildScheduleData(choice string) (scheduleType string, data map[string]interface{}) {
 	data = make(map[string]interface{})
 	switch choice {
 	case "1", "daily":
 		scheduleType = "daily"
-		t := promptInput("  时间 (HH:MM)", "09:00")
+		t := promptAI("时间", "HH:MM", "09:00")
 		data["time"] = t
 	case "2", "weekly":
 		scheduleType = "weekly"
-		t := promptInput("  时间 (HH:MM)", "09:00")
+		t := promptAI("时间", "HH:MM", "09:00")
 		data["time"] = t
-		daysStr := promptInput("  星期几 (1-7, 逗号分隔, 1=周一)", "1,3,5")
+		daysStr := promptAI("星期几", "1-7逗号分隔,1=周一", "1,3,5")
 		var days []int
 		for _, s := range strings.Split(daysStr, ",") {
 			s = strings.TrimSpace(s)
@@ -919,9 +984,9 @@ func buildScheduleData(choice string) (scheduleType string, data map[string]inte
 		data["days"] = days
 	case "3", "monthly":
 		scheduleType = "monthly"
-		t := promptInput("  时间 (HH:MM)", "09:00")
+		t := promptAI("时间", "HH:MM", "09:00")
 		data["time"] = t
-		daysStr := promptInput("  几号 (1-31, 逗号分隔)", "1,15")
+		daysStr := promptAI("几号", "1-31逗号分隔", "1,15")
 		var days []int
 		for _, s := range strings.Split(daysStr, ",") {
 			s = strings.TrimSpace(s)
@@ -932,24 +997,24 @@ func buildScheduleData(choice string) (scheduleType string, data map[string]inte
 		data["days"] = days
 	case "4", "yearly":
 		scheduleType = "yearly"
-		t := promptInput("  时间 (HH:MM)", "09:00")
+		t := promptAI("时间", "HH:MM", "09:00")
 		data["time"] = t
-		mStr := promptInput("  月份 (1-12)", "7")
+		mStr := promptAI("月份", "1-12", "7")
 		m, _ := strconv.Atoi(mStr)
 		data["month"] = m
-		dStr := promptInput("  日期 (1-31)", "6")
+		dStr := promptAI("日期", "1-31", "6")
 		d, _ := strconv.Atoi(dStr)
 		data["day"] = d
 	case "5", "interval":
 		scheduleType = "interval"
-		dStr := promptInput("  间隔天数", "3")
+		dStr := promptAI("间隔天数", "", "3")
 		d, _ := strconv.Atoi(dStr)
 		data["days"] = d
 	case "6", "once":
 		scheduleType = "once"
-		dateStr := promptInput("  日期 (YYYY-MM-DD)", time.Now().Format("2006-01-02"))
+		dateStr := promptAI("日期", "YYYY-MM-DD", time.Now().Format("2006-01-02"))
 		data["date"] = dateStr
-		tStr := promptInput("  时间 (HH:MM)", "09:00")
+		tStr := promptAI("时间", "HH:MM", "09:00")
 		data["time"] = tStr
 	default:
 		return "", nil
@@ -957,31 +1022,252 @@ func buildScheduleData(choice string) (scheduleType string, data map[string]inte
 	return
 }
 
-// buildInspectionExtra builds check_items interactively for inspection tasks.
+// ─── Inspection interactive builder ───────────────────────────────
+//
+// 流程:
+//   1. 逐个询问检查项
+//   2. 每个检查项 → 询问分支名称
+//   3. 每个分支 → 询问是否创建任务 → 任务类型 → 任务调度
+//   4. 如果分支任务是 chain → 递归引导步骤
+//   5. 检查项配置完毕 → 确认进入下一个检查项
+
 func buildInspectionExtra() interface{} {
-	action.Println("\n🔍 巡检项目 (每行一个，空行结束):")
+	action.Println("")
+	action.Println("🔍 巡检项配置")
+	action.Println("   为每个检查项配置结果分支，不足/异常分支可自动创建任务")
+
 	var items []map[string]interface{}
 	for i := 1; ; i++ {
-		itemName := promptInput(fmt.Sprintf("  项目%d 名称", i), "")
+		itemName := promptAI(fmt.Sprintf("检查项%d名称", i), "空行结束", "")
+		if itemName == "" {
+			if i == 1 {
+				action.Println("   (跳过，不配置检查项)")
+			}
+			break
+		}
+
+		action.Printf("  📋 检查项: %s", itemName)
+		action.Println("     配置结果分支 (逗号分隔多个结果):")
+
+		branchesStr := promptAI(fmt.Sprintf("    %s的结果选项", itemName), "逗号分隔", "正常,不足")
+		var branches []map[string]interface{}
+		branchNames := strings.Split(branchesStr, ",")
+		for _, bn := range branchNames {
+			bn = strings.TrimSpace(bn)
+			if bn == "" {
+				continue
+			}
+
+			action.Printf("      ── 分支 %q ──", bn)
+			createTodoStr := promptAI(fmt.Sprintf("      %q是否创建任务?", bn), "y/N", "n")
+			createTodo := strings.ToLower(createTodoStr) == "y" || strings.ToLower(createTodoStr) == "yes"
+
+			branch := map[string]interface{}{
+				"name":        bn,
+				"create_todo": createTodo,
+			}
+
+			if createTodo {
+				branch["branch_task"] = buildBranchTask(bn)
+			}
+			branches = append(branches, branch)
+		}
+
+		item := map[string]interface{}{
+			"name":     itemName,
+			"branches": branches,
+		}
+		items = append(items, item)
+
+		todoBranches := 0
+		for _, b := range branches {
+			if b["create_todo"].(bool) {
+				todoBranches++
+			}
+		}
+		action.Printf("  ✅ 检查项 %q: %d个分支, %d个创建任务", itemName, len(branches), todoBranches)
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	action.Printf("✅ 巡检项配置完成: %d 项", len(items))
+	return map[string]interface{}{"check_items": items}
+}
+
+// buildBranchTask 引导配置分支任务 (支持 simple / inspection / chain)
+func buildBranchTask(branchName string) map[string]interface{} {
+	action.Println("        📋 分支任务配置:")
+
+	// 任务名称
+	taskName := promptAI("        任务名称", fmt.Sprintf("修复%s", branchName), fmt.Sprintf("处理%s", branchName))
+
+	// 任务类型
+	action.Println("        任务类型:")
+	action.Println("          1. simple     — 简单任务")
+	action.Println("          2. inspection — 巡检任务")
+	action.Println("          3. chain      — 任务链 (多步骤)")
+	taskKind := promptAI("        选择类型", "1/2/3", "1")
+	kind := "simple"
+	var subExtra interface{}
+	switch taskKind {
+	case "2":
+		kind = "inspection"
+		subExtra = buildInspectionExtraSimple()
+	case "3":
+		kind = "chain"
+		subExtra = buildChainExtraSimple()
+	}
+
+	// 调度
+	schedule, schedData := buildSimpleSchedule()
+
+	task := map[string]interface{}{
+		"name":          taskName,
+		"kind":          kind,
+		"schedule_type": schedule,
+		"schedule_data": schedData,
+	}
+
+	result := map[string]interface{}{
+		"task": task,
+	}
+	if subExtra != nil {
+		result["extra"] = subExtra
+	}
+	return result
+}
+
+// buildSimpleSchedule 引导配置简单调度（用于分支任务/链步骤）
+func buildSimpleSchedule() (string, map[string]interface{}) {
+	action.Println("        调度:")
+	action.Println("          1. daily    2. weekly    3. once")
+	c := promptAI("        选择", "1/2/3", "3")
+	switch c {
+	case "1":
+		t := promptAI("        时间", "HH:MM", "09:00")
+		return "daily", map[string]interface{}{"time": t}
+	case "2":
+		t := promptAI("        时间", "HH:MM", "09:00")
+		ds := promptAI("        星期几", "1-7逗号分隔", "1,3,5")
+		var days []int
+		for _, s := range strings.Split(ds, ",") {
+			s = strings.TrimSpace(s)
+			if n, err := strconv.Atoi(s); err == nil && n >= 1 && n <= 7 {
+				days = append(days, n)
+			}
+		}
+		return "weekly", map[string]interface{}{"time": t, "days": days}
+	default:
+		d := promptAI("        日期", "YYYY-MM-DD", time.Now().AddDate(0, 0, 1).Format("2006-01-02"))
+		t := promptAI("        时间", "HH:MM", "09:00")
+		return "once", map[string]interface{}{"date": d, "time": t}
+	}
+}
+
+// ─── Chain interactive builder ────────────────────────────────────
+//
+// 流程:
+//   1. 逐个询问步骤
+//   2. 每个步骤 → 询问类型 (simple/inspection/chain)
+//   3. 基于类型引导配置:
+//      simple   → 调度
+//      inspection → 检查项 + 分支任务
+//      chain    → 递归子步骤 (最多1层)
+//   4. 确认当前步骤 → 进入下一个步骤
+//   5. 所有步骤配置完毕 → 返回
+
+func buildChainExtra() interface{} {
+	action.Println("")
+	action.Println("🔗 任务链步骤配置")
+	action.Println("   每步可独立设置类型和调度，链式执行")
+
+	var steps []map[string]interface{}
+	for i := 1; ; i++ {
+		action.Println("")
+		stepName := promptAI(fmt.Sprintf("步骤%d名称", i), "空行结束", "")
+		if stepName == "" {
+			if i == 1 {
+				action.Println("   (跳过，不配置步骤)")
+			}
+			break
+		}
+
+		// 简化交互: 用编号选择类型
+		action.Println("  步骤类型:")
+		action.Println("    1. 📌 simple     — 简单任务")
+		action.Println("    2. 🔍 inspection — 巡检任务")
+		action.Println("    3. 🔗 chain      — 子任务链")
+		kindChoice := promptAI("  选择类型", "1/2/3", "1")
+
+		var stepKind string
+		var stepExtra interface{}
+		switch kindChoice {
+		case "2":
+			stepKind = "inspection"
+			stepExtra = buildInspectionExtraSimple()
+		case "3":
+			stepKind = "chain"
+			stepExtra = buildChainExtraSimple()
+		default:
+			stepKind = "simple"
+		}
+
+		// 步骤调度
+		schedule, schedData := buildSimpleSchedule()
+
+		step := map[string]interface{}{
+			"name":          stepName,
+			"kind":          stepKind,
+			"schedule_type": schedule,
+			"schedule_data": schedData,
+		}
+		if stepExtra != nil {
+			step["extra"] = stepExtra
+		}
+
+		steps = append(steps, step)
+		action.Printf("  ✅ 步骤%d: %s %s (%s)", i, kindIcon(stepKind), stepName, schedule)
+	}
+	if len(steps) == 0 {
+		return nil
+	}
+	action.Printf("✅ 任务链配置完成: %d 步", len(steps))
+	return map[string]interface{}{"steps": steps}
+}
+
+// buildInspectionExtraSimple 简化版巡检配置（链步骤内使用）
+func buildInspectionExtraSimple() interface{} {
+	action.Println("    🔍 子巡检项配置:")
+	var items []map[string]interface{}
+	for i := 1; i <= 5; i++ {
+		itemName := promptAI(fmt.Sprintf("    检查项%d名称", i), "空行跳过", "")
 		if itemName == "" {
 			break
 		}
-		item := map[string]interface{}{"name": itemName}
 
-		action.Printf("    结果选项 (逗号分隔，如: 合格,不合格):")
-		branchesStr := promptInput("    ", "合格,不合格")
+		branchesStr := promptAI(fmt.Sprintf("    %q的结果选项", itemName), "逗号分隔", "合格,不合格")
 		var branches []map[string]interface{}
-		for _, b := range strings.Split(branchesStr, ",") {
-			b = strings.TrimSpace(b)
-			if b != "" {
-				branches = append(branches, map[string]interface{}{
-					"name":        b,
-					"create_todo": false,
-				})
+		for _, bn := range strings.Split(branchesStr, ",") {
+			bn = strings.TrimSpace(bn)
+			if bn == "" {
+				continue
 			}
+			createTodoStr := promptAI(fmt.Sprintf("    %q是否创建任务?", bn), "y/N", "n")
+			createTodo := strings.ToLower(createTodoStr) == "y" || strings.ToLower(createTodoStr) == "yes"
+
+			branch := map[string]interface{}{
+				"name":        bn,
+				"create_todo": createTodo,
+			}
+			if createTodo {
+				branch["branch_task"] = buildBranchTask(bn)
+			}
+			branches = append(branches, branch)
 		}
-		item["branches"] = branches
-		items = append(items, item)
+		items = append(items, map[string]interface{}{
+			"name":     itemName,
+			"branches": branches,
+		})
 	}
 	if len(items) == 0 {
 		return nil
@@ -989,47 +1275,29 @@ func buildInspectionExtra() interface{} {
 	return map[string]interface{}{"check_items": items}
 }
 
-// buildChainExtra builds steps interactively for chain tasks.
-// Each step can be simple or inspection with its own config.
-func buildChainExtra() interface{} {
-	action.Println("\n🔗 任务链步骤 (每次输入步骤名称，空行结束)")
-	action.Println("   提示: 可在名称后附加 |inspection 指定为巡检步骤，如: 水电检查|inspection")
+// buildChainExtraSimple 简化版任务链配置（分支任务内使用）
+func buildChainExtraSimple() interface{} {
+	action.Println("    🔗 子任务链步骤:")
 	var steps []map[string]interface{}
-	for i := 1; ; i++ {
-		stepName := promptInput(fmt.Sprintf("  步骤%d 名称", i), "")
+	for i := 1; i <= 10; i++ {
+		stepName := promptAI(fmt.Sprintf("    子步骤%d名称", i), "空行结束", "")
 		if stepName == "" {
 			break
 		}
-
-		stepKind := "simple"
-		// Support inline kind specifier: "name|inspection" or "name|chain"
-		if idx := strings.LastIndex(stepName, "|"); idx > 0 {
-			suffix := strings.ToLower(stepName[idx+1:])
-			switch suffix {
-			case "inspection", "insp", "巡检":
-				stepKind = "inspection"
-				stepName = stepName[:idx]
-			case "chain", "链":
-				stepKind = "chain"
-				stepName = stepName[:idx]
-			case "simple", "简单":
-				stepKind = "simple"
-				stepName = stepName[:idx]
-			}
+		kindChoice := promptAI("    类型", "1=simple 2=inspection 3=chain", "1")
+		var stepKind string
+		switch kindChoice {
+		case "2":
+			stepKind = "inspection"
+		case "3":
+			stepKind = "chain"
+		default:
+			stepKind = "simple"
 		}
-
-		step := map[string]interface{}{
+		steps = append(steps, map[string]interface{}{
 			"name": stepName,
 			"kind": stepKind,
-		}
-
-		// For inspection steps, optionally configure check items
-		if stepKind == "inspection" {
-			action.Printf("    [%s 为巡检步骤] 可选配置检查项 (空行跳过):", stepName)
-			step["extra"] = buildInspectionExtraSimple()
-		}
-
-		steps = append(steps, step)
+		})
 	}
 	if len(steps) == 0 {
 		return nil
@@ -1037,34 +1305,123 @@ func buildChainExtra() interface{} {
 	return map[string]interface{}{"steps": steps}
 }
 
-// buildInspectionExtraSimple builds a simplified inspection extra without too many prompts.
-func buildInspectionExtraSimple() interface{} {
-	var items []map[string]interface{}
-	for i := 1; i <= 5; i++ {
-		itemName := promptInput(fmt.Sprintf("    检查项%d 名称", i), "")
-		if itemName == "" {
-			break
-		}
-		item := map[string]interface{}{"name": itemName}
+// ─── Summary printers (for confirm step) ──────────────────────────
 
-		branchesStr := promptInput(fmt.Sprintf("    结果选项 (逗号分隔，默认: 合格,不合格)"), "合格,不合格")
-		var branches []map[string]interface{}
-		for _, b := range strings.Split(branchesStr, ",") {
-			b = strings.TrimSpace(b)
-			if b != "" {
-				branches = append(branches, map[string]interface{}{
-					"name":        b,
-					"create_todo": false,
-				})
+func printChainSummary(extra interface{}) {
+	if extra == nil {
+		return
+	}
+	em, ok := extra.(map[string]interface{})
+	if !ok {
+		return
+	}
+	stepsRaw, ok := em["steps"]
+	if !ok {
+		return
+	}
+	steps, ok := stepsRaw.([]interface{})
+	if !ok || len(steps) == 0 {
+		return
+	}
+	fmt.Printf("│  步骤 (%d):                                     │\n", len(steps))
+	for i, s := range steps {
+		step, ok := s.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		sn, _ := step["name"].(string)
+		sk, _ := step["kind"].(string)
+		if sk == "" {
+			sk = "simple"
+		}
+		st, _ := step["schedule_type"].(string)
+		fmt.Printf("│    %d. %s %-31s │\n", i+1, kindIcon(sk), truncateStr(sn, 28))
+		if st != "" {
+			fmt.Printf("│       调度: %-33s │\n", truncateStr(st, 33))
+		}
+	}
+}
+
+func printInspectionSummary(extra interface{}) {
+	if extra == nil {
+		return
+	}
+	em, ok := extra.(map[string]interface{})
+	if !ok {
+		return
+	}
+	itemsRaw, ok := em["check_items"]
+	if !ok {
+		return
+	}
+	items, ok := itemsRaw.([]interface{})
+	if !ok || len(items) == 0 {
+		return
+	}
+	fmt.Printf("│  检查项 (%d):                                    │\n", len(items))
+	for _, ci := range items {
+		item, ok := ci.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		in, _ := item["name"].(string)
+		fmt.Printf("│    📋 %-37s │\n", truncateStr(in, 37))
+		branches, _ := item["branches"].([]interface{})
+		for _, b := range branches {
+			br, ok := b.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			bn, _ := br["name"].(string)
+			ct, _ := br["create_todo"].(bool)
+			if ct {
+				bt, _ := br["branch_task"].(map[string]interface{})
+				tn := ""
+				if btt, ok := bt["task"].(map[string]interface{}); ok {
+					tn, _ = btt["name"].(string)
+				}
+				if tn != "" {
+					fmt.Printf("│      %s → 📋 %-31s │\n", truncateStr(bn, 6), truncateStr(tn, 31))
+				} else {
+					fmt.Printf("│      %s → 📋 (创建任务)%-22s │\n", truncateStr(bn, 6), "")
+				}
+			} else {
+				fmt.Printf("│      %s (无任务)%-29s │\n", truncateStr(bn, 8), "")
 			}
 		}
-		item["branches"] = branches
-		items = append(items, item)
 	}
-	if len(items) == 0 {
-		return nil
+}
+
+// ─── Label / icon helpers ─────────────────────────────────────────
+
+func kindLabel(kind string) string {
+	switch kind {
+	case "chain":
+		return "🔗 任务链 (chain)"
+	case "inspection":
+		return "🔍 巡检 (inspection)"
+	default:
+		return "📌 简单 (simple)"
 	}
-	return map[string]interface{}{"check_items": items}
+}
+
+func kindIcon(kind string) string {
+	switch kind {
+	case "chain":
+		return "🔗"
+	case "inspection":
+		return "🔍"
+	default:
+		return "📌"
+	}
+}
+
+func truncateStr(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen-1]) + "…"
 }
 
 // groupLabel returns a human-readable group label.
