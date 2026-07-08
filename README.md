@@ -68,7 +68,7 @@ docker run -d \
   --name now-and-again \
   --user "$(id -u):$(id -g)" \
   -p 8080:8080 \
-  -v ${pwd}/na-data:/data \
+  -v $(pwd)/na-data:/data \
   -e GIN_MODE=release \
   ghcr.io/dezhishen/now-and-again:latest
 ```
