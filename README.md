@@ -56,28 +56,90 @@ AI 理解自然语言、感知上下文，但家务需要状态管理——什�
 
 ## 🚀 快速开始
 
-### 前置要求
+两步走：**Docker 启动服务 → AI 助手接管一切**。
 
-| 工具 | 版本 | 用途 |
-|------|------|------|
-| Go | ≥ 1.25 | Backend + CLI |
-| Node.js | ≥ 18 | Frontend |
-| pnpm | ≥ 10 | Frontend 包管理 |
+---
 
-### 一键启动
+### 第一步：Docker 启动服务
 
 ```bash
-git clone https://github.com/dezhishen/now-and-again.git && cd now-and-again
-make dev
+mkdir -p ./na-data
+docker run -d \
+  --name now-and-again \
+  --user "$(id -u):$(id -g)" \
+  -p 8080:8080 \
+  -v ${pwd}/na-data:/data \
+  -e GIN_MODE=release \
+  ghcr.io/dezhishen/now-and-again:latest
 ```
 
-> Windows 用户请使用 WSL 或 Git Bash，或分别启动后端和前端（详见 [Docker 部署](doc/deployment/docker.md)）。
+> 也可使用 docker compose：`curl -O https://raw.githubusercontent.com/dezhishen/now-and-again/main/docker-compose.yml && docker compose up -d`
 
-### Docker 部署
+服务启动后访问 `http://localhost:8080`，默认账号 `admin`。
+
+首次启动时密码会打印在日志中，查看方式：
 
 ```bash
-docker compose up -d
+docker logs now-and-again | grep "Password:"
 ```
+
+也可以通过环境变量 `NA_ADMIN_DEFAULT_PASSWORD` 自行指定密码。
+
+> 数据持久化在`na-data` 中，升级时不会丢失。详见 [Docker 部署](doc/deployment/docker.md)。
+
+---
+
+### 第二步：交给 AI 助手
+
+把下面这段话复制给你的 AI 助手（OpenClaw / Hermes …），它会自动完成 CLI 安装、初始化，之后你就可以用自然语言管理一切：
+
+> 帮我在当前电脑上安装 Now & Again 的命令行工具 `na`。
+>
+> 去 GitHub Releases 页面找到适合我系统的版本，下载并安装到 /usr/local/bin/。
+> 发布地址是 https://github.com/dezhishen/now-and-again/releases
+> 支持 Linux、macOS、Windows，amd64 和 arm64 都有。
+>
+> 安装完成后初始化，先通过 `docker logs now-and-again | grep "Password:"` 获取管理员密码：
+> - 服务器地址：http://localhost:8080
+> - 用户名：admin
+> - 密码：<从日志中获取>
+>
+> 初始化后选择默认家庭，然后告诉我今天有什么事要做。
+
+**之后直接用自然语言对话：**
+
+> 👤 今天有什么事要做？
+>
+> 🤖 待办有 3 项：倒垃圾、遛狗、大扫除
+>
+> 👤 倒垃圾搞定了，备注分类投放
+>
+> 🤖 ✅ 已完成 — 分类投放
+>
+> 👤 每天晚上8点倒垃圾
+>
+> 🤖 ✅ 已创建，每天 20:00
+>
+> 👤 创建一个家庭叫"温馨小家"
+>
+> 🤖 ✅ 已创建，邀请码: ABCD1234
+>
+> 👤 帮我设置一个定时提醒：每半小时检查接下来一小时的待办，以及之前还没完成的待办，汇总提醒我。注意夜间（22:00-08:00）不要打扰
+>
+> 🤖 ✅ 已设置，每 30 分钟检查一次，夜间静默
+>
+> 👤 把遛狗改成每天早上7点半
+>
+> 🤖 ✅ 已更新，每天 07:30
+>
+> 👤 这周末我要出门，帮我把周末的任务全部跳过
+>
+> 🤖 ✅ 已跳过周六、周日共 6 项待办
+
+
+→ 完整对话示例见 [OpenClaw 接入指南](doc/tutorial/openclaw-quickstart.md)。
+
+---
 
 ### 环境变量
 
@@ -85,7 +147,7 @@ docker compose up -d
 |------|--------|------|
 | `NA_PORT` | `8080` | HTTP 端口 |
 | `NA_ADMIN_DEFAULT_PASSWORD` | (随机) | 初始管理员密码 |
-| `NA_DATA_DIR` | `./data` | 数据根目录 |
+| `NA_DATA_DIR` | `/data` | 数据根目录（容器内） |
 | `NA_JWT_SECRET` | (自动生成) | JWT 签名密钥 |
 
 > 后端强制使用 UTC。客户端在 API 边界自动做 UTC ↔ 本地时区转换，对用户透明。
