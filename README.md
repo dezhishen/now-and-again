@@ -172,7 +172,6 @@ docker logs now-and-again | grep "Password:"
 
 当前重点：
 - **v1.1.0 外部交互与通知** — fulfill API、Hook 插件
-- **CLI action-id 状态机** — AI 友好的多轮交互模式
 
 ---
 
