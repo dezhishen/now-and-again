@@ -135,6 +135,53 @@ var familySelectCmd = &cobra.Command{
 	},
 }
 
+// ─── family leave ─────────────────────────────────────────────────
+
+var familyLeaveCmd = &cobra.Command{
+	Use:   "leave",
+	Short: "离开当前活跃家庭",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := autoEnsureFamily(); err != nil {
+			return err
+		}
+		if err := na.LeaveFamily(context.Background()); err != nil {
+			return err
+		}
+		action.Println("👋 已离开家庭")
+		return nil
+	},
+}
+
+// ─── family members ───────────────────────────────────────────────
+
+var familyMembersCmd = &cobra.Command{
+	Use:   "members",
+	Short: "列出家庭成员及其角色",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := autoEnsureFamily(); err != nil {
+			return err
+		}
+		members, err := na.ListMembers(context.Background())
+		if err != nil {
+			return err
+		}
+		if len(members) == 0 {
+			action.Println("👤 暂无成员")
+			return nil
+		}
+		fmt.Printf("👤 成员 (%d人):\n\n", len(members))
+		for _, m := range members {
+			displayName := ""
+			if m.User != nil {
+				displayName = m.User.DisplayName
+			}
+			fmt.Printf("  %-12s  %-8s  %s\n", displayName, m.Role, m.UserID[:8])
+		}
+		fmt.Println()
+		return nil
+	},
+}
+
 // ─── family status ────────────────────────────────────────────────
 
 var familyStatusCmd = &cobra.Command{
@@ -244,4 +291,6 @@ func init() {
 	familyCmd.AddCommand(familyListCmd)
 	familyCmd.AddCommand(familySelectCmd)
 	familyCmd.AddCommand(familyStatusCmd)
+	familyCmd.AddCommand(familyMembersCmd)
+	familyCmd.AddCommand(familyLeaveCmd)
 }

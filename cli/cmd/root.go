@@ -58,6 +58,9 @@ func init() {
 	rootCmd.AddCommand(taskCmd)
 	rootCmd.AddCommand(todoCmd)
 	rootCmd.AddCommand(templateCmd)
+	rootCmd.AddCommand(locationCmd)
+	rootCmd.AddCommand(groupCmd)
+	rootCmd.AddCommand(apikeyCmd)
 }
 
 func initNA() {

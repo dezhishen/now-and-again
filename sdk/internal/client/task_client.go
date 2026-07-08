@@ -75,6 +75,15 @@ func (c *TaskClient) Delete(taskID string) error {
 	return c.http.do("DELETE", "/api/tasks/"+taskID, nil, nil)
 }
 
+func (c *TaskClient) SetEnabled(taskID string, enabled bool) (*types.Task, error) {
+	var t types.Task
+	body := map[string]bool{"enabled": enabled}
+	if err := c.http.do("PUT", "/api/tasks/"+taskID+"/enabled", body, &t); err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
 // Get returns a single task by ID.
 func (c *TaskClient) Get(taskID string) (*types.Task, error) {
 	var t types.Task
@@ -138,6 +147,9 @@ func (c *TaskClient) ListTasks(_ context.Context, familyID uuid.UUID) ([]types.T
 }
 func (c *TaskClient) ListTasksFiltered(_ context.Context, familyID uuid.UUID, includeArchived, includeDisabled bool, name string) ([]types.Task, error) {
 	return c.ListFiltered(familyID.String(), includeArchived, includeDisabled, name)
+}
+func (c *TaskClient) SetTaskEnabled(_ context.Context, taskID uuid.UUID, enabled bool) (*types.Task, error) {
+	return c.SetEnabled(taskID.String(), enabled)
 }
 func (c *TaskClient) TriggerTask(_ context.Context, taskID uuid.UUID) error {
 	return c.http.do("POST", "/api/tasks/"+taskID.String()+"/trigger", nil, nil)
