@@ -114,10 +114,11 @@ type NA struct {
 	http *client.HTTPClient
 
 	// Domain clients — direct access for advanced usage.
-	User   *client.UserClient
-	Family *client.FamilyClient
-	ApiKey *client.ApiKeyClient
-	Task   *client.TaskClient
+	User     *client.UserClient
+	Family   *client.FamilyClient
+	ApiKey   *client.ApiKeyClient
+	Task     *client.TaskClient
+	Location *client.LocationClient
 
 	// Timezone for local↔UTC conversions. Defaults to time.Local.
 	timezone *time.Location
@@ -158,6 +159,7 @@ func NewWithConfig(cfg *Config) *NA {
 		Family:         client.NewFamilyClient(httpClient),
 		ApiKey:         client.NewApiKeyClient(httpClient),
 		Task:           client.NewTaskClient(httpClient),
+		Location:       client.NewLocationClient(httpClient),
 		timezone:       time.Local,
 		activeFamilyID: cfg.ActiveFamilyID,
 	}

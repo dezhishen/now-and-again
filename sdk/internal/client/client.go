@@ -132,19 +132,21 @@ func (c *HTTPClient) do(method, path string, body, result interface{}) error {
 
 // AllClients bundles all domain clients. Passed to CLI command handlers.
 type AllClients struct {
-	User   *UserClient
-	Family *FamilyClient
-	ApiKey *ApiKeyClient
-	Task   *TaskClient
+	User     *UserClient
+	Family   *FamilyClient
+	ApiKey   *ApiKeyClient
+	Task     *TaskClient
+	Location *LocationClient
 }
 
 // NewAllClients creates all clients from a single HTTPClient.
 func NewAllClients(httpClient *HTTPClient) *AllClients {
 	return &AllClients{
-		User:   NewUserClient(httpClient),
-		Family: NewFamilyClient(httpClient),
-		ApiKey: NewApiKeyClient(httpClient),
-		Task:   NewTaskClient(httpClient),
+		User:     NewUserClient(httpClient),
+		Family:   NewFamilyClient(httpClient),
+		ApiKey:   NewApiKeyClient(httpClient),
+		Task:     NewTaskClient(httpClient),
+		Location: NewLocationClient(httpClient),
 	}
 }
 

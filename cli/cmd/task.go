@@ -12,6 +12,7 @@ import (
 	"github.com/dezhishen/now-and-again/cli/internal/action"
 	"github.com/dezhishen/now-and-again/cli/internal/resolver"
 	"github.com/dezhishen/now-and-again/cli/internal/state"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
 
@@ -648,6 +649,122 @@ var taskTriggerCmd = &cobra.Command{
 			return err
 		}
 		action.Printf("⚡ 已触发任务: %s", task.Name)
+		return nil
+	},
+}
+
+// ─── task enable ──────────────────────────────────────────────────
+
+var taskEnableCmd = &cobra.Command{
+	Use:   "enable",
+	Short: "启用任务（支持名称或ID）",
+	Example: `  na task enable --name "洗碗"
+  na task enable --id abc123`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := autoEnsureFamily(); err != nil {
+			return err
+		}
+		ctx := context.Background()
+		cache := resolver.NewCache()
+
+		input, err := resolveTaskInput(cmd)
+		if err != nil {
+			return err
+		}
+
+		task, err := cache.ResolveTask(ctx, na, input)
+		if err != nil {
+			return err
+		}
+
+		if _, err := na.SetTaskEnabled(ctx, task.ID, true); err != nil {
+			return err
+		}
+		action.Printf("✅ 已启用任务: %s", task.Name)
+		return nil
+	},
+}
+
+// ─── task disable ─────────────────────────────────────────────────
+
+var taskDisableCmd = &cobra.Command{
+	Use:   "disable",
+	Short: "禁用任务（支持名称或ID）",
+	Example: `  na task disable --name "洗碗"
+  na task disable --id abc123`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := autoEnsureFamily(); err != nil {
+			return err
+		}
+		ctx := context.Background()
+		cache := resolver.NewCache()
+
+		input, err := resolveTaskInput(cmd)
+		if err != nil {
+			return err
+		}
+
+		task, err := cache.ResolveTask(ctx, na, input)
+		if err != nil {
+			return err
+		}
+
+		if _, err := na.SetTaskEnabled(ctx, task.ID, false); err != nil {
+			return err
+		}
+		action.Printf("⏸️  已禁用任务: %s", task.Name)
+		return nil
+	},
+}
+
+// ─── task logs ────────────────────────────────────────────────────
+
+var taskLogsCmd = &cobra.Command{
+	Use:   "logs",
+	Short: "查看任务日志（支持名称或ID）",
+	Long: `列出指定任务的执行日志，包括系统自动记录和用户手动记录的日志。
+
+示例:
+  na task logs --name "洗碗"
+  na task logs --id abc123 --limit 20
+  na task logs --name "大扫除" --user`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := autoEnsureFamily(); err != nil {
+			return err
+		}
+		ctx := context.Background()
+		cache := resolver.NewCache()
+
+		input, err := resolveTaskInput(cmd)
+		if err != nil {
+			return err
+		}
+
+		task, err := cache.ResolveTask(ctx, na, input)
+		if err != nil {
+			return err
+		}
+
+		limit, _ := cmd.Flags().GetInt("limit")
+		userOnly, _ := cmd.Flags().GetBool("user")
+
+		logs, err := na.Task.ListTaskLogs(ctx, uuid.MustParse(task.ID), limit, userOnly)
+		if err != nil {
+			return err
+		}
+
+		if len(logs) == 0 {
+			action.Println("📭 暂无日志")
+			return nil
+		}
+
+		fmt.Printf("📋 任务 %q 的日志 (%d条):\n\n", task.Name, len(logs))
+		for _, l := range logs {
+			ts := na.FormatTime(l.CreatedAt, "01-02 15:04:05")
+			lvl := l.LogType
+			fmt.Printf("  [%s] %-5s %s\n", ts, lvl, l.Message)
+		}
+		fmt.Println()
 		return nil
 	},
 }
@@ -1484,6 +1601,20 @@ func init() {
 	taskTriggerCmd.Flags().String("name", "", "任务名称")
 	taskTriggerCmd.Flags().String("id", "", "任务ID（完整UUID或≥3位前缀）")
 
+	// task enable
+	taskEnableCmd.Flags().String("name", "", "任务名称")
+	taskEnableCmd.Flags().String("id", "", "任务ID（完整UUID或≥3位前缀）")
+
+	// task disable
+	taskDisableCmd.Flags().String("name", "", "任务名称")
+	taskDisableCmd.Flags().String("id", "", "任务ID（完整UUID或≥3位前缀）")
+
+	// task logs
+	taskLogsCmd.Flags().String("name", "", "任务名称")
+	taskLogsCmd.Flags().String("id", "", "任务ID（完整UUID或≥3位前缀）")
+	taskLogsCmd.Flags().Int("limit", 20, "日志条数上限")
+	taskLogsCmd.Flags().Bool("user", false, "仅显示用户操作日志")
+
 	// task children
 	taskChildrenCmd.Flags().String("name", "", "父任务名称")
 	taskChildrenCmd.Flags().String("id", "", "父任务ID（完整UUID或≥3位前缀）")
@@ -1493,7 +1624,10 @@ func init() {
 	taskCmd.AddCommand(taskInfoCmd)
 	taskCmd.AddCommand(taskUpdateCmd)
 	taskCmd.AddCommand(taskDeleteCmd)
+	taskCmd.AddCommand(taskEnableCmd)
+	taskCmd.AddCommand(taskDisableCmd)
 	taskCmd.AddCommand(taskTriggerCmd)
+	taskCmd.AddCommand(taskLogsCmd)
 	taskCmd.AddCommand(taskChildrenCmd)
 }
 

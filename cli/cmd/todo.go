@@ -119,12 +119,34 @@ var todoSkipCmd = &cobra.Command{
 	},
 }
 
+var todoInterruptCmd = &cobra.Command{
+	Use:     "interrupt",
+	Short:   "中断待办（标记为已中断，支持短ID）",
+	Example: "  na todo interrupt --id abc",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := autoEnsureFamily(); err != nil {
+			return err
+		}
+		todoID, _ := cmd.Flags().GetString("id")
+		if todoID == "" {
+			return fmt.Errorf("--id 不能为空")
+		}
+		if _, err := na.CompleteTodo(context.Background(), todoID, "interrupted", ""); err != nil {
+			return fmt.Errorf("中断失败: %w", err)
+		}
+		action.Println("⏹️  已中断")
+		return nil
+	},
+}
+
 func init() {
 	todoDoneCmd.Flags().String("id", "", "待办ID（完整UUID或至少3位前缀）")
 	todoDoneCmd.Flags().String("remark", "", "完成备注")
 	todoSkipCmd.Flags().String("id", "", "待办ID（完整UUID或至少3位前缀）")
+	todoInterruptCmd.Flags().String("id", "", "待办ID（完整UUID或至少3位前缀）")
 
 	todoCmd.AddCommand(todoListCmd)
 	todoCmd.AddCommand(todoDoneCmd)
 	todoCmd.AddCommand(todoSkipCmd)
+	todoCmd.AddCommand(todoInterruptCmd)
 }

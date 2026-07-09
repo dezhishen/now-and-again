@@ -94,6 +94,15 @@ func (na *NA) DeleteTask(ctx context.Context, taskID string) error {
 	return na.Task.DeleteTask(ctx, id)
 }
 
+// SetTaskEnabled enables or disables a task.
+func (na *NA) SetTaskEnabled(ctx context.Context, taskID string, enabled bool) (*types.Task, error) {
+	id, err := uuid.Parse(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid task id: %w", err)
+	}
+	return na.Task.SetTaskEnabled(ctx, id, enabled)
+}
+
 // TriggerTask immediately generates a todo for the given task.
 func (na *NA) TriggerTask(ctx context.Context, taskID string) error {
 	id, err := uuid.Parse(taskID)
