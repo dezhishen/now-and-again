@@ -265,13 +265,17 @@ func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID
 		}
 	}
 
+	// Anchor to scheduled time (e.g. daily at 11:00) instead of "now",
+	// so completing a todo early or late does not drift the next occurrence.
+	anchor := scheduleNextTime(task.ScheduleType, task.ScheduleData)
+
 	todo := &repository.TodoModel{
 		TaskID:     taskID,
 		FamilyID:   familyID,
 		GroupID:    task.GroupID,
 		LocationID: task.LocationID,
-		DueStart:   now,
-		DueDate:    now.Add(window),
+		DueStart:   anchor,
+		DueDate:    anchor.Add(window),
 		Status:     string(types.TodoStatusPending),
 		TaskName:   task.Name,
 		TaskKind:   task.Kind,
@@ -469,6 +473,86 @@ func (s *TaskService) Delete(ctx context.Context, taskID uuid.UUID) error {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────
+
+// scheduleNextTime returns the next occurrence time for a task's schedule.
+// For daily tasks, this is today at the configured time (or tomorrow if passed).
+// For weekly/monthly, it finds the next matching weekday/day-of-month.
+func scheduleNextTime(scheduleType, scheduleData string) time.Time {
+	now := timeutil.Now()
+	var data struct {
+		Time string `json:"time"`
+		Date string `json:"date"`
+		Days []int  `json:"days"`
+	}
+	json.Unmarshal([]byte(scheduleData), &data)
+
+	t := data.Time
+	if t == "" {
+		t = "09:00"
+	}
+	h, m := 9, 0
+	fmt.Sscanf(t, "%d:%d", &h, &m)
+
+	switch scheduleType {
+	case "daily", "interval":
+		next := time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, time.UTC)
+		if !next.After(now) {
+			next = next.Add(24 * time.Hour)
+		}
+		return next
+
+	case "weekly":
+		targetDays := data.Days
+		if len(targetDays) == 0 {
+			targetDays = []int{1}
+		}
+		for offset := 0; offset < 8; offset++ {
+			candidate := time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, time.UTC).Add(time.Duration(offset) * 24 * time.Hour)
+			wd := int(candidate.Weekday())
+			if wd == 0 {
+				wd = 7
+			}
+			for _, d := range targetDays {
+				if d == wd && candidate.After(now) {
+					return candidate
+				}
+			}
+		}
+		return now.Add(24 * time.Hour)
+
+	case "monthly":
+		targetDays := data.Days
+		if len(targetDays) == 0 {
+			targetDays = []int{1}
+		}
+		for monthOff := 0; monthOff < 2; monthOff++ {
+			y, mo := now.Year(), now.Month()+time.Month(monthOff)
+			if mo > 12 {
+				mo -= 12
+				y++
+			}
+			for _, d := range targetDays {
+				candidate := time.Date(y, mo, d, h, m, 0, 0, time.UTC)
+				if candidate.After(now) {
+					return candidate
+				}
+			}
+		}
+		return now.Add(30 * 24 * time.Hour)
+
+	case "once":
+		if data.Date != "" {
+			parsed, err := time.ParseInLocation("2006-01-02 15:04", data.Date+" "+t, time.UTC)
+			if err == nil {
+				return parsed.UTC()
+			}
+		}
+		return now.Add(24 * time.Hour)
+
+	default:
+		return now.Add(24 * time.Hour)
+	}
+}
 
 func scheduleWindow(scheduleType, scheduleData string) time.Duration {
 	switch scheduleType {
