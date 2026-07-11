@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/go-co-op/gocron/v2"
 
@@ -31,7 +32,11 @@ func (dailyHandler) OnManualComplete(string, func(string)) {}
 func (dailyHandler) buildJob(data map[string]any) gocron.JobDefinition {
 	t := str(data, "time", "09:00")
 	h, m := parseTime(t)
-	return engine.DurationJobDef(durationTo(h, m))
+	// Use CronJob so the job fires every day at the same HH:MM,
+	// instead of DurationJob which drifts because its interval is
+	// computed relative to "now" at registration time.
+	expr := fmt.Sprintf("%d %d * * *", m, h)
+	return engine.CronJobDef(expr)
 }
 
 func init() { Register(dailyHandler{}) }
