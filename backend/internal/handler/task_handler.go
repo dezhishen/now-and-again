@@ -25,7 +25,7 @@ func (h *TaskHandlers) Create(c *gin.Context) {
 	}
 	t, err := h.Svc.CreateTask(userCtx(c), familyID, req)
 	if err != nil {
-		serverError(c, err)
+		badRequest(c, err.Error())
 		return
 	}
 	created(c, t)

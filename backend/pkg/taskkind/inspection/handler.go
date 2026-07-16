@@ -34,7 +34,7 @@ func (h *handler) SaveExtra(taskStorage taskkind.TaskStorage, task *model.TaskMo
 		return fmt.Errorf("parse check items: %w", err)
 	}
 	if len(items) == 0 {
-		return fmt.Errorf("巡检任务必须至少包含一个检查项")
+		return fmt.Errorf("巡检任务「%s」必须至少包含一个检查项", task.Name)
 	}
 	return h.saveCheckItems(taskStorage, task, items)
 }
