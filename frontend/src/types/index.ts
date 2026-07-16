@@ -190,6 +190,7 @@ export interface Task {
   name: string
   schedule_type: string
   schedule_data: any
+  duration?: string
   enabled: boolean
   kind: string
   display_summary?: string

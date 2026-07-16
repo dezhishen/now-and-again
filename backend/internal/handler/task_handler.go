@@ -38,11 +38,13 @@ func (h *TaskHandlers) List(c *gin.Context) {
 		badRequest(c, "invalid family_id")
 		return
 	}
-	includeArchived := c.Query("archived") == "true"
-	includeDisabled := c.Query("disabled") == "true"
+	_, hasArchived := c.GetQuery("archived")
+	_, hasDisabled := c.GetQuery("disabled")
+	archivedFilter := types.ParseTriState(c.Query("archived"), hasArchived)
+	disabledFilter := types.ParseTriState(c.Query("disabled"), hasDisabled)
 	name := c.Query("name")
 
-	tasks, err := h.Svc.ListTasksFiltered(userCtx(c), familyID, includeArchived, includeDisabled, name)
+	tasks, err := h.Svc.ListTasksFiltered(userCtx(c), familyID, archivedFilter, disabledFilter, name)
 	if err != nil {
 		serverError(c, err)
 		return

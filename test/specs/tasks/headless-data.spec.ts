@@ -34,6 +34,16 @@ test.describe('任务 API', () => {
     await api.completeTodo(familyId, pending[0].id, 'done', 'api-test');
   });
 
+  test('simple: 创建时指定 duration → DB 验证', async () => {
+    const name = 'API-Duration-' + Date.now();
+    const c = await api.createTask(familyId, { name, kind: 'simple', duration: '2h' });
+    const taskId = (c.data as any)?.data?.id || (c.data as any)?.id;
+    expect(taskId).toBeTruthy();
+    // Verify via DB
+    const rows = await db.findTask(name);
+    expect(rows?.duration).toBe('2h');
+  });
+
   test('inspection: 创建→触发→待办', async () => {
     const name = 'API-Inspect-' + Date.now();
     const c = await api.createTask(familyId, { name, kind: 'inspection' });

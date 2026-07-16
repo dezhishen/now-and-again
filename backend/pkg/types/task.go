@@ -14,6 +14,7 @@ type Task struct {
 	Name           string     `json:"name" binding:"required,max=128"`
 	ScheduleType   string     `json:"schedule_type" binding:"required,max=32"`
 	ScheduleData   any        `json:"schedule_data" binding:"required"`
+	Duration       string     `json:"duration,omitempty"` // completion duration, e.g. "2h", "30m"
 	Enabled        bool       `json:"enabled"`
 	Kind           string     `json:"kind" binding:"max=16"`
 	DisplaySummary string     `json:"display_summary,omitempty" binding:"max=256"`

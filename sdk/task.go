@@ -37,15 +37,14 @@ func (na *NA) ListTasks(ctx context.Context) ([]types.Task, error) {
 }
 
 // ListTasksFiltered returns tasks in the active family with optional archived/disabled/name filters.
-// Set includeArchived=true to include archived tasks.
-// Set includeDisabled=true to include disabled tasks.
+// archivedFilter/disabledFilter: Unset = no filter, True = only true, False = only false.
 // Set name to a non-empty string to filter by task name (server-side LIKE).
-func (na *NA) ListTasksFiltered(ctx context.Context, includeArchived, includeDisabled bool, name string) ([]types.Task, error) {
+func (na *NA) ListTasksFiltered(ctx context.Context, archivedFilter, disabledFilter types.TriState, name string) ([]types.Task, error) {
 	fid, err := na.requireFamilyID()
 	if err != nil {
 		return nil, err
 	}
-	return na.Task.ListTasksFiltered(ctx, fid, includeArchived, includeDisabled, name)
+	return na.Task.ListTasksFiltered(ctx, fid, archivedFilter, disabledFilter, name)
 }
 
 // GetTask returns a single task by ID.
@@ -117,7 +116,7 @@ func (na *NA) TriggerTask(ctx context.Context, taskID string) error {
 // Returns nil if not found.
 // Priority: exact match > substring match.
 func (na *NA) FindTaskByName(ctx context.Context, name string) (*types.Task, error) {
-	tasks, err := na.ListTasksFiltered(ctx, true, true, name)
+	tasks, err := na.ListTasksFiltered(ctx, types.TriStateUnset, types.TriStateUnset, name)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +136,7 @@ func (na *NA) FindTaskByName(ctx context.Context, name string) (*types.Task, err
 // ListChildTasks returns all direct child tasks of a parent task.
 // This is useful for examining chain steps, inspection sub-tasks, etc.
 func (na *NA) ListChildTasks(ctx context.Context, parentTaskID string) ([]types.Task, error) {
-	tasks, err := na.ListTasksFiltered(ctx, true, true, "")
+	tasks, err := na.ListTasksFiltered(ctx, types.TriStateUnset, types.TriStateUnset, "")
 	if err != nil {
 		return nil, err
 	}

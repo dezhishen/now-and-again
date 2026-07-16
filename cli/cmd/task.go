@@ -52,7 +52,10 @@ var taskCreateCmd = &cobra.Command{
 任务类型 (--kind):
   simple      简单定时任务（默认）
   inspection  巡检任务（需配合 --extra 指定 check_items）
-  chain       任务链（需配合 --extra 指定 steps）`,
+  chain       任务链（需配合 --extra 指定 steps）
+
+其他可选参数:
+  --duration  完成时长，如 "2h" / "30m" / "1h30m"（不设置则使用默认窗口期）`,
 	RunE: runTaskCreate,
 }
 
@@ -67,6 +70,7 @@ func runTaskCreate(cmd *cobra.Command, args []string) error {
 	name, _ := cmd.Flags().GetString("name")
 	schedule, _ := cmd.Flags().GetString("schedule")
 	dataStr, _ := cmd.Flags().GetString("data")
+	duration, _ := cmd.Flags().GetString("duration")
 	groupName, _ := cmd.Flags().GetString("group")
 	locationName, _ := cmd.Flags().GetString("location")
 	groupID, _ := cmd.Flags().GetString("group-id")
@@ -102,13 +106,14 @@ func runTaskCreate(cmd *cobra.Command, args []string) error {
 			Name:         name,
 			ScheduleType: schedule,
 			ScheduleData: data,
+			Duration:     duration,
 			Kind:         kind,
 		},
 		Extra: extra,
 	}
 
 	stateArgs := map[string]string{
-		"name": name, "schedule": schedule, "data": dataStr, "kind": kind,
+		"name": name, "schedule": schedule, "data": dataStr, "duration": duration, "kind": kind,
 		"group": groupName, "location": locationName,
 		"group-id": groupID, "location-id": locationID,
 	}
@@ -161,7 +166,7 @@ var taskListCmd = &cobra.Command{
 		var tasks []types.Task
 		var err error
 		if all {
-			tasks, err = na.ListTasksFiltered(ctx, true, true, "")
+			tasks, err = na.ListTasksFiltered(ctx, "", "", "")
 		} else {
 			tasks, err = na.ListTasks(ctx)
 		}
@@ -278,6 +283,11 @@ var taskInfoCmd = &cobra.Command{
 			kindLabel = "📌 简单"
 		}
 
+		durationDisplay := task.Duration
+		if durationDisplay == "" {
+			durationDisplay = "-"
+		}
+
 		fmt.Printf(`
 📋 任务详情
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -288,6 +298,7 @@ var taskInfoCmd = &cobra.Command{
   小组:       %s
   地址:       %s
   调度类型:   %s
+  完成时长:   %s
   调度参数:
 %s
   展示摘要:   %s
@@ -303,6 +314,7 @@ var taskInfoCmd = &cobra.Command{
 			groupName,
 			locName,
 			task.ScheduleType,
+			durationDisplay,
 			string(schedData),
 			task.DisplaySummary,
 			na.FormatTime(task.CreatedAt, "2006-01-02 15:04"),
@@ -439,11 +451,12 @@ func printCheckItems(extra map[string]interface{}) {
 var taskUpdateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "更新任务属性（支持名称或ID定位）",
-	Long: `更新任务的名称、调度参数、小组或地址。
+	Long: `更新任务的名称、调度参数、时长、小组或地址。
 
 示例:
   na task update --name "洗碗" --new-name "晚餐洗碗"
   na task update --name "大扫除" --schedule weekly --data '{"time":"10:00","days":[6,7]}'
+  na task update --name "浇花" --duration "30m"
   na task update --name "浇花" --group "大人" --location "阳台"`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := autoEnsureFamily(); err != nil {
@@ -488,6 +501,9 @@ var taskUpdateCmd = &cobra.Command{
 		}
 		if cmd.Flags().Changed("location-id") {
 			stateArgs["location-id"], _ = cmd.Flags().GetString("location-id")
+		}
+		if cmd.Flags().Changed("duration") {
+			stateArgs["duration"], _ = cmd.Flags().GetString("duration")
 		}
 
 		// Build update request from flags that are explicitly set
@@ -557,9 +573,14 @@ var taskUpdateCmd = &cobra.Command{
 			}
 			hasUpdate = true
 		}
+		if cmd.Flags().Changed("duration") {
+			d, _ := cmd.Flags().GetString("duration")
+			updateTask.Duration = d
+			hasUpdate = true
+		}
 
 		if !hasUpdate {
-			return fmt.Errorf("请指定至少一项要更新的属性: --new-name, --schedule, --data, --group, --location")
+			return fmt.Errorf("请指定至少一项要更新的属性: --new-name, --schedule, --data, --duration, --group, --location")
 		}
 
 		_, err = na.UpdateTask(ctx, task.ID, &types.UpdateTaskRequest{Task: updateTask})
@@ -798,7 +819,7 @@ var taskChildrenCmd = &cobra.Command{
 		}
 
 		// List all tasks and filter by parent_task_id
-		allTasks, err := na.ListTasksFiltered(ctx, true, true, "")
+		allTasks, err := na.ListTasksFiltered(ctx, "", "", "")
 		if err != nil {
 			return fmt.Errorf("获取任务列表失败: %w", err)
 		}
@@ -990,7 +1011,16 @@ func runTaskCreateInteractive(ctx context.Context, cache *resolver.Cache, actID,
 		action.Printf("✅ 地址: %s", lid[:min(8, len(lid))])
 	}
 
-	// ── STEP 7: 最终确认 (增强版) ────────────────────────────
+	// ── STEP 7: 完成时长 (可选) ──────────────────────────────
+	var duration string
+	if !yes {
+		duration = promptAI("完成时长 (可选)", "如 2h / 30m / 1h30m，回车跳过", "")
+	}
+	if duration != "" {
+		action.Printf("✅ 时长: %s", duration)
+	}
+
+	// ── STEP 8: 最终确认 (增强版) ────────────────────────────
 	schedJSON, _ := json.MarshalIndent(schedData, "  ", "  ")
 	if !yes {
 		fmt.Println()
@@ -1003,6 +1033,9 @@ func runTaskCreateInteractive(ctx context.Context, cache *resolver.Cache, actID,
 		schedLines := strings.Split(string(schedJSON), "\n")
 		for _, line := range schedLines {
 			fmt.Printf("│          %-36s │\n", truncateStr(line, 36))
+		}
+		if duration != "" {
+			fmt.Printf("│  时长:   %-36s │\n", duration)
 		}
 		if gid != "" {
 			fmt.Printf("│  小组:   %-36s │\n", gid[:min(8, len(gid))])
@@ -1035,12 +1068,13 @@ func runTaskCreateInteractive(ctx context.Context, cache *resolver.Cache, actID,
 		}
 	}
 
-	// ── STEP 8: 创建 ────────────────────────────────────────
+	// ── STEP 9: 创建 ────────────────────────────────────────
 	req := &types.CreateTaskRequest{
 		Task: types.Task{
 			Name:         name,
 			ScheduleType: schedule,
 			ScheduleData: schedData,
+			Duration:     duration,
 			Kind:         kind,
 			GroupID:      gid,
 			LocationID:   lid,
@@ -1572,6 +1606,7 @@ func init() {
 	taskCreateCmd.Flags().String("group-id", "", "分配小组ID（精确UUID，跳过名称解析）")
 	taskCreateCmd.Flags().String("location", "", "分配地址名称")
 	taskCreateCmd.Flags().String("location-id", "", "分配地址ID（精确UUID，跳过名称解析）")
+	taskCreateCmd.Flags().String("duration", "", "完成时长，如 2h, 30m, 1h30m（可选）")
 	taskCreateCmd.Flags().String("kind", "simple", "任务类型: simple|inspection|chain")
 	taskCreateCmd.Flags().String("extra", "", "额外数据 JSON（链步骤/巡检项，快速模式使用）")
 	taskCreateCmd.Flags().BoolP("yes", "y", false, "跳过确认提示（引导模式）")
@@ -1589,6 +1624,7 @@ func init() {
 	taskUpdateCmd.Flags().String("new-name", "", "新的任务名称")
 	taskUpdateCmd.Flags().String("schedule", "", "新的调度类型")
 	taskUpdateCmd.Flags().String("data", "", "新的调度数据 JSON")
+	taskUpdateCmd.Flags().String("duration", "", "新的完成时长，如 2h, 30m, 1h30m（可选）")
 	taskUpdateCmd.Flags().String("group", "", "新的小组名称（传空字符串清除）")
 	taskUpdateCmd.Flags().String("location", "", "新的地址名称（传空字符串清除）")
 

@@ -15,6 +15,37 @@ var ErrRefreshTokenInvalid = errors.New("refresh token is invalid or expired")
 // any family. Callers should respond with 400.
 var ErrInvalidInviteCode = errors.New("invalid invite code")
 
+// ─── TriState ────────────────────────────────────────────────────
+
+// TriState is a three-state string for optional boolean filters.
+//
+//	"" (Unset)  = no filter (show all)
+//	"true"      = only true
+//	"false"     = only false
+type TriState string
+
+const (
+	TriStateUnset TriState = ""      // no filter
+	TriStateTrue  TriState = "true"  // only true
+	TriStateFalse TriState = "false" // only false
+)
+
+// ParseTriState parses a query param into a TriState.
+// Returns Unset if the param is absent.
+func ParseTriState(v string, present bool) TriState {
+	if !present {
+		return TriStateUnset
+	}
+	switch v {
+	case "true":
+		return TriStateTrue
+	case "false":
+		return TriStateFalse
+	default:
+		return TriStateUnset
+	}
+}
+
 // ─── Enums ────────────────────────────────────────────────────────
 
 type FamilyRole string

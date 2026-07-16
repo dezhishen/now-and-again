@@ -220,6 +220,7 @@ type TaskModel struct {
 	Enabled        bool             `gorm:"not null;default:true;index:idx_enabled_archived,priority:1"`
 	Kind           string           `gorm:"size:16;not null;default:simple"` // simple | inspection (future: chain)
 	OwnerKind      string           `gorm:"size:16;not null;default:simple"` // which handler kind currently owns task orchestration
+	Duration       string           `gorm:"size:16;not null;default:''"`     // task completion duration, e.g. "2h", "30m"
 	DisplaySummary sql.NullString   `gorm:"size:256"`                        // plugin-populated display text for list view
 	Archived       bool             `gorm:"not null;default:false;index:idx_enabled_archived,priority:2"`
 	LastTodoAt     *time.Time

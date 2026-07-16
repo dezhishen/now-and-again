@@ -187,8 +187,9 @@ func (s *TaskService) ListTasks(ctx context.Context, familyID uuid.UUID) ([]type
 }
 
 // ListTasksFiltered returns tasks for a family with optional archived/enabled filters.
-func (s *TaskService) ListTasksFiltered(ctx context.Context, familyID uuid.UUID, includeArchived, includeDisabled bool, name string) ([]types.Task, error) {
-	tasks, err := s.repo.ListTasksByFamilyFiltered(familyID.String(), includeArchived, includeDisabled, name)
+// archivedFilter / disabledFilter: Unset = no filter, True = only true, False = only false.
+func (s *TaskService) ListTasksFiltered(ctx context.Context, familyID uuid.UUID, archivedFilter, disabledFilter types.TriState, name string) ([]types.Task, error) {
+	tasks, err := s.repo.ListTasksByFamilyFiltered(familyID.String(), archivedFilter, disabledFilter, name)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +257,6 @@ func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID
 	if err != nil {
 		return err
 	}
-	window := scheduleWindow(task.ScheduleType, task.ScheduleData)
 
 	if !force {
 		has, _ := tx.HasPendingTodoForTaskToday(taskID, now)
@@ -268,6 +268,7 @@ func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID
 	// Anchor to scheduled time (e.g. daily at 11:00) instead of "now",
 	// so completing a todo early or late does not drift the next occurrence.
 	anchor := scheduleNextTime(task.ScheduleType, task.ScheduleData)
+	dueDate := calcDueDate(anchor, task.ScheduleType, task.ScheduleData, task.Duration)
 
 	todo := &repository.TodoModel{
 		TaskID:     taskID,
@@ -275,7 +276,7 @@ func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID
 		GroupID:    task.GroupID,
 		LocationID: task.LocationID,
 		DueStart:   anchor,
-		DueDate:    anchor.Add(window),
+		DueDate:    dueDate,
 		Status:     string(types.TodoStatusPending),
 		TaskName:   task.Name,
 		TaskKind:   task.Kind,
@@ -322,6 +323,7 @@ func (s *TaskService) Create(ctx context.Context, familyID uuid.UUID, req *types
 		Name:           req.Task.Name,
 		ScheduleType:   req.Task.ScheduleType,
 		ScheduleData:   string(dataJSON),
+		Duration:       req.Task.Duration,
 		Enabled:        true,
 		Kind:           kind,
 		DisplaySummary: sql.NullString{String: req.Task.DisplaySummary, Valid: req.Task.DisplaySummary != ""},
@@ -401,6 +403,9 @@ func (s *TaskService) Update(ctx context.Context, taskID uuid.UUID, req *types.U
 		if f.ScheduleData != nil {
 			dataJSON, _ := json.Marshal(f.ScheduleData)
 			t.ScheduleData = string(dataJSON)
+		}
+		if f.Duration != "" {
+			t.Duration = f.Duration
 		}
 		if f.GroupID != "" {
 			t.GroupID = sql.NullString{String: f.GroupID, Valid: f.GroupID != ""}
@@ -576,6 +581,18 @@ func scheduleWindow(scheduleType, scheduleData string) time.Duration {
 	default:
 		return 24 * time.Hour
 	}
+}
+
+// calcDueDate computes the todo due date based on anchor time and task duration.
+// If the task has an explicit duration, use it; otherwise fall back to the
+// legacy scheduleWindow logic for backward compatibility.
+func calcDueDate(anchor time.Time, scheduleType, scheduleData, duration string) time.Time {
+	if duration != "" {
+		if d, err := time.ParseDuration(duration); err == nil && d > 0 {
+			return anchor.Add(d)
+		}
+	}
+	return anchor.Add(scheduleWindow(scheduleType, scheduleData))
 }
 
 func taskModelToType(t *repository.TaskModel) *types.Task {
