@@ -62,16 +62,21 @@ func (r *TaskRepo) ListTasksByFamily(familyID string) ([]TaskModel, error) {
 }
 
 // ListTasksByFamilyFiltered returns tasks for a family with optional archived/enabled/name filters.
-// includeArchived: when true, also returns archived tasks.
-// includeDisabled: when true, also returns disabled tasks.
+// archivedFilter / disabledFilter: Unset = no filter, True = only true, False = only false.
 // name: when non-empty, filters tasks whose name contains the given substring (case-insensitive LIKE).
-func (r *TaskRepo) ListTasksByFamilyFiltered(familyID string, includeArchived, includeDisabled bool, name string) ([]TaskModel, error) {
+func (r *TaskRepo) ListTasksByFamilyFiltered(familyID string, archivedFilter, disabledFilter types.TriState, name string) ([]TaskModel, error) {
 	var tasks []TaskModel
 	q := r.db.Preload("Group").Where("family_id = ? AND is_root = ?", familyID, true)
-	if !includeArchived {
+	switch archivedFilter {
+	case types.TriStateTrue:
+		q = q.Where("archived = ?", true)
+	case types.TriStateFalse:
 		q = q.Where("archived = ?", false)
 	}
-	if !includeDisabled {
+	switch disabledFilter {
+	case types.TriStateTrue:
+		q = q.Where("enabled = ?", false)
+	case types.TriStateFalse:
 		q = q.Where("enabled = ?", true)
 	}
 	if name != "" {

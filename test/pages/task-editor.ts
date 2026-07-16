@@ -13,6 +13,8 @@ export class TaskEditorDialog {
   readonly scheduleTimeInput: Locator;
   readonly locationSelect: Locator;
   readonly groupSelect: Locator;
+  readonly durationInput: Locator;
+  readonly durationPresets: Locator;
   readonly submitButton: Locator;
   readonly cancelButton: Locator;
   readonly closeButton: Locator;
@@ -26,6 +28,8 @@ export class TaskEditorDialog {
     this.scheduleTimeInput = page.locator('input[type="time"]').first();
     this.locationSelect = page.getByRole('combobox').nth(2);
     this.groupSelect = page.getByRole('combobox').nth(3);
+    this.durationInput = page.locator('[data-testid="task-duration"]');
+    this.durationPresets = page.locator('[data-testid="task-duration-preset"]');
     this.submitButton = page.getByRole('button', { name: /^(创建|保存)$/ });
     this.cancelButton = page.getByRole('button', { name: '取消' });
     this.closeButton = page.getByRole('button', { name: '✕' });
@@ -51,6 +55,16 @@ export class TaskEditorDialog {
   async selectScheduleType(type: string): Promise<void> {
     await this.scheduleTypeSelect.click();
     await this.page.getByRole('option', { name: type }).click();
+  }
+
+  /** Fill the duration field. */
+  async fillDuration(duration: string): Promise<void> {
+    await this.durationInput.fill(duration);
+  }
+
+  /** Click a duration preset button by label text. */
+  async selectDurationPreset(label: string): Promise<void> {
+    await this.durationPresets.filter({ hasText: label }).click();
   }
 
   /** Fill all basic fields and submit. */

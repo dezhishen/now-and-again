@@ -3,6 +3,7 @@
  */
 import { test, expect } from '@playwright/test';
 import * as api from '../../utils/api';
+import { db } from '../../utils/db';
 
 let familyId = '';
 
@@ -34,10 +35,24 @@ test.describe('任务 API', () => {
     await api.completeTodo(familyId, pending[0].id, 'done', 'api-test');
   });
 
+  test('simple: 创建时指定 duration → DB 验证', async () => {
+    const name = 'API-Duration-' + Date.now();
+    const c = await api.createTask(familyId, { name, kind: 'simple', duration: '2h' });
+    const taskId = (c.data as any)?.data?.id || (c.data as any)?.id;
+    expect(taskId).toBeTruthy();
+    // Verify via DB
+    const rows = await db.findTask(name);
+    expect(rows?.duration).toBe('2h');
+  });
+
   test('inspection: 创建→触发→待办', async () => {
     const name = 'API-Inspect-' + Date.now();
-    const c = await api.createTask(familyId, { name, kind: 'inspection' });
+    const c = await api.createTask(familyId, {
+      name, kind: 'inspection',
+      extra: { check_items: [{ name: '区域A', branches: [{ name: '合格', create_todo: false }] }] },
+    });
     const taskId = (c.data as any)?.data?.id || (c.data as any)?.id;
+    expect(taskId).toBeTruthy();
     await api.triggerTask(familyId, taskId);
     const todos = await api.listTodos(familyId);
     expect(((todos.data as any)?.data || todos.data || []).some((t: any) => t.task_id === taskId && t.status === 'pending')).toBeTruthy();
@@ -45,7 +60,10 @@ test.describe('任务 API', () => {
 
   test('chain: 创建→触发→子任务待办', async () => {
     const name = 'API-Chain-' + Date.now();
-    const c = await api.createTask(familyId, { name, kind: 'chain' });
+    const c = await api.createTask(familyId, {
+      name, kind: 'chain',
+      extra: { steps: [{ name: '步骤1', kind: 'simple' }] },
+    });
     const rootId = (c.data as any)?.data?.id || (c.data as any)?.id;
     expect(rootId).toBeTruthy();
 
@@ -53,6 +71,20 @@ test.describe('任务 API', () => {
     const todos = await api.listTodos(familyId);
     const all = ((todos.data as any)?.data || todos.data || []);
     expect(all.some((t: any) => t.status === 'pending')).toBeTruthy();
+  });
+
+  test('inspection: 空检查项应报错', async () => {
+    const name = 'API-Inspect-Empty-' + Date.now();
+    const c = await api.createTask(familyId, { name, kind: 'inspection' });
+    expect(c.status).toBeGreaterThanOrEqual(400);
+    expect(c.data?.error?.summary).toContain('检查项');
+  });
+
+  test('chain: 空步骤应报错', async () => {
+    const name = 'API-Chain-Empty-' + Date.now();
+    const c = await api.createTask(familyId, { name, kind: 'chain' });
+    expect(c.status).toBeGreaterThanOrEqual(400);
+    expect(c.data?.error?.summary).toContain('步骤');
   });
 });
 

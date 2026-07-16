@@ -54,6 +54,7 @@ const taskTime = ref('09:00')
 const taskDate = ref('')
 const taskDays = ref<number[]>([])
 const taskYearDay = ref(1)
+const taskDuration = ref('')
 const taskGroupID = ref('')
 const taskLocationID = ref('')
 const taskKind = ref('simple')
@@ -70,6 +71,15 @@ const SCHEDULE_TYPES = getScheduleTypes()
 
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
+const DURATION_OPTIONS = [
+  { value: '15m', label: '15分钟' },
+  { value: '30m', label: '30分钟' },
+  { value: '1h', label: '1小时' },
+  { value: '2h', label: '2小时' },
+  { value: '4h', label: '4小时' },
+  { value: '8h', label: '8小时' },
+  { value: '1d', label: '1天' },
+]
 
 onMounted(() => {
   withLoading(async () => {
@@ -79,13 +89,21 @@ onMounted(() => {
   })
 })
 
-// Filters — default: enabled + not archived.
-const filterArchived = ref(false)
-const filterDisabled = ref(false)
+// Filters — three-state: 'unset' (no filter) / 'true' (only) / 'false' (hide).
+// Default unset → no query param → backend returns all (no filter).
+const archivedFilter = ref<'unset' | 'true' | 'false'>('unset')
+const disabledFilter = ref<'unset' | 'true' | 'false'>('unset')
 const filteredTasks = computed(() => tasks.value)
 
+// Cycle: unset → true → false → unset
+function cycleFilter(v: 'unset' | 'true' | 'false'): 'unset' | 'true' | 'false' {
+  if (v === 'unset') return 'true'
+  if (v === 'true') return 'false'
+  return 'unset'
+}
+
 // Reload when filters change
-watch([filterArchived, filterDisabled], () => {
+watch([archivedFilter, disabledFilter], () => {
   withLoading(loadTasks)
 })
 
@@ -104,8 +122,8 @@ async function loadGroups() {
 async function loadTasks() {
   try {
     const params = new URLSearchParams()
-    if (filterArchived.value) params.set('archived', 'true')
-    if (filterDisabled.value) params.set('disabled', 'true')
+    if (archivedFilter.value !== 'unset') params.set('archived', archivedFilter.value)
+    if (disabledFilter.value !== 'unset') params.set('disabled', disabledFilter.value)
     const qs = params.toString()
     tasks.value = await api.get<Task[]>('/tasks' + (qs ? '?' + qs : ''))
   } catch { tasks.value = [] }
@@ -126,7 +144,7 @@ function openCreate(kind?: string) {
   kind = kind || 'simple'
   editingTask.value = null
   taskName.value = ''; taskSchedule.value = 'daily'; taskTime.value = '09:00'
-  taskDate.value = ''; taskDays.value = []; taskYearDay.value = 1; taskGroupID.value = ''; taskLocationID.value = ''
+  taskDate.value = ''; taskDays.value = []; taskYearDay.value = 1; taskDuration.value = ''; taskGroupID.value = ''; taskLocationID.value = ''
   taskKind.value = kind
   checkItems.value = getDefaultCheckItems(kind) ? [...getDefaultCheckItems(kind)!] : []
   showTaskForm.value = true
@@ -139,6 +157,7 @@ function applyTemplate(tmpl: TaskTemplate, taskDefaults: any, extraSchema: any) 
   editingTask.value = null
   taskName.value = taskDefaults?.name || ''
   taskSchedule.value = taskDefaults?.schedule_type || 'daily'
+  taskDuration.value = taskDefaults?.duration || ''
   taskGroupID.value = taskDefaults?.group_id || ''
   taskLocationID.value = taskDefaults?.location_id || ''
   taskKind.value = tmpl.kind
@@ -189,6 +208,7 @@ async function openEdit(task: Task) {
   taskDate.value = data.date || ''
   taskDays.value = data.days || []
   taskYearDay.value = data.day || 1
+  taskDuration.value = task.duration || ''
 }
 
 async function saveTask() {
@@ -199,6 +219,7 @@ async function saveTask() {
     name: taskName.value,
     schedule_type: taskSchedule.value,
     schedule_data: data,
+    duration: taskDuration.value || undefined,
     kind: taskKind.value,
     enabled: editingTask.value?.enabled ?? true,
   }
@@ -333,14 +354,24 @@ function scheduleSummary(task: Task): string {
         <span class="flex-1" />
         <button
           class="text-xs px-2 py-1 rounded border transition-colors"
-          :class="filterArchived ? 'bg-primary/10 border-primary text-primary' : 'border-gray-200 dark:border-gray-600 text-gray-400'"
-          @click="filterArchived = !filterArchived"
-        >📦 {{ t('taskCard.showArchived') }}</button>
+          :class="{
+            'border-gray-200 dark:border-gray-600 text-gray-400': archivedFilter === 'unset',
+            'bg-primary/10 border-primary text-primary': archivedFilter === 'true',
+            'bg-danger/10 border-danger text-danger': archivedFilter === 'false',
+          }"
+          @click="archivedFilter = cycleFilter(archivedFilter)"
+          :title="archivedFilter === 'unset' ? t('taskCard.filterArchivedUnset') : archivedFilter === 'true' ? t('taskCard.filterArchivedOnly') : t('taskCard.filterArchivedHide')"
+        >📦 {{ archivedFilter === 'unset' ? t('taskCard.showArchived') : archivedFilter === 'true' ? (t('taskCard.showArchived') + ' ✓') : (t('taskCard.showArchived') + ' ✗') }}</button>
         <button
           class="text-xs px-2 py-1 rounded border transition-colors"
-          :class="filterDisabled ? 'bg-primary/10 border-primary text-primary' : 'border-gray-200 dark:border-gray-600 text-gray-400'"
-          @click="filterDisabled = !filterDisabled"
-        >🚫 {{ t('taskCard.showDisabled') }}</button>
+          :class="{
+            'border-gray-200 dark:border-gray-600 text-gray-400': disabledFilter === 'unset',
+            'bg-primary/10 border-primary text-primary': disabledFilter === 'true',
+            'bg-danger/10 border-danger text-danger': disabledFilter === 'false',
+          }"
+          @click="disabledFilter = cycleFilter(disabledFilter)"
+          :title="disabledFilter === 'unset' ? t('taskCard.filterDisabledUnset') : disabledFilter === 'true' ? t('taskCard.filterDisabledOnly') : t('taskCard.filterDisabledHide')"
+        >🚫 {{ disabledFilter === 'unset' ? t('taskCard.showDisabled') : disabledFilter === 'true' ? (t('taskCard.showDisabled') + ' ✓') : (t('taskCard.showDisabled') + ' ✗') }}</button>
       </div>
 
       <div v-if="filteredTasks.length === 0" class="text-center text-gray-400 py-8">{{ t('taskCard.noTasks') }}</div>
@@ -492,6 +523,25 @@ function scheduleSummary(task: Task): string {
                   <input type="number" v-model.number="taskDays[0]" class="input w-20" placeholder="天数" min="1" />
                 </template>
               </div>
+            </div>
+            <!-- Duration -->
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">{{ t('taskForm.duration') }}（可选）</label>
+              <div class="flex flex-wrap gap-1.5 mb-1.5">
+                <button v-for="opt in DURATION_OPTIONS" :key="opt.value"
+                  type="button"
+                  data-testid="task-duration-preset"
+                  class="text-xs px-2.5 py-1 rounded border transition-colors"
+                  :class="taskDuration === opt.value ? 'bg-primary text-white border-primary' : 'border-gray-200 dark:border-gray-600 dark:text-gray-400 hover:border-primary'"
+                  @click="taskDuration = taskDuration === opt.value ? '' : opt.value">
+                  {{ opt.label }}
+                </button>
+              </div>
+              <div class="flex gap-1.5">
+                <input v-model="taskDuration" data-testid="task-duration" :placeholder="t('taskForm.durationPlaceholder')" class="input flex-1" />
+                <button v-if="taskDuration" type="button" class="text-xs text-gray-400 hover:text-danger flex-shrink-0" @click="taskDuration = ''">{{ t('taskForm.durationClear') }}</button>
+              </div>
+              <p class="text-xs text-gray-400 mt-1">{{ t('taskForm.durationHint') }}</p>
             </div>
             <div>
               <label class="text-xs text-gray-400 block mb-1">关联地点（可选）</label>

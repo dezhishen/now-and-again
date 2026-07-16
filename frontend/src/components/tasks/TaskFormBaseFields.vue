@@ -17,6 +17,7 @@ export interface TaskBaseFields {
     date?: string
     days?: number[]
   }
+  duration?: string
   group_id?: string
   location_id?: string
   enabled: boolean
@@ -25,6 +26,16 @@ export interface TaskBaseFields {
 const { t } = useI18n()
 
 const model = defineModel<TaskBaseFields>({ required: true })
+
+const DURATION_OPTIONS = [
+  { value: '15m', label: '15分钟' },
+  { value: '30m', label: '30分钟' },
+  { value: '1h', label: '1小时' },
+  { value: '2h', label: '2小时' },
+  { value: '4h', label: '4小时' },
+  { value: '8h', label: '8小时' },
+  { value: '1d', label: '1天' },
+]
 
 defineProps<{
   groups: FamilyGroup[]
@@ -112,6 +123,26 @@ function toggleDay(task: TaskBaseFields, d: number) {
             class="input w-20" placeholder="天数" min="1" />
         </template>
       </div>
+    </div>
+
+    <!-- Duration -->
+    <div>
+      <label class="text-xs text-gray-400 block mb-1">{{ t('taskForm.duration') }}（可选）</label>
+      <div class="flex flex-wrap gap-1.5 mb-1.5">
+        <button v-for="opt in DURATION_OPTIONS" :key="opt.value"
+          type="button"
+          data-testid="task-duration-preset"
+          class="text-xs px-2.5 py-1 rounded border transition-colors"
+          :class="model.duration === opt.value ? 'bg-primary text-white border-primary' : 'border-gray-200 dark:border-gray-600 dark:text-gray-400 hover:border-primary'"
+          @click="model.duration = model.duration === opt.value ? '' : opt.value">
+          {{ opt.label }}
+        </button>
+      </div>
+      <div class="flex gap-1.5">
+        <input v-model="model.duration" data-testid="task-duration" :placeholder="t('taskForm.durationPlaceholder')" class="input flex-1" />
+        <button v-if="model.duration" type="button" class="text-xs text-gray-400 hover:text-danger flex-shrink-0" @click="model.duration = ''">{{ t('taskForm.durationClear') }}</button>
+      </div>
+      <p class="text-xs text-gray-400 mt-1">{{ t('taskForm.durationHint') }}</p>
     </div>
 
     <!-- Location -->

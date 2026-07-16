@@ -37,14 +37,15 @@ func (c *TaskClient) List(familyID string) ([]types.Task, error) {
 }
 
 // ListFiltered returns tasks with optional archived/disabled/name filters via query params.
-func (c *TaskClient) ListFiltered(familyID string, includeArchived, includeDisabled bool, name string) ([]types.Task, error) {
+// archivedFilter/disabledFilter: Unset = no filter, True = only true, False = only false.
+func (c *TaskClient) ListFiltered(familyID string, archivedFilter, disabledFilter types.TriState, name string) ([]types.Task, error) {
 	path := "/api/tasks"
 	parts := make([]string, 0, 3)
-	if includeArchived {
-		parts = append(parts, "archived=true")
+	if archivedFilter != types.TriStateUnset {
+		parts = append(parts, "archived="+string(archivedFilter))
 	}
-	if includeDisabled {
-		parts = append(parts, "disabled=true")
+	if disabledFilter != types.TriStateUnset {
+		parts = append(parts, "disabled="+string(disabledFilter))
 	}
 	if name != "" {
 		parts = append(parts, "name="+url.QueryEscape(name))
@@ -145,8 +146,8 @@ func (c *TaskClient) DeleteTask(_ context.Context, taskID uuid.UUID) error {
 func (c *TaskClient) ListTasks(_ context.Context, familyID uuid.UUID) ([]types.Task, error) {
 	return c.List(familyID.String())
 }
-func (c *TaskClient) ListTasksFiltered(_ context.Context, familyID uuid.UUID, includeArchived, includeDisabled bool, name string) ([]types.Task, error) {
-	return c.ListFiltered(familyID.String(), includeArchived, includeDisabled, name)
+func (c *TaskClient) ListTasksFiltered(_ context.Context, familyID uuid.UUID, archivedFilter, disabledFilter types.TriState, name string) ([]types.Task, error) {
+	return c.ListFiltered(familyID.String(), archivedFilter, disabledFilter, name)
 }
 func (c *TaskClient) SetTaskEnabled(_ context.Context, taskID uuid.UUID, enabled bool) (*types.Task, error) {
 	return c.SetEnabled(taskID.String(), enabled)

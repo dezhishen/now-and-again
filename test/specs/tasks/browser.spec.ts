@@ -31,12 +31,29 @@ test.describe('任务创建', () => {
     expect(t.kind).toBe('simple');
   });
 
+  test('simple: 创建时指定 duration → DB 验证', async ({ page }) => {
+    const name = uname('E2E-Duration');
+    await page.locator('[data-testid="family-nav-tasks"]').click();
+    await page.locator('[data-testid="task-create-btn"]').click();
+    await page.locator('[data-testid="task-name"]').fill(name);
+    // 点击 "2小时" 快捷按钮
+    await page.locator('[data-testid="task-duration-preset"]').filter({ hasText: '2小时' }).click();
+    await page.locator('[data-testid="task-submit"]').click();
+    await expect(page.locator(`[data-testid="task-card"][data-task-name="${name}"]`)).toBeVisible({ timeout: 10000 });
+    const t = db.findTask(name);
+    expect(t).toBeTruthy();
+    expect(t.duration).toBe('2h');
+  });
+
   test('inspection: 创建→DB 验证', async ({ page }) => {
     const name = uname('E2E-Inspect');
     await page.locator('[data-testid="family-nav-tasks"]').click();
     await page.locator('[data-testid="task-create-btn"]').click();
     await page.locator('[data-testid="task-kind"]').selectOption('inspection');
     await page.locator('[data-testid="task-name"]').fill(name);
+    // Add a check item so the task passes validation
+    await page.locator('[data-testid="check-item-add"]').click();
+    await page.locator('[data-testid="check-item-name-input"]').fill('区域A');
     await page.locator('[data-testid="task-submit"]').click();
     const t = db.findTask(name);
     expect(t?.kind).toBe('inspection');

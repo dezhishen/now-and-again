@@ -64,6 +64,7 @@ export async function createTask(familyId: string, task: {
   kind?: string;
   scheduleType?: string;
   scheduleData?: any;
+  duration?: string;
   groupId?: string;
   locationId?: string;
   displaySummary?: string;
@@ -76,6 +77,7 @@ export async function createTask(familyId: string, task: {
       kind: task.kind || 'simple',
       schedule_type: task.scheduleType || 'daily',
       schedule_data: task.scheduleData || { time: '09:00' },
+      duration: task.duration || '',
       group_id: task.groupId || '',
       location_id: task.locationId || '',
       display_summary: task.displaySummary || '',
