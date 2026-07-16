@@ -10,12 +10,12 @@ import (
 
 type noopTaskStorage struct{}
 
-func (noopTaskStorage) FindTaskByID(taskID string) (*model.TaskModel, error)          { return nil, nil }
-func (noopTaskStorage) FindTaskByParentId(parentID string) (*model.TaskModel, error)  { return nil, nil }
-func (noopTaskStorage) CreateNoRootTask(task *model.TaskModel, extra any) error        { return nil }
-func (noopTaskStorage) UpdateNoRootTask(task *model.TaskModel, extra any) error        { return nil }
-func (noopTaskStorage) UpdateTaskFields(task *model.TaskModel) error                   { return nil }
-func (noopTaskStorage) DeleteNonRootTask(taskID string) error                          { return nil }
+func (noopTaskStorage) FindTaskByID(taskID string) (*model.TaskModel, error)         { return nil, nil }
+func (noopTaskStorage) FindTaskByParentId(parentID string) (*model.TaskModel, error) { return nil, nil }
+func (noopTaskStorage) CreateNoRootTask(task *model.TaskModel, extra any) error      { return nil }
+func (noopTaskStorage) UpdateNoRootTask(task *model.TaskModel, extra any) error      { return nil }
+func (noopTaskStorage) UpdateTaskFields(task *model.TaskModel) error                 { return nil }
+func (noopTaskStorage) DeleteNonRootTask(taskID string) error                        { return nil }
 func (noopTaskStorage) CreateTodo(taskID string, displaySummary string) (*model.TodoModel, error) {
 	return nil, nil
 }
