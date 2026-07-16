@@ -51,6 +51,9 @@ test.describe('任务创建', () => {
     await page.locator('[data-testid="task-create-btn"]').click();
     await page.locator('[data-testid="task-kind"]').selectOption('inspection');
     await page.locator('[data-testid="task-name"]').fill(name);
+    // Add a check item so the task passes validation
+    await page.locator('[data-testid="check-item-add"]').click();
+    await page.locator('[data-testid="check-item-name-input"]').fill('区域A');
     await page.locator('[data-testid="task-submit"]').click();
     const t = db.findTask(name);
     expect(t?.kind).toBe('inspection');
