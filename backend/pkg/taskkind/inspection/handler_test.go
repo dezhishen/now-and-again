@@ -5,6 +5,7 @@ import (
 
 	"github.com/dezhishen/now-and-again/backend/pkg/model"
 	"github.com/dezhishen/now-and-again/backend/pkg/taskkind"
+	"github.com/dezhishen/now-and-again/backend/pkg/types"
 	"gorm.io/gorm"
 )
 
@@ -36,6 +37,82 @@ func TestSaveExtra_EmptyCheckItems(t *testing.T) {
 	err = h.SaveExtra(noopTaskStorage{}, task, map[string]any{"check_items": []any{}})
 	if err == nil {
 		t.Error("SaveExtra with empty check_items: expected error, got nil")
+	}
+}
+
+func TestSaveExtra_NoAnomalyBranch(t *testing.T) {
+	h := &handler{}
+	task := &model.TaskModel{BaseModel: model.BaseModel{ID: "test-id"}, Name: "巡检测试"}
+
+	// items without any anomaly branch (all create_todo = false) should fail
+	err := h.SaveExtra(noopTaskStorage{}, task, map[string]any{
+		"check_items": []any{
+			map[string]any{
+				"name": "区域A",
+				"branches": []any{
+					map[string]any{"name": "正常", "create_todo": false},
+				},
+			},
+		},
+	})
+	if err == nil {
+		t.Error("SaveExtra without anomaly branch: expected error, got nil")
+	}
+}
+
+func TestHasAnomalyBranch(t *testing.T) {
+	tests := []struct {
+		name     string
+		items    []types.CheckItemDTO
+		expected bool
+	}{
+		{
+			name:     "empty items",
+			items:    []types.CheckItemDTO{},
+			expected: false,
+		},
+		{
+			name: "no anomaly branch",
+			items: []types.CheckItemDTO{
+				{
+					Name: "a",
+					Branches: []types.CheckItemBranchDTO{
+						{Name: "正常", CreateTodo: false},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "has anomaly branch",
+			items: []types.CheckItemDTO{
+				{
+					Name: "a",
+					Branches: []types.CheckItemBranchDTO{
+						{Name: "正常", CreateTodo: false},
+						{Name: "异常", CreateTodo: true},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "multiple items, second has anomaly",
+			items: []types.CheckItemDTO{
+				{Name: "a", Branches: []types.CheckItemBranchDTO{{Name: "正常", CreateTodo: false}}},
+				{Name: "b", Branches: []types.CheckItemBranchDTO{{Name: "异常", CreateTodo: true}}},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasAnomalyBranch(tt.items)
+			if got != tt.expected {
+				t.Errorf("hasAnomalyBranch() = %v, want %v", got, tt.expected)
+			}
+		})
 	}
 }
 

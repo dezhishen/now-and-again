@@ -49,7 +49,7 @@ test.describe('任务 API', () => {
     const name = 'API-Inspect-' + Date.now();
     const c = await api.createTask(familyId, {
       name, kind: 'inspection',
-      extra: { check_items: [{ name: '区域A', branches: [{ name: '合格', create_todo: false }] }] },
+      extra: { check_items: [{ name: '区域A', branches: [{ name: '合格', create_todo: false }, { name: '异常', create_todo: true }] }] },
     });
     const taskId = (c.data as any)?.data?.id || (c.data as any)?.id;
     expect(taskId).toBeTruthy();

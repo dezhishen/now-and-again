@@ -36,6 +36,9 @@ func (h *handler) SaveExtra(taskStorage taskkind.TaskStorage, task *model.TaskMo
 	if len(items) == 0 {
 		return fmt.Errorf("巡检任务「%s」必须至少包含一个检查项", task.Name)
 	}
+	if !hasAnomalyBranch(items) {
+		return fmt.Errorf("巡检任务「%s」必须至少有一个异常分支（需处理的项目）", task.Name)
+	}
 	return h.saveCheckItems(taskStorage, task, items)
 }
 
@@ -46,6 +49,9 @@ func (h *handler) UpdateExtra(taskStorage taskkind.TaskStorage, task *model.Task
 	items, err := parseCheckItems(extra)
 	if err != nil {
 		return fmt.Errorf("parse check items: %w", err)
+	}
+	if !hasAnomalyBranch(items) {
+		return fmt.Errorf("巡检任务「%s」必须至少有一个异常分支（需处理的项目）", task.Name)
 	}
 
 	db := taskStorage.DB()
@@ -452,6 +458,19 @@ func parseCheckItems(extra any) ([]types.CheckItemDTO, error) {
 		return nil, err
 	}
 	return wrapper.CheckItems, nil
+}
+
+// hasAnomalyBranch reports whether at least one branch across all check items
+// has create_todo = true (i.e. an anomaly that needs follow-up).
+func hasAnomalyBranch(items []types.CheckItemDTO) bool {
+	for _, item := range items {
+		for _, b := range item.Branches {
+			if b.CreateTodo {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (h *handler) saveCheckItems(taskStorage taskkind.TaskStorage, task *model.TaskModel, items []types.CheckItemDTO) error {
