@@ -56,7 +56,7 @@ func (h *handler) SaveExtra(storage taskkind.TaskStorage, root *model.TaskModel,
 		return fmt.Errorf("chain: parse extra: %w", err)
 	}
 	if len(steps) == 0 {
-		return nil
+		return fmt.Errorf("任务链必须至少包含一个步骤")
 	}
 
 	db := storage.DB()
