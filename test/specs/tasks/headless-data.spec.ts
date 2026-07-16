@@ -3,6 +3,7 @@
  */
 import { test, expect } from '@playwright/test';
 import * as api from '../../utils/api';
+import { db } from '../../utils/db';
 
 let familyId = '';
 
