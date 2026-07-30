@@ -112,16 +112,16 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('test/package.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/e2e/package.json') }}
           restore-keys: playwright-${{ runner.os }}-
 
       - name: E2E setup
         run: |
-          cd test && npm install
+          cd frontend/e2e && npm install
           npx playwright install chromium
 
       - name: Run E2E tests
-        run: cd test && npx playwright test --project=chromium
+        run: cd frontend/e2e && npx playwright test --project=chromium
         env:
           CI: true
 
@@ -129,5 +129,5 @@ jobs:
         if: failure()
         with:
           name: playwright-report
-          path: test/playwright-report/
+          path: frontend/e2e/playwright-report/
           retention-days: 7
