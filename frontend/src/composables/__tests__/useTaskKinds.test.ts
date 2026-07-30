@@ -24,9 +24,9 @@ beforeEach(() => {
   registerTaskKind('test-kind', {
     card: DummyComponent,
     todoActions: DummyComponent,
-    labelKey: 'test.label',
-    createLabelKey: 'test.create',
-    todoBadgeKey: 'test.badge',
+    labelKey: 'test.label' as any,
+    createLabelKey: 'test.create' as any,
+    todoBadgeKey: 'test.badge' as any,
     formComponent: DummyComponent,
     inspectComponent: DummyComponent,
     todoInfo: DummyComponent,
@@ -80,7 +80,8 @@ describe('getTodoInfo', () => {
     registerTaskKind('no-info-kind', {
       card: DummyComponent,
       todoActions: DummyComponent,
-      labelKey: 'no.info',
+      labelKey: 'no.info' as any,
+      createLabelKey: '' as any,
     })
     expect(getTodoInfo('no-info-kind')).toBeNull()
   })
@@ -95,7 +96,8 @@ describe('getTodoBadgeKey', () => {
     registerTaskKind('no-badge-kind', {
       card: DummyComponent,
       todoActions: DummyComponent,
-      labelKey: 'no.badge',
+      labelKey: 'no.badge' as any,
+      createLabelKey: '' as any,
     })
     expect(getTodoBadgeKey('no-badge-kind')).toBe('')
   })
@@ -126,7 +128,8 @@ describe('getCreateLabelKey', () => {
     registerTaskKind('no-create-kind', {
       card: DummyComponent,
       todoActions: DummyComponent,
-      labelKey: 'no.create',
+      labelKey: 'no.create' as any,
+      createLabelKey: '' as any,
     })
     expect(getCreateLabelKey('no-create-kind')).toBe('taskKind.create')
   })
@@ -173,7 +176,8 @@ describe('parseExtra', () => {
     registerTaskKind('parse-kind', {
       card: DummyComponent,
       todoActions: DummyComponent,
-      labelKey: 'parse',
+      labelKey: 'parse' as any,
+      createLabelKey: '' as any,
       parseExtra: (extra: any) => (extra ? [extra] : []),
     })
     const result = parseExtra('parse-kind', { item: 1 })
