@@ -224,7 +224,8 @@ type TaskModel struct {
 	DisplaySummary sql.NullString   `gorm:"size:256"`                        // plugin-populated display text for list view
 	Archived       bool             `gorm:"not null;default:false;index:idx_enabled_archived,priority:2"`
 	LastTodoAt     *time.Time
-	CreatedBy      string `gorm:"type:char(36);not null"`
+	ActiveTodoID   *string `gorm:"type:char(36)"` // current active (pending) todo ID, nil means none
+	CreatedBy      string  `gorm:"type:char(36);not null"`
 }
 
 func (TaskModel) TableName() string { return "tasks" }
@@ -233,7 +234,8 @@ type TodoModel struct {
 	BaseModel
 	TaskID         string         `gorm:"index;type:char(36);not null"`
 	FamilyID       string         `gorm:"index;type:char(36);not null"`
-	GroupID        sql.NullString `gorm:"index;type:char(36)"` // redundant copy from Task
+	RootID         string         `gorm:"index;type:char(36);not null;default:''"` // root task ID for cross-tree dedup
+	GroupID        sql.NullString `gorm:"index;type:char(36)"`                     // redundant copy from Task
 	LocationID     sql.NullString `gorm:"index;type:char(36)"`
 	AssignedTo     sql.NullString `gorm:"index;type:char(36)"`
 	Status         string         `gorm:"index;size:16;not null;default:pending"` // pending/done/skipped/interrupted

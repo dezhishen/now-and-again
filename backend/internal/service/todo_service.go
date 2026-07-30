@@ -87,7 +87,22 @@ func (s *TodoService) CompleteTodo(ctx context.Context, todoID uuid.UUID, req *t
 	todoFields := req.Todo
 	status := todoFields.Status
 
-	updated, err := s.repo.CompleteTodo(todoID.String(), userID, status, todoFields.Remark)
+	// Wrap status update + active_todo_id cleanup in a transaction
+	var updated bool
+	err = s.repo.Tx(func(tx *repository.TaskRepo) error {
+		u, err := tx.CompleteTodo(todoID.String(), userID, status, todoFields.Remark)
+		if err != nil {
+			return err
+		}
+		updated = u
+		if updated {
+			// Clear active_todo_id on the task (atomic with status update)
+			if _, err := tx.ClearActiveTodoID(todo.TaskID, todoID.String()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}

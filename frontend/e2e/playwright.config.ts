@@ -46,13 +46,13 @@ export default defineConfig({
     ? undefined
     : [
         {
-          command: 'cd .. && make dev-backend',
+          command: 'cd ../.. && make dev-backend',
           port: 8080,
           timeout: 15_000,
           reuseExistingServer: true,
         },
         {
-          command: 'cd ../frontend && pnpm run dev',
+          command: 'cd .. && pnpm run dev',
           port: 5173,
           timeout: 15_000,
           reuseExistingServer: true,

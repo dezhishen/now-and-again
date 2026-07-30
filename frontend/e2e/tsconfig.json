@@ -7,13 +7,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "./dist",
-    "rootDir": ".",
-    "baseUrl": ".",
-    "paths": {
-      "@pages/*": ["./pages/*"],
-      "@fixtures/*": ["./fixtures/*"],
-      "@utils/*": ["./utils/*"]
-    }
+    "rootDir": "."
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "dist"]

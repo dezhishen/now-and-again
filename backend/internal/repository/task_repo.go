@@ -207,6 +207,33 @@ func (r *TaskRepo) HasPendingTodoForTaskToday(taskID string, today time.Time) (b
 	return count > 0, err
 }
 
+// HasPendingTodoByRootID returns true if any pending todo exists under the given root task.
+func (r *TaskRepo) HasPendingTodoByRootID(rootID string) (bool, error) {
+	var count int64
+	err := r.db.Model(&TodoModel{}).
+		Where("root_id = ? AND status = ?", rootID, string(types.TodoStatusPending)).
+		Count(&count).Error
+	return count > 0, err
+}
+
+// SetActiveTodoID atomically claims the active_todo_id slot on a task.
+// Only succeeds when active_todo_id IS NULL. Returns true if the slot was claimed.
+func (r *TaskRepo) SetActiveTodoID(taskID, todoID string) (bool, error) {
+	result := r.db.Model(&TaskModel{}).
+		Where("id = ? AND active_todo_id IS NULL", taskID).
+		Update("active_todo_id", todoID)
+	return result.RowsAffected > 0, result.Error
+}
+
+// ClearActiveTodoID releases the active_todo_id slot.
+// Only succeeds when active_todo_id matches the given todoID.
+func (r *TaskRepo) ClearActiveTodoID(taskID, todoID string) (bool, error) {
+	result := r.db.Model(&TaskModel{}).
+		Where("id = ? AND active_todo_id = ?", taskID, todoID).
+		Update("active_todo_id", nil)
+	return result.RowsAffected > 0, result.Error
+}
+
 // ─── Task Log ────────────────────────────────────────────────────
 
 func (r *TaskRepo) CreateLog(taskID, status, message string) error {
