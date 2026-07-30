@@ -120,7 +120,7 @@ func ResolveAmbiguousGroup(actionID string, cmd string, args map[string]string, 
 	for i, c := range candidates {
 		sb.WriteString(fmt.Sprintf("  %d. %s  (%s)\n", i+1, c.Name, c.ID[:8]))
 	}
-	sb.WriteString(fmt.Sprintf("\n→ 请使用精确名称或 --group-id 重试，如:\n"))
+	sb.WriteString("\n→ 请使用精确名称或 --group-id 重试，如:\n")
 	if len(candidates) > 0 {
 		sb.WriteString(fmt.Sprintf("  na --action-id %s %s --group \"%s\" ...\n", actionID, cmd, candidates[0].Name))
 		sb.WriteString(fmt.Sprintf("  na --action-id %s %s --group-id %s ...\n", actionID, cmd, candidates[0].ID))
@@ -148,7 +148,7 @@ func ResolveAmbiguousLocation(actionID string, cmd string, args map[string]strin
 	for i, c := range candidates {
 		sb.WriteString(fmt.Sprintf("  %d. %s  (%s)\n", i+1, c.Name, c.ID[:8]))
 	}
-	sb.WriteString(fmt.Sprintf("\n→ 请使用精确名称或 --location-id 重试，如:\n"))
+	sb.WriteString("\n→ 请使用精确名称或 --location-id 重试，如:\n")
 	if len(candidates) > 0 {
 		sb.WriteString(fmt.Sprintf("  na --action-id %s %s --location \"%s\" ...\n", actionID, cmd, candidates[0].Name))
 		sb.WriteString(fmt.Sprintf("  na --action-id %s %s --location-id %s ...\n", actionID, cmd, candidates[0].ID))
@@ -176,7 +176,7 @@ func ResolveAmbiguousTemplate(actionID string, cmd string, args map[string]strin
 	for i, c := range candidates {
 		sb.WriteString(fmt.Sprintf("  %d. %s  (code: %s)\n", i+1, c.Name, c.ID))
 	}
-	sb.WriteString(fmt.Sprintf("\n→ 请使用精确名称或 --code 重试，如:\n"))
+	sb.WriteString("\n→ 请使用精确名称或 --code 重试，如:\n")
 	if len(candidates) > 0 {
 		sb.WriteString(fmt.Sprintf("  na --action-id %s %s --name \"%s\" ...\n", actionID, cmd, candidates[0].Name))
 		sb.WriteString(fmt.Sprintf("  na --action-id %s %s --code %s ...\n", actionID, cmd, candidates[0].ID))

@@ -118,22 +118,22 @@ test-cli-integration: ## 运行 CLI 集成测试（需先启动后端）
 
 test-e2e: ## 运行 E2E 浏览器自动化测试（需先 make dev 或单独启动服务）
 	@echo "→ Installing E2E dependencies..."
-	@cd test && npm install --silent 2>/dev/null || true
+	@cd frontend/e2e && npm install --silent 2>/dev/null || true
 	@echo "→ Running Playwright tests (chromium)..."
-	@cd test && npx playwright test --project=chromium
+	@cd frontend/e2e && npx playwright test --project=chromium
 
 test-e2e-headed: ## 运行 E2E 测试（有头浏览器，便于调试）
-	@cd test && npm install --silent 2>/dev/null || true
-	@cd test && npx playwright test --headed --project=chromium
+	@cd frontend/e2e && npm install --silent 2>/dev/null || true
+	@cd frontend/e2e && npx playwright test --headed --project=chromium
 
 test-e2e-install: ## 安装 Playwright 浏览器
-	@cd test && npm install
-	@cd test && npx playwright install chromium
+	@cd frontend/e2e && npm install
+	@cd frontend/e2e && npx playwright install chromium
 
 screenshots: ## 生成教程截图（需先 make dev）
 	@echo "→ 生成教程截图..."
-	@cd test && npm install --silent 2>/dev/null || true
-	@cd test && npm run screenshots
+	@cd frontend/e2e && npm install --silent 2>/dev/null || true
+	@cd frontend/e2e && npm run screenshots
 	@echo "→ 截图已输出到 doc/tutorial/images/"
 
 docker-e2e-image: ## 构建通用 E2E 工具镜像（无项目代码）
@@ -193,12 +193,12 @@ if ! curl -fsS http://127.0.0.1:8080/api/system/status >/dev/null 2>&1; then \
 	exit 1; \
 fi; \
 echo "━━━ 5/5 运行 E2E 测试 ━━━"; \
-cd $(E2E_WORKSPACE)/test && npm install && e2e-display npx playwright test --project=chromium --headed --reporter=list; \
+cd $(E2E_WORKSPACE)/frontend/e2e && npm install && e2e-display npx playwright test --project=chromium --headed --reporter=list; \
 echo ""; \
 echo "━━━ 测试完成 ━━━"; \
-echo "  结果目录:  test/test-results/"; \
-echo "  报告目录:  test/playwright-report/"; \
-ls test/test-results/ 2>/dev/null | head -5 | awk '{print "    " $$0}' || echo "    (无结果文件)"
+echo "  结果目录:  frontend/e2e/test-results/"; \
+echo "  报告目录:  frontend/e2e/playwright-report/"; \
+ls frontend/e2e/test-results/ 2>/dev/null | head -5 | awk '{print "    " $$0}' || echo "    (无结果文件)"
 endef
 
 docker-e2e-headed: docker-e2e-image ## 在容器内运行 headed E2E（自动检测 GPU/X11，降级 xvfb）

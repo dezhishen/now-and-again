@@ -111,29 +111,49 @@ func (s *_taskStorage) DeleteNonRootTask(taskID string) error {
 }
 
 func (s *_taskStorage) CreateTodo(taskID string, displaySummary string) (*repository.TodoModel, error) {
-	task, err := s.repo.FindTaskByID(taskID)
-	if err != nil {
-		return nil, err
-	}
-	now := timeutil.Now()
-	todo := &repository.TodoModel{
-		TaskID:         taskID,
-		FamilyID:       task.FamilyID,
-		GroupID:        task.GroupID,
-		LocationID:     task.LocationID,
-		AssignedTo:     sql.NullString{String: task.CreatedBy, Valid: task.CreatedBy != ""},
-		Status:         string(types.TodoStatusPending),
-		DueStart:       now,
-		DueDate:        now.Add(24 * time.Hour),
-		DisplaySummary: sql.NullString{String: displaySummary, Valid: displaySummary != ""},
-		TaskName:       task.Name,
-		TaskKind:       task.Kind,
-	}
-	if err := s.repo.CreateTodo(todo); err != nil {
-		return nil, err
-	}
+	var todo *repository.TodoModel
+	err := s.repo.Tx(func(tx *repository.TaskRepo) error {
+		task, err := tx.FindTaskByID(taskID)
+		if err != nil {
+			return err
+		}
 
-	return todo, nil
+		// 原子占用 active_todo_id（检查 + 锁定一步完成）
+		newID := uuid.New().String()
+		ok, err := tx.SetActiveTodoID(taskID, newID)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			todo = nil // 已有活跃待办，静默跳过
+			return nil
+		}
+
+		// 计算 root_id
+		rootID := task.ID
+		if task.RootTaskID != "" {
+			rootID = task.RootTaskID
+		}
+
+		now := timeutil.Now()
+		todo = &repository.TodoModel{
+			BaseModel:      repository.BaseModel{ID: newID},
+			TaskID:         taskID,
+			FamilyID:       task.FamilyID,
+			GroupID:        task.GroupID,
+			LocationID:     task.LocationID,
+			RootID:         rootID,
+			AssignedTo:     sql.NullString{String: task.CreatedBy, Valid: task.CreatedBy != ""},
+			Status:         string(types.TodoStatusPending),
+			DueStart:       now,
+			DueDate:        now.Add(24 * time.Hour),
+			DisplaySummary: sql.NullString{String: displaySummary, Valid: displaySummary != ""},
+			TaskName:       task.Name,
+			TaskKind:       task.Kind,
+		}
+		return tx.CreateTodo(todo)
+	})
+	return todo, err
 }
 
 func (s *_taskStorage) LookupHandler(kind string) taskkind.Handler {
@@ -258,9 +278,21 @@ func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID
 		return err
 	}
 
+	// Pre-generate ID so it can be used for active_todo_id atomic claim
+	newID := uuid.New().String()
+
 	if !force {
-		has, _ := tx.HasPendingTodoForTaskToday(taskID, now)
-		if has {
+		// First防线（仅根任务）：整棵树还有 pending 就不开新轮次
+		if task.IsRoot {
+			has, _ := tx.HasPendingTodoByRootID(task.ID)
+			if has {
+				return nil
+			}
+		}
+
+		// Second防线（所有任务）：原子占用 active_todo_id
+		ok, _ := tx.SetActiveTodoID(taskID, newID)
+		if !ok {
 			return nil
 		}
 	}
@@ -270,11 +302,18 @@ func (s *TaskService) createTodoWithTx(tx *repository.TaskRepo, taskID, familyID
 	anchor := scheduleNextTime(task.ScheduleType, task.ScheduleData)
 	dueDate := calcDueDate(anchor, task.ScheduleType, task.ScheduleData, task.Duration)
 
+	rootID := task.ID
+	if task.RootTaskID != "" {
+		rootID = task.RootTaskID
+	}
+
 	todo := &repository.TodoModel{
+		BaseModel:  repository.BaseModel{ID: newID},
 		TaskID:     taskID,
 		FamilyID:   familyID,
 		GroupID:    task.GroupID,
 		LocationID: task.LocationID,
+		RootID:     rootID,
 		DueStart:   anchor,
 		DueDate:    dueDate,
 		Status:     string(types.TodoStatusPending),

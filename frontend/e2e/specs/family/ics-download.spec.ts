@@ -9,7 +9,7 @@
  * - iCalendar 格式验证
  */
 import { test, expect } from '@playwright/test';
-import * as api from '../../utils/api';
+import * as api from '../utils/api';
 
 const API_BASE = 'http://localhost:8080';
 

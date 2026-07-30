@@ -2,7 +2,7 @@
  * 任务浏览器测试：创建、嵌套链、待办流程
  */
 import { test, expect, type Page } from '@playwright/test';
-import { db } from '../../utils/db';
+import { db } from '../utils/db';
 
 function uname(p: string) { return `${p}-${Date.now()}`; }
 
