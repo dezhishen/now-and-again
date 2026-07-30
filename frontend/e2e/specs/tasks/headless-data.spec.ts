@@ -2,8 +2,8 @@
  * API 测试：任务数据、API Key、小组管理
  */
 import { test, expect } from '@playwright/test';
-import * as api from '../utils/api';
-import { db } from '../utils/db';
+import * as api from '../../utils/api';
+import { db } from '../../utils/db';
 
 let familyId = '';
 
